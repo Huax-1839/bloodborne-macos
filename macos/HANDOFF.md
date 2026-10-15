@@ -1,9 +1,8 @@
 # macOS port: state and performance work (2026-10-15)
 
-Public repository `Huax-1839/bloodborne-macos`, working copy
-`~/Projekte/bloodborne-macos`, branch `main`: one squashed commit as the public start (2026-10-16), the work since on top;
+Public repository `Huax-1839/bloodborne-macos`, branch `main`: one squashed commit as the public start (2026-10-16), the work since on top;
 the earlier history is kept privately (bundle backup), not in this repository. Never commit or push to the upstream repository (deadinside28/bloodborne_pc, a
-foreign project; its push URL is disabled here); `~/Projekte/bloodborne_pc` is the old, untouched
+foreign project; its push URL is disabled here); `../bloodborne_pc` (next to this checkout) is the old, untouched
 upstream clone. Build: `bash macos/build-deps.sh` (once), `bash macos/build.sh`;
 run: `bash macos/run.sh` (game in `~/Games/Bloodborne/CUSA03173-1.09`).
 30 FPS profile for the MacBook Air M4: `BB_PROFILE=m4air bash macos/run.sh` (960x540 + MetalFX).

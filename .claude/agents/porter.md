@@ -19,7 +19,7 @@ Rules:
   extraction instead.
 - New files start with `// SPDX-License-Identifier: GPL-2.0-or-later`.
 - Run the acceptance check from the spec (build and/or unit test). In a worktree, first run
-  `ln -s ~/Projekte/bloodborne-macos/macos/deps macos/deps && git submodule update --init --recursive`.
+  `ln -s "$(git rev-parse --path-format=absolute --git-common-dir)/../macos/deps" macos/deps && git submodule update --init --recursive`.
   Read build errors from `macos/out/gpu-build.log` with `grep`, not whole.
 - Never start the game (`macos/run.sh`, `bb-probe`), never commit, push or edit the plan.
 

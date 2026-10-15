@@ -149,10 +149,10 @@ int main(int argc, char** argv) {
     @autoreleasepool {
         std::string reference = argc > 1 ? argv[1] : "";
         if (reference.empty()) {
-            if (const char* home = std::getenv("HOME")) {
-                reference = std::string{home} +
-                            "/Projekte/bloodborne-macos/macos/user/cache/CUSA03173/profile.bin";
-            }
+            // The checkout this test was built from (__FILE__ is its absolute path).
+            const std::string source = __FILE__;
+            reference = source.substr(0, source.rfind("/tests/")) +
+                        "/macos/user/cache/CUSA03173/profile.bin";
         }
         Metal::Device device;
         TestProfile(device, reference.c_str());

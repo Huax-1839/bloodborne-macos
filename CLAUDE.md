@@ -12,7 +12,7 @@ stands and what is open).
   as `Huax-1839` (the git identity): never put real names, `/Users/...` paths or host names into
   commits or tracked files. **Never push to, open issues
   or comment on the upstream project** (`deadinside28/bloodborne_pc`, remote `upstream`, push
-  disabled) or `~/Projekte/bloodborne_pc` (untouched reference clone).
+  disabled) or `../bloodborne_pc` (untouched reference clone next to this checkout).
 - Commit to `main` after each verified step (message style: imperative subject, body says why);
   push to `origin` at the end of each plan phase. Run `git status` before every commit.
 - Never commit game data or user data: `macos/deps/`, `macos/out/`, `macos/user/`, eboot/game
@@ -76,7 +76,7 @@ Rules for spawning:
 - Run independent subagents in parallel (several Agent calls in one message). Parallel porters
   must have **disjoint file sets**; when two of them build at the same time, give each
   `isolation: "worktree"` and tell it to prepare the worktree first:
-  `ln -s ~/Projekte/bloodborne-macos/macos/deps macos/deps && git submodule update --init --recursive`
+  `ln -s "$(git rev-parse --path-format=absolute --git-common-dir)/../macos/deps" macos/deps && git submodule update --init --recursive`
   (it then builds into its own `macos/out/`). The orchestrator merges the result into `main`.
 - At most three porters at once; the orchestrator reviews and integrates between waves.
 - A porter's failed or unclear result goes back to the same agent with `SendMessage` (it keeps
