@@ -434,12 +434,22 @@ GPU-bound at 720p (GPU busy 95%), so P8 now lowers GPU time:
    Done: one thread per row of 8 texels of a micro tile (the tile-level address once per row),
    group count from the mips' units (`TileManager::MakeDispatch`); `mtl-tiling-test` compares it
    bit for bit with the old kernel (`tests/tiling_reference.comp`) on 68 layouts as tiler and
-   detiler. Isolated: 32 bpp 2.0–2.4x, the 64-bpp 1280x720 tile-back 1.1–1.6x (at the time of a
+   detiler (that comparison skipped 7 tiler cases whose reference raced: see the review fix
+   below). Isolated: 32 bpp 2.0–2.4x, the 64-bpp 1280x720 tile-back 1.1–1.6x (at the time of a
    plain copy: memory-bound on a cold GPU). In the game at 540p (m4air, trace `p84-tiling-540`):
    `DispatchTiling` 0.74 → 0.53 ms a frame. Images: Metal and Vulkan clinic screenshots against
    the Vulkan reference 34.4 / 35.2 dB, the same worst tile in both (the lamp-lit wall, animated).
-   Open: the old tiler (and so the new one, same mapping) lets padded rows of depth-style layouts
-   (height 720 in 768 rows) collide with slice 1; the winner of that race is arbitrary.
+   Review fix (2026-10-16, 3dfa946): the old mapping (and so the new kernel's) took the logical
+   pitch/height as the tiled surface's layout: tile-split slices too close (floor 720/128), the
+   rows past 720 of a 720-in-768 depth buffer tiled as a phantom slice 1 over rows 704–719,
+   unaligned pitches overlapping, small mips leaving their mip; 7 of 68 tiler cases raced and
+   were skipped as "not deterministic". `TileManager::MakeTilingInfo` now passes the logical
+   size of the linear copy and the padded size of the surface; only logical texels are copied.
+   `mtl-tiling-test` checks every case against an addrlib CPU reference (unique in-bounds
+   addresses, both directions byte for byte) and fails on any race or skipped check: 74 cases,
+   0 failed, 0 skipped. 1280x768 render targets keep identical addresses; the game's 1280x720
+   depth buffer (Depth 2D thin, tile split) now lands where addrlib puts it. Images unchanged
+   (title 60 dB on both backends, clinic 35.2 / 33.6 dB against the Vulkan reference).
 
 M3 at 540p (2026-10-15, after P8.4, 7d0e468; `m1_run.sh m3-540-power metal 20 BB_PROFILE=m4air`,
 30 FPS cap, 10 min idle first; `m3stats.py`): **on power not met**: 20.6 min in game, mean 28.0,
