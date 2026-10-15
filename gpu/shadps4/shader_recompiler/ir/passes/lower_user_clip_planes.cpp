@@ -22,9 +22,13 @@ void LowerUserClipPlanes(IR::Program& program, const RuntimeInfo& runtime_info) 
         return;
     }
 
+    // Always listed, so the binding numbering does not depend on the planes, but declared in the
+    // shader only when it reads them (the backend defines a variable per used type): a declared,
+    // unread binding is numbered for the pipeline the permutation was first made for, and has no
+    // resource in the draws of another pipeline (StageSpecialization::operator==).
     const u32 binding = static_cast<u32>(info.buffers.size());
     info.buffers.push_back(BufferResource{
-        .used_types = IR::Type::F32,
+        .used_types = IR::Type{},
         .buffer_type = BufferType::ClipPlanes,
     });
 
@@ -68,6 +72,7 @@ void LowerUserClipPlanes(IR::Program& program, const RuntimeInfo& runtime_info) 
         return;
     }
 
+    info.buffers[binding].used_types = IR::Type::F32;
     IR::IREmitter ir{*target_block, target_it};
     const IR::U32 handle = ir.Imm32(binding);
     for (u32 plane = 0; plane < NumUserClipPlanes; ++plane) {

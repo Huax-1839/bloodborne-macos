@@ -15,6 +15,7 @@
 
 #include <setjmp.h>
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -25,6 +26,12 @@
 #include <vector>
 
 #include "common/serdes.h"
+#include "shader_recompiler/info.h"
+#include "shader_recompiler/ir/ir_emitter.h"
+#include "shader_recompiler/ir/passes/ir_passes.h"
+#include "shader_recompiler/ir/program.h"
+#include "shader_recompiler/recompiler.h"
+#include "shader_recompiler/specialization.h"
 #include "video_core/renderer_metal/mtl_device.h"
 #include "video_core/renderer_metal/mtl_pipeline_cache.h"
 
@@ -145,6 +152,63 @@ static void TestSerialization() {
     CHECK(compute.Deserialize(empty));
 }
 
+
+// Review finding #6: a vertex shader with no resources of its own (the RectList / full-screen
+// vertex shaders) is reused across start bindings (StageSpecialization::operator==), but the
+// ClipPlanes buffer LowerUserClipPlanes lists in every vertex shader was declared in the shader,
+// numbered for the pipeline the permutation was first made for, so the draws of another pipeline
+// had no resource at that binding (Metal: "missing binding"). It is now declared only when the
+// shader reads it, and a permutation that reads it is told apart by its start binding.
+static void TestClipPlanes() {
+    std::printf("clip planes\n");
+    std::array<u32, Shader::ShaderParams::NumShaderUserData> user_data{};
+    const Shader::ShaderParams params{user_data, {}, 0x1234};
+    Shader::Profile profile{};
+
+    // The pass: a vertex shader exporting a position, with and without enabled planes.
+    const auto run_pass = [&](u32 mask, Shader::Info& info) {
+        Shader::Pools pools;
+        Shader::IR::Program program{info};
+        Shader::IR::Block* block = pools.block_pool.Create(pools.inst_pool);
+        program.blocks.push_back(block);
+        Shader::IR::IREmitter ir{*block};
+        for (u32 comp = 0; comp < 4; ++comp) {
+            ir.SetAttribute(Shader::IR::Attribute::Position0, ir.Imm32(float(comp)), comp);
+        }
+        Shader::RuntimeInfo runtime_info{};
+        runtime_info.hw_stage = Shader::HwStage::Vertex;
+        runtime_info.hw.vs.user_clip_plane_mask = mask;
+        Shader::Optimization::LowerUserClipPlanes(program, runtime_info);
+        return block->size();
+    };
+    Shader::Info off(Shader::HwStage::Vertex, Shader::SwStage::Vertex, params);
+    const size_t off_size = run_pass(0, off);
+    CHECK(off.buffers.size() == 1 && off.buffers[0].buffer_type == Shader::BufferType::ClipPlanes);
+    CHECK(off.buffers[0].used_types == Shader::IR::Type::Void); // listed, not declared
+    CHECK(off_size == 4);
+    Shader::Info on(Shader::HwStage::Vertex, Shader::SwStage::Vertex, params);
+    const size_t on_size = run_pass(0x3, on);
+    CHECK(on.buffers.size() == 1 && on.buffers[0].used_types == Shader::IR::Type::F32);
+    CHECK(on_size > off_size);
+
+    // The permutation identity: the same shader at two start bindings.
+    const auto make = [&](const Shader::Info& info, u32 mask, u32 start) {
+        Shader::RuntimeInfo runtime_info{};
+        runtime_info.hw_stage = Shader::HwStage::Vertex;
+        runtime_info.hw.vs.user_clip_plane_mask = mask;
+        Shader::Backend::Bindings bindings{};
+        bindings.buffer = bindings.unified = start;
+        return Shader::StageSpecialization(info, runtime_info, profile, bindings);
+    };
+    const auto a = make(off, 0, 0), b = make(off, 0, 5);
+    CHECK(a.bitset.none()); // nothing but the ClipPlanes buffer: the shortcut applies
+    CHECK(a == b);          // one module serves every start (and declares no binding)
+    const auto c = make(on, 0x3, 0), d = make(on, 0x3, 5);
+    CHECK(!(c == d));       // the module reads the buffer at its own binding
+    CHECK(c == make(on, 0x3, 0));
+    CHECK(!(a == c));       // different runtime info
+}
+
 int main(int argc, char** argv) {
     @autoreleasepool {
         std::string reference = argc > 1 ? argv[1] : "";
@@ -157,6 +221,7 @@ int main(int argc, char** argv) {
         Metal::Device device;
         TestProfile(device, reference.c_str());
         TestSerialization();
+        TestClipPlanes();
     }
     std::printf(failures ? "%d check(s) FAILED\n" : "all checks passed\n", failures);
     return failures ? 1 : 0;

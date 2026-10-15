@@ -84,7 +84,8 @@ struct Rasterizer::Impl {
     /// Draws and dispatches whose pipeline could not be made (PipelineCache counters say why).
     std::atomic<u64> no_pipeline_draws{};
     std::atomic<u64> null_textures{}, null_samplers{}, missing_bindings{};
-    std::atomic<bool> null_texture_logged{}, missing_logged{}, overflow_logged{};
+    std::atomic<bool> null_texture_logged{}, overflow_logged{};
+    std::atomic<u32> missing_logs{};
     /// BbStats draw drops: the current draw's missing bindings / null textures are counted once
     /// (reset by BeginResourceBindings).
     bool draw_missing_counted{}, draw_null_texture_counted{};
@@ -416,17 +417,20 @@ void Rasterizer::Impl::BindStage(StageKind stage, const CompiledShader& shader,
             draw_missing_counted = true;
             BbStats::NoteDrop(BbStats::DropKind::MissingBinding);
         }
-        // Known case: the core reuses a vertex shader permutation whose resource bitset is empty
-        // for any start binding (specialization.h), but the RectList vertex shaders declare the
-        // ClipPlanes buffer, numbered for the pipeline they were first made for; the shader reads
-        // it only with user clip planes on. The dummy (zero) buffer is bound (Vulkan reads
-        // whatever descriptor is there).
-        if (!missing_logged.exchange(true)) {
+        // Expected never: a shader declares a binding only where the draw's pipeline numbered it
+        // (a permutation is reused across start bindings only when its resource bitset is empty
+        // and it declares nothing at a binding, see StageSpecialization::operator==; the
+        // RectList vertex shaders' ClipPlanes buffer is declared only with user clip planes on).
+        // The first few are logged with their stage; a null resource is bound.
+        if (missing_logs.fetch_add(1, std::memory_order_relaxed) < 8) {
             LOG_WARNING(Render,
-                        "Metal: the {} binding {} (msl index {}) of a shader has no resource in "
+                        "Metal: the {} binding {} (msl index {}) of a {} shader has no resource in "
                         "the draw's tables (a permutation numbered for another pipeline); a null "
                         "resource is bound",
-                        what, b.binding, b.msl_index);
+                        what, b.binding, b.msl_index,
+                        stage == StageKind::Vertex     ? "vertex"
+                        : stage == StageKind::Fragment ? "fragment"
+                                                       : "compute");
         }
     };
     for (const ShaderBinding& b : shader.bindings) {
