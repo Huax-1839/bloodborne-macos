@@ -86,8 +86,11 @@ battery. A 720p scene averages 25–29 FPS and doesn't hold 30 on the fanless Ai
 cores or active cooling have more headroom.
 
 Known limitations:
-- **Hitches.** Metal's worst frames are longer than Vulkan's. They come from the kernel's
+- **Hitches.** Metal's worst frames are longer than Vulkan's: in the 20-minute runs, 2–7% of
+  5-second windows had a frame over 50 ms (the longest 183 ms). They come from the kernel's
   command-buffer submission, which slows down when the machine is hot.
+- **Measured in one place.** All numbers come from Iosefka's clinic; busier areas such as Central
+  Yharnam haven't been benchmarked yet.
 - **No online play or PSN.** The game starts offline.
 - **No FSR 4 or DLSS.** On the Mac, MetalFX takes the place of the upscalers.
 

@@ -91,7 +91,7 @@ Rules for spawning:
   `gpu/games/` (game profile), `gpu/shim/` (bbport glue, settings, overlay, guest memory, window).
 - Vulkan backend: `gpu/shadps4/video_core/renderer_vulkan/` (`vk_rasterizer.cpp` is the heart,
   `vk_scheduler.cpp` the command/pass logic), `texture_cache/`, `buffer_cache/`.
-- Metal backend (being built): `gpu/shadps4/video_core/renderer_metal/`, Objective-C++ (`*.mm`,
+- Metal backend (the default on Apple silicon): `gpu/shadps4/video_core/renderer_metal/`, Objective-C++ (`*.mm`,
   ARC) with plain C++ headers; no Objective-C types outside this directory.
 - macOS specifics: `gpu/shim/bbport_platform.h` (force-included Linux API shims),
   `src/probe.c` (loader, TLS rewrite), `src/runtime_low_heap.c`, `macos/*.sh`.

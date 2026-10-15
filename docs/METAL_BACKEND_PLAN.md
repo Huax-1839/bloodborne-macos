@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P7 done, M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 met at 540p (m4air, 2026-10-16, after P8; target moved from 720p by the user's decision, §9). Progress is tracked in the checklist in §8;
+Status: P0–P8 done, every milestone met: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 met at 540p (m4air, 2026-10-16, after P8; target moved from 720p by the user's decision, §9). Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -524,20 +524,42 @@ m4air or 720p with a changed effect/quality) is the user's.**
 
 ## 8. Status and results
 
-**Resume here (2026-10-16, end of the seventh session): P8 done, M3 met at 540p (m4air): 30.0 FPS mean on power and on battery, 97–98% of 5-s windows at 30, no device errors (§5 P8).** The fix that did it was P8.5 (b13e837): the guest memory chunks out of the Metal residency set, which ended the kernel's rewiring of gigabytes of guest memory whenever the GPU idled under the cap. Also P8.4 (faster tiling kernel). At 720p the GPU needs 35–45 ms a frame (P8 step 2), so 720p at 30 FPS would need effect or quality changes. Open, not planned: the stretch goals (§1), P6.4 (untracked resources), heavier scenes than the clinic. Before that, the seventh session's start: the user moved M3 to 540p (m4air) with the savings that need no image change; P8.4 done (tiling kernel); M3 at 540p on power **not met** (28.0 FPS mean, falling from 29.6 to ~26 as the Air heats, §5 P8); on battery 29.3 FPS mean, 59% of 5-s windows at 30, a hitch of ~100 ms in every window (§5 P8): not met; the user chose P8.5 (the hitches) next: found and fixed (guest memory out of the residency set, b13e837, §5 P8); M3 at 540p on power **met** (30.0 FPS mean, 98% of windows at 30); the battery run is next once the user has unplugged the Air.** The P8 step 2 findings that led there: At 720p the GPU needs 35 ms a frame on a cool Air and 42–45 ms after a few minutes of play (the clock falls with heat); Metal's scene passes match Vulkan's, and the candidates without an image change add up to ~2 ms (numbers in §5 P8, "P8 step 2 measurements"). Options for the user: M3 at 540p (m4air, measured 29.4 capped in M2), or 720p with an effect or quality change (spatial MetalFX, effects of the profile), or 720p with the ~2 ms of savings and a lower bar. Before that (sixth session): P8 step 2 (GPU time at 720p, see §5 P8; the user chose this over a target change). P7 is done (checklist
-below): geometry-shader draws, MetalFX frame interpolation, the live-resolution path, soaks, the
-default switch. M3 (stable 30 FPS at 720p for 20 min on the Air) is not met: 24.9 FPS mean on
-power with a hot Air, 29.0 on battery after a pause; the limit is the known kernel submit cost
-(below). Options for the user: accept M3 with another target (e.g. the 540p m4air profile, which
-holds 29.4 capped), or a P8 on the submit cost (options A–C below) and M3 again. Before that: P6 is done and M2 is met: Metal is
-ahead of Vulkan by ~10% in every profile of the M2 protocol (table below); the user dropped the
-original 36 FPS uncapped target (§9). Next: **P7** (geometry-shader draws, MetalFX frame
-interpolation, the 30-min soak, the M3 run at 720p, the live-resolution path, the default switch).
-Known weak spot to keep in mind for M3 (stable 30 FPS at 720p for 20 min): Metal's worst frames
-(120–480 ms) are much worse than Vulkan's (35–50 ms). They come from the kernel's command buffer
-submission, which slows down when the Air is hot (1.51 ms per command buffer hot, 0.66 cool, 13.5–18.7
-command buffers a frame); the options for it are below (A Metal 4 command model, B P6.4 untracked
-resources, C fewer command buffers a frame), and the 30-min soak (P7.3) is where it will show.
+**Resume here (2026-10-16).** Every milestone is met, and Metal is the default on Apple silicon
+with macOS 15+:
+- M1 (same image as Vulkan): 2026-10-14, P4.
+- M2 (≥ Vulkan FPS): 2026-10-15, +10% in each profile of the M2 protocol (table below); the
+  original 36 FPS at 540p uncapped was dropped (§9).
+- M3 (30 FPS for 20 min at 540p, m4air, on power and battery): 2026-10-16, after P8.5; 30.0 FPS
+  mean in both runs, 97–98% of 5-s windows at 30, no device errors (§5 P8). The target moved from
+  720p, where the warm Air's GPU needs 42–45 ms a frame (§9).
+
+How it got there, in short: P6 found the kernel's command buffer submission and residency churn
+as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 closed the gaps
+(geometry-shader draws, frame interpolation, live resolution) and an autorelease leak; P8 showed
+720p GPU-bound and P8.5 removed the last hitches (guest memory chunks out of the residency set:
+the kernel had been unwiring and rewiring gigabytes whenever the GPU idled under the cap).
+
+Open, not planned (pick with the user):
+1. **Heavier scenes.** Everything above is measured in the clinic. Central Yharnam has a bench
+   save (`BENCH_SAVE=pristine-savedata-yharnam`, from 2026-10-16) and no runs yet; at 540p the
+   clinic already needs ~29 of the 33 ms.
+2. **Stretch goals (§1).** 60 FPS presented with frame interpolation exists
+   (`BB_FRAME_INTERPOLATION=1`, P7.2) but costs ~3× latency and turns a missed 33-ms slot into
+   a 30 → 15 step; 1080p internal at 30 FPS is far off (9.8 FPS native).
+3. **Worst frames.** Metal's (83–183 ms in the M3 runs) stay above Vulkan's (35–50 ms). What is
+   left of them is the kernel submit cost per command buffer (0.66 ms cool, 1.51 hot, 13.5–18.7
+   command buffers a frame vs Vulkan's 11.3). Options: (A) the Metal 4 command model
+   (`MTL4CommandQueue`, reused allocators, explicit residency, no hazard tracking; needs B's
+   explicit hazards), (B) P6.4 untracked resources with explicit hazards on Metal 3 (making
+   everything untracked broke the game), (C) fewer command buffers a frame (P8.2: halving them
+   cost ~6% FPS).
+4. **Small open checks:** no reactive mask for MetalFX yet (available since macOS 14.4); the
+   pipeline key sets differ (25 Vulkan keys never seen on Metal, likely format-dependent key
+   fields); the RectList vertex shaders' ClipPlanes binding is numbered for another pipeline
+   (shared `specialization.h`, harmless while user clip planes are off); the tiler lets padded
+   rows of depth-style layouts collide with slice 1 (P8.4); one boot stopped on "Unimplemented
+   PM4 type 0" (P7.5, not reproduced); the M1 walk is scripted stick input around the clinic, not
+   the route to the first lamp.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -548,65 +570,37 @@ a row after a 15-min cool-down):
 | m4air, 30 FPS cap | 29.4 (28.9, 29.6, 29.6), worst 133 ms | 26.8 (27.4, 26.1, 26.8), worst 50 ms | +10% |
 | native 1080p, `BB_FPS=30` | 9.8 (9.9, 9.8, 9.8), worst 167 ms | 8.9 (9.0, 8.9, 8.9), worst 133 ms | +10% |
 
-Where the time goes (trace `m2-final` right after the 18 runs, hot machine): GPU work ~29 ms a
-frame (scene passes 23.5, MetalFX ~4.2 of which ~2.2 is an internal blit/wait, UI 1); typical frames
-68% GPU-busy, 26 gaps > 15 ms in 3 s; in the gaps the GPU idles with work committed while the
-queue's submission threads are in the kernel (`IOGPUCommandQueueSubmitCommandBuffers`). Options:
-(A) Metal 4 command model (MTL4CommandQueue: reused command allocators, explicit residency, no
-hazard tracking, argument tables), the largest change, needs P6.4's explicit hazards; (B) P6.4 on
-Metal 3 (untracked resources + explicit hazards; a naive try broke the game); (C) fewer command
-buffers a frame (18.7 vs Vulkan's 11.3: the core's signal flush policy, `BB_HONEST_*` knobs).
+Where the GPU time goes at 540p (trace `m2-final`, hot machine, before P8): ~29 ms a frame (scene
+passes 23.5, MetalFX ~4.2 of which ~2.2 is an internal blit or wait, UI 1).
 
-**Session notes (P6).** Measure within one run: `macos/bench/ab.sh` (FPS A/B of two
-`BB_TOGGLE_FILE` settings, phases ABBA), `macos/bench/dumpab.sh` (display dumps A1 B1 A2 B2),
-`macos/bench/churn.sh` (wiring events/s), `macos/bench/tracesub.sh` (trace with kernel submit cost
-per command buffer), `macos/bench/mtltrace.py` (trace summary), `macos/bench/m2.sh` (the M2
-protocol); runtime switches are experiment bits in `gpu/shim/bbport_toggles.h` (1<<40–1<<43).
-Boot-to-boot FPS on this Air swings by 11–37 with heat and the machine's other load (WindowServer,
-daemons, other apps); bench runs ignore live input (`BB_PAD_FILE_ONLY=1`). xctrace sometimes hangs
-on attach: `tracesub.sh` kills it after 180 s.
+**Measuring.**
+- Within one run: `macos/bench/ab.sh` (FPS A/B of two `BB_TOGGLE_FILE` settings, phases ABBA),
+  `traceab.sh` (GPU time A/B), `dumpab.sh` (display dumps A1 B1 A2 B2); runtime switches are
+  experiment bits in `gpu/shim/bbport_toggles.h` (1<<40–1<<43; 1<<24 upscaler off, 1<<25 jitter
+  off). Prefer this over boot-to-boot comparisons: the same build gave 11–37 FPS between boots
+  (heat, WindowServer, other apps), and the bench character sometimes walks or turns after loading.
+- Across boots: only the M2 protocol (`m2.sh`, interleaved, after a cool-down).
+- Long runs: `m1_run.sh <name> <renderer> <minutes> [ENV=…]`, then `m3stats.py` (5-s windows)
+  and `memgrowth.py` (footprint per minute).
+- Traces: `tracesub.sh` (with kernel submit cost per command buffer; kills a hung xctrace after
+  180 s), `mtltrace.py` (summary), `churn.sh` (wiring events a second; healthy is ~100 and a flat
+  level).
+- Images: `BB_PRESENT_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>` on both backends (raw RGBA/BGRA),
+  `rawdiff.py`; a scaled session compares with Vulkan with `BB_RENDER_RES=960x540 BB_FPS=30` and a
+  `BB_CONFIG` ini holding `upscaler=off` (Vulkan then takes the same Copy background as Metal).
+  `BB_SETTINGS` feeds only the game patches; runtime settings come from the `BB_CONFIG` ini.
+- Bench runs ignore live input (`BB_PAD_FILE_ONLY=1`).
 
-**State at the end of P5 (2026-10-14, fourth session).** P5 is done: `BB_PROFILE=m4air` runs
-unchanged on Metal with the HUD at 1920x1080 and the scene upscaled by MetalFX (design
-`docs/metal/temporal_upscaling_design.md`; shared `VideoCore::CameraTracker`,
-`Metal::CameraMotion`, the scaler in `Metal::Upscaler`, MetalFX as the Metal menu's upscaler).
-Next: **P6 performance (M2)**. Where it stands (m4air, clinic, interleaved pairs, results
-below): Metal 24.7 FPS uncapped vs Vulkan 31.8; with the 30 FPS cap 21.3 vs 29.8 (Metal misses
-most 33 ms slots, so the cap costs it more than its mean frame time suggests). MetalFX itself
-costs ~6 ms a frame (Metal uncapped 26.3 FPS with `BB_UPSCALER=off` vs 22.3/23.0 with it, one
-valid pair; the spike measured ~4 ms GPU): look at it in the P6.1 trace too (Metal 4's
-`MTL4FXTemporalScaler`, where it sits in the command buffer). Native 1080p was 8.8 vs 10.5–11.
-Nothing is optimised yet: every draw rebinds everything, passes end at every compute dispatch
-and tessellated draw, labels are CPU-written. Start with P6.1 (Metal System Trace of the
-clinic at m4air, summarised by a scout). The live-resolution path moved to P7.5 (§9).
-MetalFX A/B while the game runs: experiment bits of `BB_TOGGLE_FILE` (second number) flip or
-zero jitter and motion vectors (design doc, Conventions); toggle 1 << 24 switches the upscaler
-off, 1 << 25 the jitter.
-Comparing scaled sessions: `BB_RENDER_RES=960x540 BB_FPS=30` with `BB_CONFIG` pointing at an ini
-holding `upscaler=off` makes Vulkan take the same Copy background as Metal; dump with
-`BB_PRESENT_DUMP_TRIGGER`, compare with `macos/bench/rawdiff.py` (a run's clinic camera can be
-off: compare against a second run of the same backend first). `BB_SETTINGS` only feeds the game
-patches; runtime settings (`show_fps`, `upscaler`) come from the `BB_CONFIG` ini.
-Open checks carried over: the pipeline key sets of the two backends differ beyond run-to-run
-variation (25 Vulkan keys not seen in two Metal runs, likely key fields that depend on the
-backend's format support; same pipeline count within variation, every draw gets a pipeline);
-the RectList vertex shaders' ClipPlanes binding numbered for another pipeline (shared code,
-`specialization.h`, also wrong on Vulkan, harmless while user clip planes are off); the M1 walk
-is scripted stick input around the clinic (`macos/bench/m1_run.sh`), not the
-route to the first lamp.
-Display buffers:
-`BB_PRESENT_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>` on both backends (raw RGBA/BGRA dumps).
-Working rules learned: porters in worktrees (`isolation: worktree`), integrate with
+**Working rules learned.** Porters in worktrees (`isolation: worktree`); worktrees start from
+`origin/main`, so push before spawning them mid-phase, or merge their uncommitted diffs with
+`git apply --3way`, or run a single porter in the main checkout. Integrate with
 `git cherry-pick --no-commit` and check `git diff --cached --stat` before every commit (a
-cherry-pick stages everything); benchmark only when no porter compiles; A/B pairs in both orders.
-Worktrees are created from `origin/main`: push the local commits before spawning worktree
-porters mid-phase, or merge their uncommitted diffs with `git apply --3way` (as in P5.4), or run
-a single porter in the main checkout. Porters run `macos/test.sh` as part of acceptance (a
-settings change broke `upscaler-support-test` unnoticed). In the clinic the bench character
-sometimes walks or turns after loading: check the view before comparing two runs' dumps, and
-prefer A/B within one run (`BB_TOGGLE_FILE`).
+cherry-pick stages everything). Porters run `macos/test.sh` as part of acceptance. Benchmark only
+when no porter compiles; A/B pairs in both orders.
 
-Checklist (orchestrator keeps it current; one line per finished task with the commit):
+Checklist (orchestrator keeps it current; one line per finished task with the commit). Commit
+hashes up to 2026-10-16 refer to the development history before the public repository's first
+commit (kept privately, not in this repository):
 
 - [x] P0 baseline, tooling, spikes (be3de60 bench, 0ad6c27 imgdiff, 91e6683 probe, 9dc7490
   SPIRV-Cross spike; baseline and decisions below)
@@ -740,7 +734,7 @@ Checklist (orchestrator keeps it current; one line per finished task with the co
   - [x] Validation walk after P7.1/P7.2/P7.5: 10 min `m1_run.sh` with `MTL_DEBUG_LAYER=1` on the live
     path at Performance (proxies, MetalFX before post, GS draws): 228 steps, alive, 0 validation
     errors, 0 GS warnings, 13.5k GS draws (48.8M primitives, none truncated), no PM4 error
-  - [ ] P7.4 M3 run (`m1_run.sh` 20 min, `BB_PROFILE=m4air BB_RENDER_RES=1280x720`, 30 FPS cap;
+  - [x] P7.4 M3 run at 720p (superseded: M3 moved to 540p and met after P8) (`m1_run.sh` 20 min, `BB_PROFILE=m4air BB_RENDER_RES=1280x720`, 30 FPS cap;
     `macos/bench/m3stats.py`): **M3 not met.** On power (right after 70 min of soaks, hot):
     mean 24.9, median 24.9, slowest 5-s window 19.1, 0% of windows at ≥ 29.5 FPS, worst frame
     367 ms (median of the windows' worst 200 ms). On battery (after a pause): mean 29.0, median
@@ -760,6 +754,12 @@ Checklist (orchestrator keeps it current; one line per finished task with the co
   - [x] P7.6 Metal is the default on Apple silicon with macOS 15+ in `macos/run.sh`,
     `BB_RENDERER=vulkan` still selects MoltenVK (both checked by booting); HANDOFF, README
     (new macOS section) and CLAUDE.md updated (8de039e)
+
+- [x] P8 GPU time at 720p, then M3 at 540p (2026-10-15/16; §5 P8): 720p measured (35–45 ms GPU
+  a frame, scene passes as on Vulkan, ~2 ms savable without an image change; M3 moved to 540p by
+  the user); P8.4 tiling kernel (0.74 → 0.53 ms a frame); P8.5 hitches fixed (guest memory out
+  of the residency set, b13e837); **M3 met**: on power 30.0 FPS mean, 98% of 5-s windows at 30;
+  on battery 30.0, 97%; no device errors
 
 Results (filled in as measured):
 
@@ -791,15 +791,12 @@ Results (filled in as measured):
 | 2026-10-15 | Metal 6505e03 | m4air, `BB_FPS=30` | 29.4 (28.9–29.6) | 133 ms | M2 protocol |
 | 2026-10-15 | Vulkan 6505e03 | native 1080p, `BB_FPS=30` | 8.9 (8.9–9.0) | 133 ms | M2 protocol |
 | 2026-10-15 | Metal 6505e03 | native 1080p, `BB_FPS=30` | 9.8 (9.8–9.9) | 167 ms | M2 protocol |
+| 2026-10-15 | Metal (P7) | m4air + `BB_RENDER_RES=1280x720`, 30 cap, 20 min walk | 24.9 power / 29.0 battery | 367 / 167 ms | P7.4, M3 at 720p not met |
+| 2026-10-15 | Metal 7d0e468 | m4air, 30 cap, 20 min walk | 28.0 power / 29.3 battery | ~100 ms in every 5-s window | after P8.4; M3 at 540p not met |
+| 2026-10-16 | Metal 22396a0 / 3e1352c | m4air, 30 cap, 20 min walk (`m3-540-power-2`, `m3-540-battery-2`) | 30.0 power / 30.0 battery | 117 / 183 ms | P8.5; **M3 met**, 98% / 97% of 5-s windows at 30 |
 
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
-
-- [x] P8 GPU time at 720p, then M3 at 540p (2026-10-15/16; §5 P8): 720p measured (35–45 ms GPU
-  a frame, scene passes as on Vulkan, ~2 ms savable without an image change; M3 moved to 540p by
-  the user); P8.4 tiling kernel (0.74 → 0.53 ms a frame); P8.5 hitches fixed (guest memory out
-  of the residency set, b13e837); **M3 met**: on power 30.0 FPS mean, 98% of 5-s windows at 30;
-  on battery 30.0, 97%; no device errors
 
 ### P0 results
 
