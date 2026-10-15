@@ -49,31 +49,35 @@ void DumpPresented(id<MTLDevice> device, id<MTLCommandQueue> queue, id<MTLTextur
         const char* env = std::getenv("BB_DUMP_DIR");
         return std::string{env && env[0] ? env : "out/dump"};
     }();
-    const NSUInteger width = texture.width, height = texture.height, row = width * 4;
-    id<MTLBuffer> buffer = [device newBufferWithLength:row * height
-                                               options:MTLResourceStorageModeShared];
-    id<MTLCommandBuffer> cmdbuf = [queue commandBuffer];
-    id<MTLBlitCommandEncoder> blit = [cmdbuf blitCommandEncoder];
-    [blit copyFromTexture:texture
-                     sourceSlice:0
-                     sourceLevel:0
-                    sourceOrigin:MTLOriginMake(0, 0, 0)
-                      sourceSize:MTLSizeMake(width, height, 1)
-                        toBuffer:buffer
-               destinationOffset:0
-          destinationBytesPerRow:row
-        destinationBytesPerImage:row * height];
-    [blit endEncoding];
-    [cmdbuf commit];
-    [cmdbuf waitUntilCompleted];
-    const bool bgra = texture.pixelFormat == MTLPixelFormatBGRA8Unorm ||
-                      texture.pixelFormat == MTLPixelFormatBGRA8Unorm_sRGB;
-    const std::string path = fmt::format("{}/f{:03d}_present_{}x{}_{}.raw", dir, index, width,
-                                         height, bgra ? "bgra" : "rgba");
-    if (FILE* f = std::fopen(path.c_str(), "wb")) {
-        std::fwrite(buffer.contents, 1, row * height, f);
-        std::fclose(f);
-        std::printf("Metal: display buffer dumped to %s\n", path.c_str());
+    // The presenter thread drains no pool of its own: without this one every dump's command
+    // buffer and its 8 MB buffer stayed alive.
+    @autoreleasepool {
+        const NSUInteger width = texture.width, height = texture.height, row = width * 4;
+        id<MTLBuffer> buffer = [device newBufferWithLength:row * height
+                                                   options:MTLResourceStorageModeShared];
+        id<MTLCommandBuffer> cmdbuf = [queue commandBuffer];
+        id<MTLBlitCommandEncoder> blit = [cmdbuf blitCommandEncoder];
+        [blit copyFromTexture:texture
+                         sourceSlice:0
+                         sourceLevel:0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(width, height, 1)
+                            toBuffer:buffer
+                   destinationOffset:0
+              destinationBytesPerRow:row
+            destinationBytesPerImage:row * height];
+        [blit endEncoding];
+        [cmdbuf commit];
+        [cmdbuf waitUntilCompleted];
+        const bool bgra = texture.pixelFormat == MTLPixelFormatBGRA8Unorm ||
+                          texture.pixelFormat == MTLPixelFormatBGRA8Unorm_sRGB;
+        const std::string path = fmt::format("{}/f{:03d}_present_{}x{}_{}.raw", dir, index, width,
+                                             height, bgra ? "bgra" : "rgba");
+        if (FILE* f = std::fopen(path.c_str(), "wb")) {
+            std::fwrite(buffer.contents, 1, row * height, f);
+            std::fclose(f);
+            std::printf("Metal: display buffer dumped to %s\n", path.c_str());
+        }
     }
 }
 

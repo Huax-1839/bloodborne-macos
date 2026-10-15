@@ -74,11 +74,31 @@ Measured in one run on one view (clinic, m4air), 4 consecutive display dumps per
   y flipped 51–53 dB, y or x zeroed within noise; jitter off 61–63 dB (no sub-pixel detail).
 - Camera turning (right then back left, same view per setting): +1,+1 keeps the wall lamp
   crisp; x motion flipped or motion vectors off double it.
-- y cannot be told apart on these views (no vertical motion; the vertical jitter's effect is
-  below the noise); +1 is the convention consistent with x and with the FSR 3 path.
+- y could not be told apart on these views (no vertical motion; the vertical jitter's effect is
+  below the noise); +1 was taken as the convention consistent with x and with the FSR 3 path.
+- y measured 2026-10-16 (`macos/bench/temporal_check.sh`, run `temporal-t2`): a vertical pan of
+  ~23 px a frame, 12 consecutive frames per setting, settings A/B/C/A/B/C in one run. Sharpness
+  (mean luma gradient, central crop): +1,+1 1.495; jitter y flipped 1.330; motion y flipped
+  1.360; repetitions agree within 0.033. Both flips blur by 9–11%: **y is +1 for both**.
 
 ## Verification
 
 Vulkan after the tracker extraction: m4air bench pairs within spread, display dumps of the clinic
 (same camera) against the previous build. Metal: `BB_PROFILE=m4air` display dumps against
 Vulkan m4air (FSR 3), validation layer clean, 10 min `m1_run.sh` with `MTL_DEBUG_LAYER=1`.
+
+Temporal behaviour (2026-10-16, review finding 8; `temporal_check.sh` scripts the pad and dumps
+bursts of consecutive display frames, `temporal_metrics.py` measures them: global motion,
+residual after motion compensation, sharpness, per-tile decay; contact sheets per sequence):
+- vertical pans: the y convention above;
+- diagonal pan and strafe past the furniture (disocclusion around the character): no trails or
+  doubling on the contact sheets; residual after compensation 39 dB (pan) and 28 dB (strafe,
+  the character moves against the background);
+- camera cut (options menu open 2 s, closed): no tile decays over the 12 frames after the close
+  (no ghost of the menu): the copied menu frames reset the history (`OnDraw`);
+- preset changes on the live path (Quality ↔ Performance during a pan, 80 frames each): no
+  black or garbage frame (luma outliers, PSNR to both neighbours < 15 dB), the switch shows as
+  one sharpness step. In a scaled session (`BB_RENDER_RES`, the m4air profile) the preset is
+  fixed at start, so this needs `BB_AUTO_RENDER_RES=1`.
+There is no camera-cut detector: a cut inside the game's 3D (a cutscene camera change) keeps the
+history until the game loses its camera for a frame; not observed in the clinic.
