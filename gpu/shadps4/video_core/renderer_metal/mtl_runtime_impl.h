@@ -9,6 +9,7 @@
 #import <Metal/Metal.h>
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <tuple>
@@ -16,6 +17,7 @@
 #include <unordered_set>
 
 #include "video_core/renderer_metal/msl_host_shader.h"
+#include "video_core/renderer_metal/mtl_format_convert_impl.h"
 #include "video_core/renderer_metal/mtl_device_impl.h"
 #include "video_core/renderer_metal/mtl_runtime.h"
 #include "video_core/renderer_metal/mtl_scheduler_impl.h"
@@ -102,6 +104,19 @@ struct Runtime::Impl {
     std::unordered_map<const void*, vk::Format> image_formats;
     std::mutex warned_mutex;
     std::set<std::string> warned; ///< what was logged once
+
+    /// The kernels of the transfers that convert (mtl_format_convert.h), made on the first copy
+    /// that needs them. Only the recording calls (UploadImage, DownloadImage, CopyImageWithBuffer,
+    /// ClearImage) reach it, and those come from one thread at a time (Runtime's contract), so
+    /// the lazy creation needs no lock. Destroyed with the Impl, after ~Runtime's Finish: nothing
+    /// retains a pipeline for the GPU.
+    FormatConvert::Converter& Convert() {
+        if (!converter) {
+            converter = std::make_unique<FormatConvert::Converter>(dev.device);
+        }
+        return *converter;
+    }
+    std::unique_ptr<FormatConvert::Converter> converter;
 
     Impl(Device& device, Scheduler& scheduler)
         : dev{device.GetImpl()}, sched{scheduler.GetImpl()}, kernels{device.GetImpl(), scheduler} {}

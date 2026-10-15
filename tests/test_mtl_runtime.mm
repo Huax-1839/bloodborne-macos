@@ -499,7 +499,8 @@ static void TestImages(Fixture& f) {
         CHECK(Download(f, *vol.image, vcopies, vdata.size()) == vdata);
     }
     {
-        // Substituted formats: the texture exists; transfers are skipped (no crash)
+        // Substituted formats: the texture exists; the RGB transfers convert (checked in
+        // mtl-format-convert-test), the raw-bits ones are byte exact (below)
         Img img{f.runtime, MakeInfo(F::eR16G16B16Sfloat, 8, 8)};
         CHECK(img.image->backing->image.image_ci.format == F::eR16G16B16A16Sfloat);
         const auto data = Pattern(8 * 8 * 6, 10);

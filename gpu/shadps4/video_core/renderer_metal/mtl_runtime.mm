@@ -12,6 +12,7 @@
 #include <bit>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <numeric>
 
 #include <boost/container/small_vector.hpp>
@@ -20,6 +21,7 @@
 #include "common/assert.h"
 #include "bbport_toggles.h"
 #include "common/logging/log.h"
+#include "video_core/renderer_metal/mtl_format_convert_impl.h"
 #include "video_core/renderer_metal/mtl_guest_memory.h"
 #include "video_core/renderer_metal/mtl_runtime_impl.h"
 #include "video_core/renderer_metal/mtl_scene_targets.h"
@@ -54,55 +56,21 @@ constexpr vk::AccessFlags2 WriteMask =
 /// The format the texture of a guest format is made in. Metal has no 3-channel texture formats
 /// and no A2B10G10R10 Snorm/Sint, R4G4 or scaled formats (VkToMtl::PixelFormat is 0 for them):
 ///  - RGB8/RGB16/RGB32: the RGBA format of the same type. The texel size differs from the guest's
-///    (3, 6, 12 bytes against 4, 8, 16): the texture exists and can be bound, but transfers to and
-///    from guest layouts are skipped (CopyCompatible), so it stays empty.
+///    (3, 6, 12 bytes against 4, 8, 16): uploads, downloads and copies through a buffer convert
+///    on the GPU (mtl_format_convert.h: alpha is written as the format's one, and dropped on the
+///    way back).
 ///  - everything else: the unsigned integer format of the same texel size, so the memory copies
 ///    stay byte exact; the shader gets the raw bits (the texture cache and shaders have to unpack
 ///    them: A2B10G10R10 Snorm/Sint).
+/// Formats that have a texture format but not an exact one (D24S8, D16S8, X8D24: VkToMtl::
+/// IsExactPixelFormat) are not substituted here; their transfers convert as well.
 vk::Format SubstituteFormat(vk::Format format) {
     using F = vk::Format;
     if (format == F::eUndefined || VkToMtl::PixelFormat(format) != 0) {
         return format;
     }
-    switch (format) {
-    case F::eR8G8B8Unorm:
-        return F::eR8G8B8A8Unorm;
-    case F::eR8G8B8Snorm:
-        return F::eR8G8B8A8Snorm;
-    case F::eR8G8B8Uint:
-        return F::eR8G8B8A8Uint;
-    case F::eR8G8B8Sint:
-        return F::eR8G8B8A8Sint;
-    case F::eR8G8B8Srgb:
-        return F::eR8G8B8A8Srgb;
-    case F::eB8G8R8Unorm:
-        return F::eB8G8R8A8Unorm;
-    case F::eB8G8R8Snorm:
-        return F::eB8G8R8A8Snorm;
-    case F::eB8G8R8Uint:
-        return F::eB8G8R8A8Uint;
-    case F::eB8G8R8Sint:
-        return F::eB8G8R8A8Sint;
-    case F::eB8G8R8Srgb:
-        return F::eB8G8R8A8Srgb;
-    case F::eR16G16B16Unorm:
-        return F::eR16G16B16A16Unorm;
-    case F::eR16G16B16Snorm:
-        return F::eR16G16B16A16Snorm;
-    case F::eR16G16B16Uint:
-        return F::eR16G16B16A16Uint;
-    case F::eR16G16B16Sint:
-        return F::eR16G16B16A16Sint;
-    case F::eR16G16B16Sfloat:
-        return F::eR16G16B16A16Sfloat;
-    case F::eR32G32B32Uint:
-        return F::eR32G32B32A32Uint;
-    case F::eR32G32B32Sint:
-        return F::eR32G32B32A32Sint;
-    case F::eR32G32B32Sfloat:
-        return F::eR32G32B32A32Sfloat;
-    default:
-        break;
+    if (const F rgba = FormatConvert::RgbaFormatOf(format); rgba != F::eUndefined) {
+        return rgba;
     }
     switch (vk::blockSize(format)) {
     case 1:
@@ -335,6 +303,144 @@ void EncodeTextureToBuffer(id<MTLBlitCommandEncoder> blit, id<MTLTexture> textur
        destinationBytesPerRow:layout.bytes_per_row
      destinationBytesPerImage:0
                       options:layout.options];
+    }
+}
+
+// ---- Transfers that convert (mtl_format_convert.h) --------------------------------------------
+
+/// What the transfer helpers record with. The converter (Runtime::Impl::Convert) is made only
+/// when a copy converts.
+struct TransferContext {
+    CacheBackend& backend; ///< the staging memory of the converted copies
+    Scheduler& scheduler;
+    Runtime::Impl& impl;
+};
+
+/// A copy that converts: the conversion, and where its tightly packed host layout is in the
+/// staging memory.
+struct ConvertedCopy {
+    FormatConvert::Conversion conversion;
+    FormatConvert::Converter::Region region;
+    u64 temp_offset;
+};
+
+FormatConvert::Converter::Region RegionOf(const vk::BufferImageCopy& copy) {
+    return {copy.imageExtent.width, copy.imageExtent.height,
+            copy.imageExtent.depth * copy.imageSubresource.layerCount};
+}
+
+/// The guest side of a copy: its buffer layout, rows and slices as the copy gives them.
+FormatConvert::Converter::GuestSide GuestSideOf(id<MTLBuffer> buffer,
+                                                const vk::BufferImageCopy& copy,
+                                                const FormatConvert::Conversion& conversion) {
+    const u32 row_length = copy.bufferRowLength ? copy.bufferRowLength : copy.imageExtent.width;
+    const u32 height = copy.bufferImageHeight ? copy.bufferImageHeight : copy.imageExtent.height;
+    const u32 row_pitch = row_length * conversion.guest_texel_bytes;
+    return {buffer, copy.bufferOffset, row_pitch, row_pitch * height};
+}
+
+/// `copy` as the blit encoder reads or writes the host layout: tightly packed at `offset`.
+vk::BufferImageCopy HostCopyOf(const vk::BufferImageCopy& copy, u64 offset) {
+    vk::BufferImageCopy host = copy;
+    host.bufferOffset = offset;
+    host.bufferRowLength = 0;
+    host.bufferImageHeight = 0;
+    return host;
+}
+
+/// Plans the converted copies of `copies`: each gets a 16 byte aligned part of one staging
+/// request (returned; empty when nothing converts). The staging memory is the runtime's ring or
+/// large buffers: the request records the tick, so the memory is reused only after the command
+/// buffer that holds the conversion completed.
+StagingSpan PlanConversions(const TransferContext& ctx, vk::Format guest_format,
+                            vk::Format host_format, std::span<const vk::BufferImageCopy> copies,
+                            boost::container::small_vector<ConvertedCopy, 14>& converted) {
+    u64 total = 0;
+    for (const auto& copy : copies) {
+        ConvertedCopy entry{
+            .conversion = FormatConvert::Describe(guest_format, host_format,
+                                                  copy.imageSubresource.aspectMask),
+            .region = RegionOf(copy),
+            .temp_offset = 0,
+        };
+        if (entry.conversion.kind != FormatConvert::Kind::None) {
+            total = Common::AlignUp(total, 16);
+            entry.temp_offset = total;
+            total += FormatConvert::Converter::HostBytes(entry.conversion, entry.region);
+        }
+        converted.push_back(entry);
+    }
+    if (total == 0) {
+        return {};
+    }
+    return ctx.backend.StagingRequest(total, MemoryType::DeviceLocal, 16);
+}
+
+/// Guest bytes in `guest_buffer` to `texture` (an upload): the copies that convert are rewritten
+/// into the host layout by a compute pass first, the others blit directly. `host_format` is the
+/// format the texture was made in.
+void UploadCopies(const TransferContext& ctx, id<MTLTexture> texture, vk::Format guest_format,
+                  vk::Format host_format, id<MTLBuffer> guest_buffer,
+                  std::span<const vk::BufferImageCopy> copies, const char* label) {
+    boost::container::small_vector<ConvertedCopy, 14> converted;
+    const StagingSpan temp = PlanConversions(ctx, guest_format, host_format, copies, converted);
+    if (temp.buffer) {
+        ctx.scheduler.ComputeEncoder(label);
+        id<MTLComputeCommandEncoder> compute = ctx.scheduler.GetImpl().compute;
+        for (size_t i = 0; i < copies.size(); ++i) {
+            const ConvertedCopy& entry = converted[i];
+            if (entry.conversion.kind == FormatConvert::Kind::None) {
+                continue;
+            }
+            ctx.impl.Convert().Encode(compute, entry.conversion, true,
+                                 GuestSideOf(guest_buffer, copies[i], entry.conversion),
+                                 {NativeBuffer(*temp.buffer), temp.offset + entry.temp_offset},
+                                 entry.region);
+        }
+    }
+    ctx.scheduler.BlitEncoder(label);
+    id<MTLBlitCommandEncoder> blit = ctx.scheduler.GetImpl().blit;
+    for (size_t i = 0; i < copies.size(); ++i) {
+        if (converted[i].conversion.kind == FormatConvert::Kind::None) {
+            EncodeBufferToTexture(blit, guest_buffer, texture, host_format, copies[i]);
+        } else {
+            EncodeBufferToTexture(blit, NativeBuffer(*temp.buffer), texture, host_format,
+                                  HostCopyOf(copies[i], temp.offset + converted[i].temp_offset));
+        }
+    }
+}
+
+/// `texture` to guest bytes in `guest_buffer` (a download): converting copies blit into the host
+/// layout first and a compute pass writes the guest layout.
+void DownloadCopies(const TransferContext& ctx, id<MTLTexture> texture, vk::Format guest_format,
+                    vk::Format host_format, id<MTLBuffer> guest_buffer,
+                    std::span<const vk::BufferImageCopy> copies, const char* label) {
+    boost::container::small_vector<ConvertedCopy, 14> converted;
+    const StagingSpan temp = PlanConversions(ctx, guest_format, host_format, copies, converted);
+    ctx.scheduler.BlitEncoder(label);
+    id<MTLBlitCommandEncoder> blit = ctx.scheduler.GetImpl().blit;
+    for (size_t i = 0; i < copies.size(); ++i) {
+        if (converted[i].conversion.kind == FormatConvert::Kind::None) {
+            EncodeTextureToBuffer(blit, texture, guest_buffer, host_format, copies[i]);
+        } else {
+            EncodeTextureToBuffer(blit, texture, NativeBuffer(*temp.buffer), host_format,
+                                  HostCopyOf(copies[i], temp.offset + converted[i].temp_offset));
+        }
+    }
+    if (!temp.buffer) {
+        return;
+    }
+    ctx.scheduler.ComputeEncoder(label);
+    id<MTLComputeCommandEncoder> compute = ctx.scheduler.GetImpl().compute;
+    for (size_t i = 0; i < copies.size(); ++i) {
+        const ConvertedCopy& entry = converted[i];
+        if (entry.conversion.kind == FormatConvert::Kind::None) {
+            continue;
+        }
+        ctx.impl.Convert().Encode(compute, entry.conversion, false,
+                             GuestSideOf(guest_buffer, copies[i], entry.conversion),
+                             {NativeBuffer(*temp.buffer), temp.offset + entry.temp_offset},
+                             entry.region);
     }
 }
 
@@ -650,10 +756,19 @@ bool Runtime::GuestMemoryUsable() {
 bool Runtime::CopyCompatible(const Image& image, const char* what) {
     const vk::Format guest = image.info.pixel_format;
     const vk::Format host = image.backing->image.image_ci.format;
+    // The formats the transfers convert (RGB8/16/32, D24S8, D16S8, X8D24: mtl_format_convert.h).
+    // MakeTextureCopy sizes the depth aspect of D16S8 as 4 bytes (right for the Metal texture,
+    // not for the 2 byte guest layout); no converted path uses it for that: the host layout of a
+    // converted copy is 4 bytes per texel by design, the guest side is the converter's.
+    if (FormatConvert::Convertible(guest, host)) {
+        return true;
+    }
     const bool same_size = guest == host || BytesOf(guest) == BytesOf(host);
     if (same_size && VkToMtl::IsExactPixelFormat(guest)) {
         return true;
     }
+    // Nothing converts this one: never silent (the count is for tests)
+    FormatConvert::UnhandledCount().fetch_add(1, std::memory_order_relaxed);
     if (impl->FirstTime(std::string("copy ") + vk::to_string(guest))) {
         LOG_ERROR(Render, "Metal {}: {} is held as {} (texel size or range differs); transfers of "
                           "such images are skipped",
@@ -1334,13 +1449,9 @@ void Runtime::UploadImage(Image* dst, const Buffer* src,
 
     id<MTLTexture> texture = NativeTexture(*dst);
     if (CopyCompatible(*dst, "image upload") && texture.sampleCount == 1) {
-        scheduler.BlitEncoder(__func__);
-        id<MTLBlitCommandEncoder> blit = impl->sched.blit;
-        id<MTLBuffer> buffer = NativeBuffer(*src);
-        const vk::Format format = dst->backing->image.image_ci.format;
-        for (const auto& copy : upload_copies) {
-            EncodeBufferToTexture(blit, buffer, texture, format, copy);
-        }
+        UploadCopies({*this, scheduler, *impl}, texture,
+                     dst->info.pixel_format, dst->backing->image.image_ci.format,
+                     NativeBuffer(*src), upload_copies, __func__);
     }
 
     for (const auto& copy : upload_copies) {
@@ -1372,13 +1483,9 @@ void Runtime::DownloadImage(Image* src, const Buffer* dst,
 
     id<MTLTexture> texture = NativeTexture(*src);
     if (CopyCompatible(*src, "image download") && texture.sampleCount == 1) {
-        scheduler.BlitEncoder(__func__);
-        id<MTLBlitCommandEncoder> blit = impl->sched.blit;
-        id<MTLBuffer> buffer = NativeBuffer(*dst);
-        const vk::Format format = src->backing->image.image_ci.format;
-        for (const auto& copy : download_copies) {
-            EncodeTextureToBuffer(blit, texture, buffer, format, copy);
-        }
+        DownloadCopies({*this, scheduler, *impl}, texture,
+                       src->info.pixel_format, src->backing->image.image_ci.format,
+                       NativeBuffer(*dst), download_copies, __func__);
     }
 
     for (const auto& copy : download_copies) {
@@ -1566,15 +1673,16 @@ void Runtime::CopyImageWithBuffer(Image* src, Image* dst, const Buffer* buffer, 
     if (CopyCompatible(*src, "image copy through a buffer") &&
         CopyCompatible(*dst, "image copy through a buffer") && src_texture.sampleCount == 1 &&
         dst_texture.sampleCount == 1) {
-        scheduler.BlitEncoder(__func__);
-        id<MTLBlitCommandEncoder> blit = impl->sched.blit;
+        const TransferContext ctx{*this, scheduler, *impl};
         id<MTLBuffer> staging = NativeBuffer(*buffer);
-        EncodeTextureToBuffer(blit, src_texture, staging, src->backing->image.image_ci.format,
-                              buffer_copy);
+        DownloadCopies(ctx, src_texture, src->info.pixel_format,
+                       src->backing->image.image_ci.format, staging, std::span{&buffer_copy, 1},
+                       __func__);
         buffer_copy.imageSubresource.aspectMask =
             dst->aspect_mask & ~vk::ImageAspectFlagBits::eStencil;
-        EncodeBufferToTexture(blit, staging, dst_texture, dst->backing->image.image_ci.format,
-                              buffer_copy);
+        UploadCopies(ctx, dst_texture, dst->info.pixel_format,
+                     dst->backing->image.image_ci.format, staging, std::span{&buffer_copy, 1},
+                     __func__);
     }
 
     dst->flags |= (src->flags & ImageFlagBits::GpuModified);
@@ -1824,7 +1932,12 @@ void Runtime::ClearImage(Image* dst, const SubresourceRange& range,
         const vk::Format format = dst->backing->image.image_ci.format;
         const bool is_3d = texture.textureType == MTLTextureType3D;
         const u32 levels = std::min<u32>(range.extent.levels, texture.mipmapLevelCount);
-        if (texture.usage & MTLTextureUsageRenderTarget) {
+        // A 3-component guest format held as RGBA: the alpha it reads is one (mtl_format_convert.h)
+        const vk::Format guest_format = dst->info.pixel_format;
+        const bool rgb_guest = FormatConvert::RgbaFormatOf(guest_format) == format;
+        const bool depth_texture = VkToMtl::IsDepthPixelFormat(u32(texture.pixelFormat)) ||
+                                   VkToMtl::HasStencilPixelFormat(u32(texture.pixelFormat));
+        if ((texture.usage & MTLTextureUsageRenderTarget) && !depth_texture) {
             // A render pass per level and slice with a clear load action.
             MTLClearColor color;
             const char* numeric = vk::componentNumericFormat(format, 0);
@@ -1837,6 +1950,9 @@ void Runtime::ClearImage(Image* dst, const SubresourceRange& range,
             } else {
                 color = MTLClearColorMake(clear_value.color.float32[0], clear_value.color.float32[1],
                                           clear_value.color.float32[2], clear_value.color.float32[3]);
+            }
+            if (rgb_guest) {
+                color.alpha = 1.0;
             }
             for (u32 level = range.base.level; level < range.base.level + levels; ++level) {
                 const u32 planes = is_3d ? std::max<u32>(u32(texture.depth) >> level, 1u)
@@ -1876,14 +1992,21 @@ void Runtime::ClearImage(Image* dst, const SubresourceRange& range,
                                         std::max<u32>(u32(texture.height) >> level, 1u),
                                         is_3d ? std::max<u32>(u32(texture.depth) >> level, 1u) : 1u},
                     };
-                    const u64 size = BufferImageCopySize(copy, format);
+                    // A converted format: zero guest texels uploaded, so alpha comes out as one
+                    const u64 size = BufferImageCopySize(copy, rgb_guest ? guest_format : format);
                     const StagingSpan staging = StagingRequest(size, MemoryType::DeviceLocal, 16);
                     copy.bufferOffset = staging.offset;
                     scheduler.BlitEncoder(__func__);
                     id<MTLBlitCommandEncoder> blit = impl->sched.blit;
                     id<MTLBuffer> buffer = NativeBuffer(*staging.buffer);
                     [blit fillBuffer:buffer range:NSMakeRange(staging.offset, size) value:0];
-                    EncodeBufferToTexture(blit, buffer, texture, format, copy);
+                    if (rgb_guest) {
+                        UploadCopies({*this, scheduler, *impl},
+                                     texture, guest_format, format, buffer, std::span{&copy, 1},
+                                     __func__);
+                    } else {
+                        EncodeBufferToTexture(blit, buffer, texture, format, copy);
+                    }
                     AccessBuffer(staging.buffer, staging.offset, size,
                                  vk::PipelineStageFlagBits2::eCopy,
                                  vk::AccessFlagBits2::eTransferWrite);

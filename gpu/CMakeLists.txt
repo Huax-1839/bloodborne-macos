@@ -481,6 +481,21 @@ if (APPLE)
 endif()
 
 if (APPLE)
+    # bbport: transfers of the guest formats Metal has no texture for (renderer_metal/
+    # mtl_format_convert, P2.4 follow-up): RGB8/16/32 and the packed depth formats, uploaded,
+    # sampled and downloaded byte exact through the runtime's entry points. Links bbgpu, needs a
+    # Metal device only.
+    add_executable(mtl-format-convert-test EXCLUDE_FROM_ALL ../tests/test_mtl_format_convert.mm)
+    set_source_files_properties(../tests/test_mtl_format_convert.mm PROPERTIES
+        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+    target_compile_options(mtl-format-convert-test PRIVATE -UNDEBUG -fPIC
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+    target_include_directories(mtl-format-convert-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+    target_link_options(mtl-format-convert-test PRIVATE -Wl,-export_dynamic)
+    target_link_libraries(mtl-format-convert-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
+endif()
+
+if (APPLE)
     # bbport: the reduced scene targets of the live-resolution path on Metal (renderer_metal/
     # mtl_scene_targets, P7.5 L2): proxy copies in both directions, values checked; links bbgpu,
     # needs a Metal device only.
