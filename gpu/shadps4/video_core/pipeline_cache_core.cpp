@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
@@ -487,6 +488,7 @@ const PipelineBase* PipelineCacheCore::GetGraphicsPipeline(const DrawIndirectPar
             if (!job->done) {
                 if (skippable) {
                     ++async_skipped;
+                    BbStats::NoteDrop(BbStats::DropKind::AsyncSkipped);
                     return nullptr; // drawn from the frame its pipeline is ready
                 }
                 // A pass that is not drawn every frame needs it now: the wait is compile time.
@@ -529,6 +531,7 @@ const PipelineBase* PipelineCacheCore::GetGraphicsPipeline(const DrawIndirectPar
             job->cv.notify_all();
         });
         sel.fetch_shader.reset();
+        BbStats::NoteDrop(BbStats::DropKind::AsyncSkipped);
         return nullptr;
     }
     const auto [it, is_new] = graphics_pipelines.try_emplace(sel.graphics_key);
@@ -877,10 +880,16 @@ bool PipelineCacheCore::RefreshGraphicsStages(PipelineSelection& sel) {
     case AmdGpu::ShaderStageEnable::VgtStages::EsGs:
         if (!caps.geometry_stage) {
             LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported, skipping");
+            if (!sel.worker) {
+                BbStats::NoteDrop(BbStats::DropKind::GeometrySkipped);
+            }
             return false;
         }
         if (regs.vgt_gs_mode.onchip || regs.vgt_strmout_config.raw) {
             LOG_WARNING(Render_Vulkan, "Geometry shader features unsupported, skipping");
+            if (!sel.worker) {
+                BbStats::NoteDrop(BbStats::DropKind::GeometrySkipped);
+            }
             return false;
         }
         if (!bind_stage(HwStage::Export, SwStage::Vertex)) {
@@ -910,10 +919,16 @@ bool PipelineCacheCore::RefreshGraphicsStages(PipelineSelection& sel) {
         }
         if (!caps.geometry_stage) {
             LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported, skipping");
+            if (!sel.worker) {
+                BbStats::NoteDrop(BbStats::DropKind::GeometrySkipped);
+            }
             return false;
         }
         if (regs.vgt_gs_mode.onchip || regs.vgt_strmout_config.raw) {
             LOG_WARNING(Render_Vulkan, "Geometry shader features unsupported, skipping");
+            if (!sel.worker) {
+                BbStats::NoteDrop(BbStats::DropKind::GeometrySkipped);
+            }
             return false;
         }
         if (!bind_stage(HwStage::Hull, SwStage::TessellationControl)) {
@@ -997,10 +1012,37 @@ ShaderModuleHandle PipelineCacheCore::CompileModule(Shader::Info& info, Shader::
     return module;
 }
 
+// bbport: BB_SHADER_LOG=<path>: one line "<hw stage> <guest pgm hash>" per distinct pair the process
+// looked up, to compare which guest shaders a route reached on different backends (the permutation
+// index depends on the order of first use and is not part of the identity). Off: one flag read.
+static void LogShaderUse(HwStage hw_stage, u64 pgm_hash) {
+    static FILE* const file = [] () -> FILE* {
+        const char* path = std::getenv("BB_SHADER_LOG");
+        return path && *path ? std::fopen(path, "w") : nullptr;
+    }();
+    if (!file) {
+        return;
+    }
+    static std::mutex mutex;
+    static std::unordered_set<u64> seen[7];
+    static constexpr const char* names[7] = {"Fragment", "Vertex", "Geometry", "Export",
+                                             "Hull",     "Local",  "Compute"};
+    const u32 stage = static_cast<u32>(hw_stage);
+    if (stage >= 7) {
+        return;
+    }
+    std::lock_guard lock{mutex};
+    if (seen[stage].insert(pgm_hash).second) {
+        std::fprintf(file, "%s %016llx\n", names[stage], static_cast<unsigned long long>(pgm_hash));
+        std::fflush(file);
+    }
+}
+
 PipelineCacheCore::Result PipelineCacheCore::GetProgram(PipelineSelection& sel, HwStage hw_stage,
                                                 SwStage sw_stage,
                                                 const Shader::ShaderParams& params,
                                                 Shader::Backend::Bindings& binding) {
+    LogShaderUse(hw_stage, params.hash);
     auto runtime_info = BuildRuntimeInfo(sel, hw_stage, sw_stage);
     if (sel.worker) {
         // bbport: draw-preparation worker: look up only, with the worker's own Info copy.

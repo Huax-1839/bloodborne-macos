@@ -528,14 +528,28 @@ void VideoOutDriver::Flip(const Request& req) {
                                    "images,image_mb,buffer_mb,protect_ms,resident_ms,create_ms,"
                                    "refresh_ms,write_fault_ms,read_faults,guest_copy_mb,draws,"
                                    "dispatches,submissions,compiles,preupload_mb,kernel_ms,alloc_mb,"
-                                   "free_mb\n");
+                                   "free_mb,cam_x,cam_y,cam_z\n");
             }
             return file;
         }();
         if (frame_log) {
             static const auto log_start = now;
             static u64 log_twf, log_tick, log_present, log_compiles, log_rf, log_preupload;
-            static u64 log_alloc, log_free;
+            static u64 log_alloc, log_free, log_camera_frames;
+            // The camera position of the newest committed camera when one was committed since the
+            // previous row, else empty columns.
+            char camera_columns[96] = ",,";
+            if (const u64 camera_frames = BbStats::camera_frames.load(std::memory_order_acquire);
+                camera_frames != log_camera_frames) {
+                log_camera_frames = camera_frames;
+                float position[3];
+                for (int i = 0; i < 3; ++i) {
+                    const u32 bits = BbStats::camera_position_bits[i].load(std::memory_order_relaxed);
+                    std::memcpy(&position[i], &bits, sizeof(bits));
+                }
+                std::snprintf(camera_columns, sizeof(camera_columns), "%.3f,%.3f,%.3f", position[0],
+                              position[1], position[2]);
+            }
             const u64 tick = BbStats::tick_wait_ns.load(), present = BbStats::present_wait_ns.load();
             const u64 compiles_now = Vulkan::g_bb_compiles.load();
             // tick_wait_ns and the compile count are reset every stats window.
@@ -546,7 +560,7 @@ void VideoOutDriver::Flip(const Request& req) {
             };
             std::fprintf(frame_log,
                          "%.4f,%.2f,%.2f,%.2f,%.2f,%llu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%llu,"
-                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f\n",
+                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f,%s\n",
                          std::chrono::duration<double>(now - log_start).count(), frame_ms,
                          delta(present, log_present) / 1e6, delta(tick, log_tick) / 1e6,
                          last_gpu_ns ? (gpu_ns - last_gpu_ns) / 1e6 : 0.0,
@@ -564,7 +578,7 @@ void VideoOutDriver::Flip(const Request& req) {
                          delta(BbStats::preupload_bytes.load(), log_preupload) / 1e6,
                          last_gpu_ns ? (sys_us - last_sys) / 1e3 : 0.0,
                          delta(BbStats::device_alloc_bytes.load(), log_alloc) / 1e6,
-                         delta(BbStats::device_free_bytes.load(), log_free) / 1e6);
+                         delta(BbStats::device_free_bytes.load(), log_free) / 1e6, camera_columns);
             static u32 unflushed = 0;
             if (++unflushed >= 120) {
                 std::fflush(frame_log);
@@ -631,6 +645,54 @@ void VideoOutDriver::Flip(const Request& req) {
             // bbport: a log file is block-buffered; the bench reads these lines while the game runs.
             std::fflush(stdout);
             BbFlushReason::Report(frames);
+            // bbport: scripted route checks (macos/bench/route_check.py): where the camera was and
+            // which draws were lost, the same on every backend.
+            {
+                static u64 window_camera_frames = 0;
+                const u64 camera_frames = BbStats::camera_frames.load(std::memory_order_acquire);
+                if (camera_frames != window_camera_frames) {
+                    window_camera_frames = camera_frames;
+                    float position[3];
+                    for (int i = 0; i < 3; ++i) {
+                        const u32 bits =
+                            BbStats::camera_position_bits[i].load(std::memory_order_relaxed);
+                        std::memcpy(&position[i], &bits, sizeof(bits));
+                    }
+                    std::printf("Camera: %.2f %.2f %.2f\n", position[0], position[1], position[2]);
+                }
+                using BbStats::DropKind;
+                static u64 last_drops[static_cast<std::size_t>(DropKind::Count)];
+                u64 d[static_cast<std::size_t>(DropKind::Count)];
+                u64 changed = 0;
+                for (std::size_t i = 0; i < std::size(d); ++i) {
+                    const u64 total = BbStats::Drops(static_cast<DropKind>(i));
+                    d[i] = total - last_drops[i];
+                    last_drops[i] = total;
+                    if (i != static_cast<std::size_t>(DropKind::AsyncSkipped)) {
+                        changed += d[i];
+                    }
+                }
+                if (changed != 0) {
+                    const auto n = [&](DropKind kind) {
+                        return static_cast<unsigned long long>(d[static_cast<std::size_t>(kind)]);
+                    };
+                    std::printf("Draw drops: no pipeline %llu, geometry %llu, missing bindings %llu, "
+                                "null textures %llu, other %llu\n",
+                                n(DropKind::NoPipeline), n(DropKind::GeometrySkipped),
+                                n(DropKind::MissingBinding), n(DropKind::NullTexture),
+                                n(DropKind::Other));
+                    const auto t = [&](DropKind kind) {
+                        return static_cast<unsigned long long>(BbStats::Drops(kind));
+                    };
+                    std::printf("Draw drops total: no pipeline %llu, geometry %llu, missing "
+                                "bindings %llu, null textures %llu, other %llu (first-use pipeline "
+                                "skips %llu, not counted above)\n",
+                                t(DropKind::NoPipeline), t(DropKind::GeometrySkipped),
+                                t(DropKind::MissingBinding), t(DropKind::NullTexture),
+                                t(DropKind::Other), t(DropKind::AsyncSkipped));
+                }
+                std::fflush(stdout);
+            }
             if (const u64 hoisted = BbStats::hoisted_dispatches.exchange(0)) {
                 std::printf("Hoisted dispatches: %.1f/frame recorded before their render pass\n",
                             frames ? double(hoisted) / frames : 0.0);

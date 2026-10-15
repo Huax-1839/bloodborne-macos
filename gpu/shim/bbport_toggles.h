@@ -113,6 +113,35 @@ inline bool Experiment(std::uint64_t bit) {
 } // namespace BbToggle
 
 namespace BbStats {
+/// Draws and dispatches that were not recorded, by category (both backends; printed with
+/// BB_FRAME_STATS). Per dropped draw or dispatch; a draw with missing bindings or null textures
+/// still draws and is counted once. AsyncSkipped is the expected first-use skip of a new pipeline
+/// (BB_ASYNC_PIPELINES), kept apart from NoPipeline.
+enum class DropKind : std::uint32_t {
+    NoPipeline,
+    GeometrySkipped,
+    MissingBinding,
+    NullTexture,
+    Other,
+    AsyncSkipped,
+    Count,
+};
+inline std::array<std::atomic<std::uint64_t>, static_cast<std::size_t>(DropKind::Count)> draw_drops{};
+inline void NoteDrop(DropKind kind) {
+    draw_drops[static_cast<std::size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
+}
+inline std::uint64_t Drops(DropKind kind) {
+    return draw_drops[static_cast<std::size_t>(kind)].load(std::memory_order_relaxed);
+}
+/// Null pipelines the pipeline cache explains by itself (geometry draws on a backend without the
+/// stage, first-use skips): the rasterizer counts NoPipeline only when this did not move.
+inline std::uint64_t ExplainedNullPipelines() {
+    return Drops(DropKind::GeometrySkipped) + Drops(DropKind::AsyncSkipped);
+}
+/// World position of the last committed camera (float bits of x, y, z) and the number of frames
+/// that had one (CameraTracker::CommitFrameCamera).
+inline std::array<std::atomic<std::uint32_t>, 3> camera_position_bits{};
+inline std::atomic<std::uint64_t> camera_frames{0};
 /// Dispatches recorded before the render pass they arrived in (BB_HOIST_DISPATCH).
 inline std::atomic<std::uint64_t> hoisted_dispatches{0};
 /// Guest writes caught by page protection, and pages currently left unprotected as hot.

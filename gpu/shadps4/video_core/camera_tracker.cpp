@@ -197,6 +197,15 @@ void CameraTracker::CommitFrameCamera() {
     previous = current;
     current = pass_camera;
     committed = true;
+    if (current.valid) {
+        // bbport: the camera's world position for the frame stats (route checks on any backend).
+        for (int i = 0; i < 3; ++i) {
+            std::uint32_t bits;
+            std::memcpy(&bits, &current.inv_view[i * 4 + 3], sizeof(bits));
+            BbStats::camera_position_bits[i].store(bits, std::memory_order_relaxed);
+        }
+        BbStats::camera_frames.fetch_add(1, std::memory_order_release);
+    }
 }
 
 bool CameraTracker::OnDisplayPass() {

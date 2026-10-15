@@ -85,6 +85,9 @@ struct Rasterizer::Impl {
     std::atomic<u64> no_pipeline_draws{};
     std::atomic<u64> null_textures{}, null_samplers{}, missing_bindings{};
     std::atomic<bool> null_texture_logged{}, missing_logged{}, overflow_logged{};
+    /// BbStats draw drops: the current draw's missing bindings / null textures are counted once
+    /// (reset by BeginResourceBindings).
+    bool draw_missing_counted{}, draw_null_texture_counted{};
     std::atomic<s64> last_stats_ns{};
     /// Pipelines without depth/stencil formats for passes without a depth buffer (recording
     /// thread only).
@@ -206,6 +209,7 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset, const Vulkan::PreparedD
             return;
         }
     }
+    const u64 explained_before = BbStats::ExplainedNullPipelines();
     const GraphicsPipeline* pipeline = pipeline_cache->GetGraphicsPipeline({}, prepared);
     const Vulkan::PreparedDraw* used_prepared = pipeline_cache->UsedPrepared();
     if (prepared) {
@@ -215,6 +219,9 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset, const Vulkan::PreparedD
                          prepared->reg_checksum == liverpool->gfx_reg_checksum);
     }
     if (!pipeline) {
+        if (BbStats::ExplainedNullPipelines() == explained_before) {
+            BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
+        }
         impl->no_pipeline_draws.fetch_add(1, std::memory_order_relaxed);
         return;
     }
@@ -241,8 +248,12 @@ void Rasterizer::DrawIndirect(bool is_indexed, VAddr arg_address, u32 offset, u3
         .vertex_sgpr_offset = vertex_sgpr_offset,
         .instance_sgpr_offset = instance_sgpr_offset,
     };
+    const u64 explained_before = BbStats::ExplainedNullPipelines();
     const GraphicsPipeline* pipeline = pipeline_cache->GetGraphicsPipeline(params, nullptr, true);
     if (!pipeline) {
+        if (BbStats::ExplainedNullPipelines() == explained_before) {
+            BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
+        }
         impl->no_pipeline_draws.fetch_add(1, std::memory_order_relaxed);
         return;
     }
@@ -262,6 +273,7 @@ void Rasterizer::DispatchDirect() {
     }
     const ComputeShaderPipeline* pipeline = pipeline_cache->GetComputePipeline();
     if (!pipeline) {
+        BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
         impl->no_pipeline_draws.fetch_add(1, std::memory_order_relaxed);
         return;
     }
@@ -279,6 +291,7 @@ void Rasterizer::DispatchIndirect(VAddr address, u32 offset, u32 size) {
     }
     const ComputeShaderPipeline* pipeline = pipeline_cache->GetComputePipeline();
     if (!pipeline) {
+        BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
         impl->no_pipeline_draws.fetch_add(1, std::memory_order_relaxed);
         return;
     }
@@ -399,6 +412,10 @@ void Rasterizer::Impl::BindStage(StageKind stage, const CompiledShader& shader,
     std::array<u32, kMaxBuffers> buffer_sizes{}; // SPIRV-Cross' spvBufferSizeConstants
     const auto missing = [&](const char* what, const ShaderBinding& b) {
         missing_bindings.fetch_add(1, std::memory_order_relaxed);
+        if (!draw_missing_counted) {
+            draw_missing_counted = true;
+            BbStats::NoteDrop(BbStats::DropKind::MissingBinding);
+        }
         // Known case: the core reuses a vertex shader permutation whose resource bitset is empty
         // for any start binding (specialization.h), but the RectList vertex shaders declare the
         // ClipPlanes buffer, numbered for the pipeline they were first made for; the shader reads
@@ -476,6 +493,7 @@ void Rasterizer::BeginResourceBindings(u32 num_descriptors) {
     std::fill_n(impl->textures.begin(), impl->num_textures, nullptr);
     std::fill_n(impl->samplers.begin(), impl->num_samplers, nullptr);
     impl->num_buffers = impl->num_textures = impl->num_samplers = 0;
+    impl->draw_missing_counted = impl->draw_null_texture_counted = false;
 }
 
 void Rasterizer::BindBufferSet(std::span<const BufferBinding> buffers,
@@ -526,6 +544,10 @@ void Rasterizer::BindTextureSet(std::span<const TextureBinding> textures,
         }
         if (!native) {
             impl->null_textures.fetch_add(1, std::memory_order_relaxed);
+            if (!impl->draw_null_texture_counted) {
+                impl->draw_null_texture_counted = true;
+                BbStats::NoteDrop(BbStats::DropKind::NullTexture);
+            }
             if (!impl->null_texture_logged.exchange(true)) {
                 LOG_WARNING(Render, "Metal: a texture binding has no image view (a null "
                                     "descriptor binds nil); counted in BB_FRAME_STATS");
@@ -585,6 +607,23 @@ void Rasterizer::NoteDrop(Drop reason) {
     static_assert(std::size(kDropNames) == Impl::kNumDrops);
     const u32 index = static_cast<u32>(reason);
     impl->drops[index].fetch_add(1, std::memory_order_relaxed);
+    // BbStats: work that is empty by construction (nothing to draw, culled, discarded) is not a
+    // loss; geometry limits are counted with the geometry draws a backend skips.
+    switch (reason) {
+    case Drop::EmptyDraw:
+    case Drop::EmptyDispatch:
+    case Drop::EmptyScissor:
+    case Drop::RasterizerDiscard:
+    case Drop::CullAll:
+        break;
+    case Drop::GeometryInstanced:
+    case Drop::GeometryTooLarge:
+        BbStats::NoteDrop(BbStats::DropKind::GeometrySkipped);
+        break;
+    default:
+        BbStats::NoteDrop(BbStats::DropKind::Other);
+        break;
+    }
     if (!impl->drop_logged[index].exchange(true)) {
         LOG_WARNING(Render, "Metal: draws or dispatches are dropped: {}", kDropNames[index]);
     }

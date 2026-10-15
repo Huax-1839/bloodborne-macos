@@ -507,6 +507,7 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset, const PreparedDraw* pre
             return;
         }
     }
+    const u64 explained_before = BbStats::ExplainedNullPipelines();
     const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline({}, prepared);
     const PreparedDraw* used_prepared = pipeline_cache.UsedPrepared();
     if (prepared) {
@@ -515,6 +516,9 @@ void Rasterizer::Draw(bool is_indexed, u32 index_offset, const PreparedDraw* pre
                          prepared->reg_checksum == liverpool->gfx_reg_checksum);
     }
     if (!pipeline) {
+        if (BbStats::ExplainedNullPipelines() == explained_before) {
+            BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
+        }
         return;
     }
     if (pipelined && FilterDrawPasses()) {
@@ -544,8 +548,12 @@ void Rasterizer::DrawIndirect(bool is_indexed, VAddr arg_address, u32 offset, u3
         .vertex_sgpr_offset = vertex_sgpr_offset,
         .instance_sgpr_offset = instance_sgpr_offset,
     };
+    const u64 explained_before = BbStats::ExplainedNullPipelines();
     const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline(params, nullptr, true);
     if (!pipeline) {
+        if (BbStats::ExplainedNullPipelines() == explained_before) {
+            BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
+        }
         return;
     }
     const IndirectDraw indirect = {arg_address + offset, count_address, stride, max_count};
@@ -566,6 +574,7 @@ void Rasterizer::DispatchDirect() {
     }
     const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
     if (!pipeline) {
+        BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
         return;
     }
     if (pipelined) {
@@ -584,6 +593,7 @@ void Rasterizer::DispatchIndirect(VAddr address, u32 offset, u32 size) {
     }
     const ComputePipeline* pipeline = pipeline_cache.GetComputePipeline();
     if (!pipeline) {
+        BbStats::NoteDrop(BbStats::DropKind::NoPipeline);
         return;
     }
     if (pipelined) {
