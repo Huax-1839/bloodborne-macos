@@ -120,25 +120,48 @@ the amount of geometry and pixels the game asks for.
   (key includes backend + SPIRV-Cross version); `MTLBinaryArchive` for PSOs. The Xbyak resource
   walker stays (the process is x86-64).
 - **D6 Memory: zero copy.** Guest direct-memory chunks become `MTLBuffer`s with
-  `newBufferWithBytesNoCopy` (storage mode shared, unified memory); shaders use their
-  `gpuAddress` for device-address accesses. Residency through one `MTLResidencySet` attached to
-  the queue (macOS 15+), updated when chunks/heaps appear or go. GPU-visible memory is freed
-  only after the last command buffer that may use it has completed (completion-handler ticks;
-  the lesson of the device-loss bug).
+  `newBufferWithBytesNoCopy` (storage mode shared, unified memory, hazard tracked); shaders use
+  their `gpuAddress` for device-address accesses. Residency, as built (P6.1, P8.5):
+  - one `MTLResidencySet` attached to the draw queue (macOS 15+) and `requestResidency`'d once,
+    so it stays resident while the GPU idles; it holds every cache buffer and texture for its
+    life (P6.1, `BB_MTL_RESIDENT_ALL=0`: only buffers with a device address, A/B), added at
+    creation and removed at destruction;
+  - the **guest memory chunks are not in the set**: every render and compute encoder declares
+    them with `useResources` (`UseGuestChunks`, mtl_scheduler.mm), blits name their buffers, as
+    MoltenVK does with imported host memory. In the set, the kernel unwired and rewired whole
+    chunks (up to 2.3 GiB) around every idle GPU period under the 30-FPS cap, which was the
+    83–233 ms hitches (P8.5); `BB_MTL_GUEST_IN_SET=1` restores the old policy for A/B only.
+  Lifetime: command buffers are created with `retainedReferences = NO`; nothing is kept alive by
+  Metal, so every destroy of GPU-visible memory (cache buffers, textures, samplers, guest chunks,
+  staging) is deferred until the scheduler's `retired_tick` (advanced in the command buffers'
+  completion handlers) has passed the last tick that could see it (the lesson of the
+  device-loss bug). The present queue (D7) only reads the frame image, which the presenter
+  keeps referenced until its own command buffer completes.
   P0 probe (Rosetta process): no-copy buffers accept 4 KiB-aligned host memory; a buffer is at
   most `maxBufferLength` = 8.88 GiB, so direct memory above that (`BB_DMEM_MB=9152`) needs more
   than one buffer; device-address accesses work with residency-set residency alone (no
   `useResource`), and silently read/write nothing without it.
-- **D7 Command model.** One queue. Render passes are planned by the scheduler from what the
-  frontend knows: a pass stays one render encoder across barriers that only need buffer/memory
-  ordering (Metal in-pass memory barriers); compute work between draws is hoisted before the pass
-  when its inputs allow (existing `HoistDispatch` logic), otherwise the pass ends. Load/store
-  actions come from attachment lifetimes (`DontCare`/memoryless only when proven overwritten or
-  never read again). Start with hazard-tracked resources for correctness (P4), switch to
-  untracked heaps + explicit fences/barriers from the existing barrier tracker in P6.
+- **D7 Command model.** Two queues, as built:
+  - the **draw queue** (`mtl_device`): every command buffer of the scheduler (draws, dispatches,
+    blits, the post-process pass), in tick order; each signals the scheduler's `MTLSharedEvent`
+    with its tick when it completes on the GPU, and its completion handler advances
+    `retired_tick` (D6) and reports a failed command buffer;
+  - the **present queue** (`mtl_presenter`): one command buffer per presented (or interpolated)
+    frame that `encodeWaitForEvent`s the frame's tick on that event before it reads the frame
+    image, so the present overlaps later draw work on the GPU (P6: 96% of it) without a CPU
+    wait. Nothing on the present queue writes memory the draw queue reads.
+  Render passes are planned by the scheduler from what the frontend knows: a pass stays one
+  render encoder across barriers that only need buffer/memory ordering (Metal in-pass memory
+  barriers); compute work between draws is hoisted before the pass when its inputs allow
+  (existing `HoistDispatch` logic), otherwise the pass ends. Load/store actions come from
+  attachment lifetimes (`DontCare`/memoryless only when proven overwritten or never read again).
+  Resources are **hazard tracked** (Metal orders encoders that share a resource); untracked heaps
+  with explicit fences/barriers were planned for P6 but are **deferred**: making everything
+  untracked broke the game, and P8.5 showed the hitches were residency, not tracking. It stays
+  an option for the worst frames (§8 "Open", 3B) and is a precondition of the Metal 4 model
+  below. Do not switch a resource class to untracked without the explicit barriers for it.
   **API level (decided in P0, see §8 "P0 results"): Metal 3 command model first.**
-  `MTLCommandQueue` with `commandBufferWithUnretainedReferences`, one `MTLResidencySet` attached to
-  the queue, argument buffers tier 2 where P3.4 wants them. Metal 4 (`MTL4CommandQueue`,
+  `MTLCommandQueue` with unretained references, one `MTLResidencySet` attached to the draw queue, argument buffers tier 2 where P3.4 wants them. Metal 4 (`MTL4CommandQueue`,
   allocators, argument tables) works in the Rosetta process too, but it has no hazard tracking
   at all: it needs the explicit barrier model from the first image, which is what P4 avoids. It
   is re-evaluated in P6.5 as the way to cheaper encoding, once the explicit barriers of P6.4 exist.
