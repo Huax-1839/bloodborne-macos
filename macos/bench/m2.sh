@@ -7,6 +7,8 @@
 #   cap30   BB_PROFILE=m4air                (the profile's 30 FPS cap)
 #   native  BB_FPS=30                       (1080p, no profile)
 # Default: all three. The results also go to $BB_BENCH_DIR/runs/results.tsv (names m2-<profile>-*).
+# M2_ENV="ENV=VAL ...": added to every run of both backends (e.g. the BB_TOGGLE_FILE that turns the
+# scene mip bias off: Metal applies it, MoltenVK does not, so M2 compares with it off, §9).
 # Exit status 0 only when every profile has exactly three valid runs per backend (bench.sh exit 0
 # and a parsed result line); otherwise the failed runs are listed and the means are not printed
 # for the incomplete profiles.
@@ -25,6 +27,8 @@ for profile in "${profiles[@]}"; do
     native) env_args=(BB_FPS=30) ;;
     *) echo "unknown profile $profile" >&2; exit 2 ;;
     esac
+    read -r -a extra <<< "${M2_ENV:-}"
+    env_args+=(${extra[@]+"${extra[@]}"})
     if (( n++ % 2 == 0 )); then order=(vulkan metal metal vulkan vulkan metal)
     else order=(metal vulkan vulkan metal metal vulkan); fi
     i=0
