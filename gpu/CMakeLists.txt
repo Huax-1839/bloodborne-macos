@@ -466,6 +466,21 @@ if (APPLE)
 endif()
 
 if (APPLE)
+    # bbport: the sampler LOD bias of the Metal backend (renderer_metal/mtl_runtime MakeLimits and
+    # CreateSampler): a mip chain of solid colours sampled in a fragment shader with the guest and
+    # the scene mip bias, the selected mip checked per pixel; needs a Metal device only.
+    add_executable(mtl-sampler-bias-test EXCLUDE_FROM_ALL ../tests/test_mtl_sampler_bias.mm)
+    set_source_files_properties(../tests/test_mtl_sampler_bias.mm PROPERTIES
+        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+    target_compile_options(mtl-sampler-bias-test PRIVATE -UNDEBUG -fPIC
+        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+    target_include_directories(mtl-sampler-bias-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+    # bbgpu looks the runtime_* services up in the executable (the test defines them).
+    target_link_options(mtl-sampler-bias-test PRIVATE -Wl,-export_dynamic)
+    target_link_libraries(mtl-sampler-bias-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
+endif()
+
+if (APPLE)
     # bbport: the reduced scene targets of the live-resolution path on Metal (renderer_metal/
     # mtl_scene_targets, P7.5 L2): proxy copies in both directions, values checked; links bbgpu,
     # needs a Metal device only.

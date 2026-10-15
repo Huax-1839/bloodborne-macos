@@ -347,8 +347,16 @@ BackendLimits MakeLimits(Device& device) {
     limits.storage_min_alignment = 16;
     limits.non_coherent_atom_size = 1;
     limits.max_sampler_anisotropy = 16.0f;
-    // MTLSamplerState has no LOD bias; the shared sampler code clamps the bias to this limit.
-    limits.max_sampler_lod_bias = 0.0f;
+    // MTLSamplerDescriptor.lodBias (S4.6, [-16, 15.999]) exists from macOS 26; the shared sampler
+    // code clamps the bias to this limit, symmetric: the largest S4.6 value below 16. Earlier
+    // systems have no bias, the guest's and the upscaler's scene mip bias then drop.
+    if (@available(macOS 26.0, *)) {
+        limits.max_sampler_lod_bias = 15.984375f;
+    } else {
+        limits.max_sampler_lod_bias = 0.0f;
+        LOG_WARNING(Render, "Metal: sampler LOD bias needs macOS 26; the guest's and the "
+                            "upscaler's mip bias are ignored");
+    }
     limits.max_sampler_allocation_count =
         static_cast<u32>(std::min<NSUInteger>(mtl.maxArgumentBufferSamplerCount, 1u << 20));
     limits.total_memory_budget = mtl.recommendedMaxWorkingSetSize;
@@ -1104,6 +1112,9 @@ void Runtime::CreateSampler(Sampler& out, const vk::SamplerCreateInfo& info) {
         }
         descriptor.lodMinClamp = info.minLod;
         descriptor.lodMaxClamp = std::min(info.maxLod, 1000.0f);
+        if (@available(macOS 26.0, *)) {
+            descriptor.lodBias = info.mipLodBias;
+        }
         descriptor.normalizedCoordinates = YES;
         descriptor.supportArgumentBuffers = YES;
         id<MTLSamplerState> sampler = [impl->dev.device newSamplerStateWithDescriptor:descriptor];
