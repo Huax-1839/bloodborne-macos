@@ -12,17 +12,59 @@
 
 namespace VideoCore {
 
-struct TilingInfo {
-    u32 bank_swizzle;
-    u32 micro_tiled_mips;
-    u32 num_mips;
-    std::array<ImageInfo::MipInfo, 16> mips;
-};
-
 TileManager::TileManager(CacheBackend& backend_, StreamBuffer& stream_buffer_)
     : backend{backend_}, stream_buffer{stream_buffer_} {}
 
 TileManager::~TileManager() = default;
+
+// The macro tile (pitch, height) in texels of the tile mode of `info`: what the macro tile
+// addressing of the kernel (MACRO_TILE_PITCH, MACRO_TILE_HEIGHT in tiling.comp) is made of.
+static std::pair<u32, u32> MacroTileExtent(const ImageInfo& info) {
+    const auto macro_tile_mode =
+        AmdGpu::CalculateMacrotileMode(info.tile_mode, info.num_bits, info.num_samples);
+    const u32 num_pipes = AmdGpu::GetPipeConfig(info.tile_mode) == AmdGpu::PipeConfig::P2 ? 2 : 8;
+    const u32 aspect = AmdGpu::GetMacrotileAspect(macro_tile_mode);
+    return {8 * AmdGpu::GetBankWidth(macro_tile_mode) * num_pipes * aspect,
+            8 * AmdGpu::GetBankHeight(macro_tile_mode) * AmdGpu::GetNumBanks(macro_tile_mode) /
+                aspect};
+}
+
+TilingInfo TileManager::MakeTilingInfo(const ImageInfo& info, u32 num_mips) {
+    const bool is_macro = AmdGpu::IsMacroTiled(info.array_mode);
+    const auto [macro_pitch, macro_height] =
+        is_macro ? MacroTileExtent(info) : std::pair<u32, u32>{8, 8};
+    TilingInfo params{};
+    params.bank_swizzle = info.bank_swizzle;
+    params.micro_tiled_mips = info.micro_tiled_mips;
+    params.num_mips = num_mips;
+    for (u32 mip = 0; mip < num_mips; ++mip) {
+        const auto& layout = info.mips_layout[mip];
+        auto& mip_info = params.mips[mip];
+        mip_info.size = layout.size;
+        mip_info.pitch = layout.pitch;
+        mip_info.height = layout.height;
+        mip_info.offset = layout.offset;
+        if (info.props.is_block) {
+            mip_info.pitch = std::max((mip_info.pitch + 3) / 4, 1U);
+            mip_info.height = std::max((mip_info.height + 3) / 4, 1U);
+        }
+        // The surface is laid out padded to its macro tiles (the small mips of a macro tiled image
+        // are micro tiled: to 8x8 texels), whatever logical size the image has.
+        const bool micro = !is_macro || (info.micro_tiled_mips >> mip & 1) != 0;
+        const u32 align_pitch = micro ? 8 : macro_pitch;
+        const u32 align_height = micro ? 8 : macro_height;
+        mip_info.padded_pitch = (mip_info.pitch + align_pitch - 1) / align_pitch * align_pitch;
+        mip_info.padded_height = (mip_info.height + align_height - 1) / align_height * align_height;
+        const u64 slice_bytes = u64(mip_info.padded_pitch) * mip_info.padded_height *
+                                info.num_bits * info.num_samples / 8;
+        // A micro tile holds `thickness` slices: only whole groups of them fit the size.
+        const u32 array_thickness = AmdGpu::GetMicroTileThickness(info.array_mode);
+        const u32 thickness = is_macro && micro ? std::min(array_thickness, 4u) : array_thickness;
+        const u32 slices = static_cast<u32>(slice_bytes ? layout.size / slice_bytes : 0);
+        mip_info.slices = slices - slices % thickness;
+    }
+    return params;
+}
 
 TilingDispatch TileManager::MakeDispatch(const ImageInfo& info, bool is_tiler,
                                          const KernelBuffer& tiled, const KernelBuffer& linear,
@@ -83,18 +125,7 @@ std::pair<const Buffer*, u64> TileManager::DetileImage(const VideoCore::Buffer* 
         return {in_buffer, in_offset};
     }
 
-    TilingInfo params{};
-    params.bank_swizzle = info.bank_swizzle;
-    params.micro_tiled_mips = info.micro_tiled_mips;
-    params.num_mips = info.resources.levels;
-    for (u32 mip = 0; mip < params.num_mips; ++mip) {
-        auto& mip_info = params.mips[mip];
-        mip_info = info.mips_layout[mip];
-        if (info.props.is_block) {
-            mip_info.pitch = std::max((mip_info.pitch + 3) / 4, 1U);
-            mip_info.height = std::max((mip_info.height + 3) / 4, 1U);
-        }
-    }
+    const TilingInfo params = MakeTilingInfo(info, info.resources.levels);
 
     const KernelBuffer params_buffer_info{
         .buffer = &stream_buffer,
@@ -145,18 +176,7 @@ void TileManager::TileImage(Image& in_image, std::span<vk::BufferImageCopy> buff
         return;
     }
 
-    TilingInfo params{};
-    params.bank_swizzle = info.bank_swizzle;
-    params.micro_tiled_mips = info.micro_tiled_mips;
-    params.num_mips = static_cast<u32>(buffer_copies.size());
-    for (u32 mip = 0; mip < params.num_mips; ++mip) {
-        auto& mip_info = params.mips[mip];
-        mip_info = info.mips_layout[mip];
-        if (info.props.is_block) {
-            mip_info.pitch = std::max((mip_info.pitch + 3) / 4, 1U);
-            mip_info.height = std::max((mip_info.height + 3) / 4, 1U);
-        }
-    }
+    const TilingInfo params = MakeTilingInfo(info, static_cast<u32>(buffer_copies.size()));
 
     const KernelBuffer params_buffer_info{
         .buffer = &stream_buffer,

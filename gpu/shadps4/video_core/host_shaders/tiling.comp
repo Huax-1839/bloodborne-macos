@@ -85,11 +85,18 @@ const uint NUM_PIPE_BITS = PIPE_CONFIG == 0 ? 1 : 3;
 
 #define _BIT(v, b) bitfieldExtract((v), (b), 1)
 
+// A mip (TilingMip in texture_cache/tile_manager.h): the linear image of the mip is `slices`
+// slices of height rows of pitch texels (the logical size, what the linear copies of the texture
+// cache hold), the tiled surface is laid out padded (padded_height rows of padded_pitch texels,
+// multiples of the macro tile's size) and has size bytes. Only the logical texels are copied.
 struct MipInfo {
     uint size;
     uint pitch;
     uint height;
     uint offset;
+    uint padded_pitch;
+    uint padded_height;
+    uint slices;
 };
 
 layout (set = 0, binding = 0, scalar) buffer InputBuf {
@@ -216,11 +223,17 @@ uint32_t ComputePixelIndexWithinMicroTile(uint32_t x, uint32_t y, uint32_t z, ui
 // library; this file only changes how the work is spread over threads):
 //
 // - The linear buffer holds the texels of all mips one after the other (info.mips[].size bytes
-//   each); the texel of a mip is x + y * pitch + slice * pitch * height.
-// - A unit is 64 texels. A mip whose pitch and height are multiples of 8 and whose size is whole
-//   slices (every mip of a valid image) is cut into micro tiles of 8x8 texels of one slice, one
-//   unit each, in the order of the tiles in the linear image. Any other mip is cut into 64
-//   consecutive linear texels, and its texels are divided into x, y and slice one by one.
+//   each); the texel of a mip is x + y * pitch + slice * pitch * height, for the info.mips[].slices
+//   slices of the logical size (pitch x height). The tiled surface of the mip is padded: its
+//   slices are padded_pitch x padded_height texels (multiples of the macro tile's size), and the
+//   address of a texel is the one in that padded surface. The padding is not image data: no texel
+//   of it is read or written, and no byte outside the mip's size is touched (the host gives the
+//   number of whole padded slices in the size as `slices`).
+// - A unit is 64 texels (the units of a mip are counted from its size, the logical texels are
+//   fewer or as many: the later units end at once). A mip whose logical pitch and height are
+//   multiples of 8 is cut into micro tiles of 8x8 texels of one slice, one unit each, in the
+//   order of the tiles in the linear image. Any other mip is cut into 64 consecutive linear
+//   texels, and its texels are divided into x, y and slice one by one.
 // - A thread handles one row of 8 texels of one unit, eight threads a unit, so a workgroup of 64
 //   threads handles 8 units. A row is in one micro tile: everything of the address that depends
 //   on the tile only (the macro tile, pipe, bank) is computed once per row, and the 8 texels add
@@ -551,29 +564,38 @@ void main() {
     if (mip >= info.num_mips) {
         return;
     }
+    // The logical image of the mip: slices of height rows of pitch texels, the linear texels. The
+    // tiled surface is laid out in the padded size (padded_pitch, padded_height), the texels of
+    // the padding are not copied.
     uint pitch = info.mips[mip].pitch;
     uint height = info.mips[mip].height;
+    uint padded_pitch = info.mips[mip].padded_pitch;
+    uint padded_height = info.mips[mip].padded_height;
+    uint slices = info.mips[mip].slices;
     uint slice_texels = pitch * height;
-    if (slice_texels == 0) {
+    uint image_texels = slice_texels * slices;
+    if (image_texels == 0) {
         return;
     }
 
-    // A mip of whole slices of whole micro tiles: the units are the micro tiles of the image.
+    // A mip of whole micro tiles in the linear image: the units are the micro tiles of the image.
     // (The common mip of one slice needs no division.)
-    bool one_slice = mip_texels == slice_texels;
-    bool tiles = (pitch & (MICRO_TILE_WIDTH - 1)) == 0 && (height & (MICRO_TILE_HEIGHT - 1)) == 0 &&
-                 (one_slice || mip_texels % slice_texels == 0);
+    bool one_slice = slices == 1;
+    bool tiles = (pitch & (MICRO_TILE_WIDTH - 1)) == 0 && (height & (MICRO_TILE_HEIGHT - 1)) == 0;
+    uint tiles_per_row = pitch / MICRO_TILE_WIDTH;
+    uint tiles_per_slice = tiles_per_row * (height / MICRO_TILE_HEIGHT);
     // Otherwise the texels of the unit in the order of the linear image, one by one.
     uint texel = unit * TEXELS_PER_UNIT + thread_in_unit * TEXELS_PER_THREAD;
-    uint end = tiles ? 1 : min(texel + TEXELS_PER_THREAD, mip_texels);
+    uint end = tiles ? 1 : min(texel + TEXELS_PER_THREAD, image_texels);
     if (tiles) {
+        if (unit >= tiles_per_slice * slices) {
+            return;
+        }
         texel = 0;
     }
     while (texel < end) {
         uint x, y, slice, count, linear_index;
         if (tiles) {
-            uint tiles_per_row = pitch / MICRO_TILE_WIDTH;
-            uint tiles_per_slice = tiles_per_row * (height / MICRO_TILE_HEIGHT);
             slice = one_slice ? 0 : unit / tiles_per_slice;
             uint tile_in_slice = unit - slice * tiles_per_slice;
             uint tile_y = tile_in_slice / tiles_per_row;
@@ -592,6 +614,6 @@ void main() {
             linear_index = mip_first_texel + texel;
             texel += count;
         }
-        CopyRow(mip, x, y, slice, pitch, height, linear_index, count);
+        CopyRow(mip, x, y, slice, padded_pitch, padded_height, linear_index, count);
     }
 }

@@ -764,7 +764,7 @@ struct TilingInfoBlock {
     u32 micro_tiled_mips;
     u32 num_mips;
     struct Mip {
-        u32 size, pitch, height, offset;
+        u32 size, pitch, height, offset, padded_pitch, padded_height, slices;
     } mips[16];
 };
 
@@ -791,7 +791,7 @@ static void TestKernels(Fixture& f) {
     }
     TilingInfoBlock params{};
     params.num_mips = 1;
-    params.mips[0] = {Bytes, Width, Height, 0};
+    params.mips[0] = {Bytes, Width, Height, 0, Width, Height, 1};
 
     TilingDispatch dispatch{};
     dispatch.key = {AmdGpu::TileMode::Display1DThin, 32, 1, false};

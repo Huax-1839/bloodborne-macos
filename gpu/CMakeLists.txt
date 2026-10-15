@@ -550,10 +550,11 @@ if (APPLE)
 endif()
 
 if (APPLE)
-    # bbport: bit-for-bit comparison of the tiling kernel (host_shaders/tiling.comp) with its
-    # reference, the kernel as it was before P8.4 (tests/tiling_reference.comp, compiled to MSL
-    # like the shipped one, names tiling_ref_*), on the game's tile modes, and the GPU time of
-    # both. Links bbgpu (TileManager::MakeDispatch, the tiling tables) and needs a Metal device
+    # bbport: the tiling kernel (host_shaders/tiling.comp) and a one-thread-per-texel reference
+    # kernel (tests/tiling_reference.comp, compiled to MSL like the shipped one, names
+    # tiling_ref_*) checked byte for byte in both directions against an addrlib CPU reference
+    # (tests/tiling_cpu_reference.h: padded layout, unique in-bounds addresses), on the game's
+    # tile modes; any nondeterministic or skipped check fails; and the GPU time of both. Links bbgpu (TileManager::MakeDispatch, the tiling tables) and needs a Metal device
     # only.
     set(SAVED_SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS})
     set(SHADER_MSL_HEADERS "")

@@ -1,14 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Unit test of the GCN tiling and detiling kernel (host_shaders/tiling.comp, its MSL by SPIRV-Cross;
-// docs/METAL_BACKEND_PLAN.md P8.4): runs the shipped kernel and the reference (the kernel as it was
-// before P8.4, tests/tiling_reference.comp, one thread per element) on random data and requires
-// bit-identical buffers, as tiler and as detiler, for the game's tile modes (macro tiled 2D thin
+// docs/METAL_BACKEND_PLAN.md P8.4): runs the shipped kernel and the reference kernel
+// (tests/tiling_reference.comp, one thread per element, the shipped kernel's addressing without
+// its work distribution) as tiler and as detiler for the game's tile modes (macro tiled 2D thin
 // 14, depth 0, micro tiled 13 and 9), mip chains, thick and 3D modes, every bits per pixel, block
-// formats, bank swizzles. The dispatch (constants and group count) is the one of
-// TileManager::MakeDispatch; the reference gets the same constants and one thread per element.
-// The tiled buffer is compared whole, with a guard area behind the image, so a write the new
-// kernel makes that the reference does not make fails the test. Prints the GPU time of both
-// (MTLCommandBuffer GPUStartTime/GPUEndTime, median). Needs a Metal device only.
+// formats, bank swizzles, and layouts whose logical height is smaller than the padded one (a 720
+// row depth buffer in 768 rows). The dispatch (constants, group count) and the kernel's parameters
+// are the ones of TileManager (MakeDispatch, MakeTilingInfo).
+//
+// The correctness reference is the CPU address function of tests/tiling_cpu_reference.h (the
+// address library's semantics, written independently of the kernels). Per case it requires
+//  - the map from the linear texels (the logical rows) to tiled bytes to be injective and to stay
+//    inside the mip of the tiled buffer (the guest memory of the image);
+//  - the padded sizes and the slice count that TileManager gives the kernel to be the ones of the
+//    CPU reference;
+//  - both kernels to give, in both directions, exactly the buffers the CPU reference gives (the
+//    tiled and the linear buffer whole, with a guard area behind the image, so a stray write
+//    fails), and to give the same twice (a race on one address fails);
+//  - everything above to be done: a comparison that is not made is a failure (the summary counts
+//    the skipped ones, there are none).
+// Prints the GPU time of both kernels (MTLCommandBuffer GPUStartTime/GPUEndTime, median). Needs a
+// Metal device only.
 //
 //   mtl-tiling-test [name part of the cases to run]
 #import <Foundation/Foundation.h>
@@ -24,8 +36,10 @@
 #include <thread>
 #include <vector>
 
+#include "tiling_cpu_reference.h"
 #include "video_core/renderer_metal/msl_host_shader.h"
 #include "video_core/texture_cache/image_info.h"
+#include "video_core/texture_cache/tile.h"
 #include "video_core/texture_cache/tile_manager.h"
 
 #include "video_core/host_shaders_msl/tiling_macro_128_comp_msl.h"
@@ -85,17 +99,12 @@ u32 BufferSlot(const H::Shader& shader, u32 binding) {
     std::abort();
 }
 
-/// The TilingInfo of the texture cache (tile_manager.cpp), uniform buffer of the kernel.
-struct TilingInfoBlock {
-    u32 bank_swizzle;
-    u32 micro_tiled_mips;
-    u32 num_mips;
-    std::array<VideoCore::ImageInfo::MipInfo, 16> mips;
-};
-
-/// A level of a hand made layout: texels (size / bytes per texel), pitch and height.
+/// A level of a hand made layout: the logical pitch and height (the linear copy's rows) and the
+/// size in half slices of the padded surface (2: one slice, 3: a slice and a half that the kernel
+/// does not tile past the first, 0: an empty level); `micro`: a micro tiled level of a macro mode.
 struct CustomMip {
-    u32 texels, pitch, height;
+    u32 pitch, height, half_slices;
+    bool micro;
 };
 
 struct Case {
@@ -106,14 +115,14 @@ struct Case {
     u32 depth;           ///< depth slices of a volume
     u32 layers;
     u32 levels;
-    bool render_target;  ///< one level the way ImageInfo(ColorBuffer) lays it out (unpadded height)
+    bool render_target;  ///< one level the way ImageInfo(ColorBuffer) lays it out (padded pitch and height)
     u32 samples;
     bool block;          ///< block compressed (the kernel works on blocks)
     bool pow2;
     u32 bank_swizzle;
     bool timed;
-    /// Hand made mips (layouts ImageInfo does not produce, to cover the kernel's fallback for
-    /// mips that are not whole slices of whole micro tiles); levels is then their count.
+    /// Hand made mips (layouts ImageInfo does not produce: logical sizes in padded surfaces, sizes
+    /// that are no whole slices, sizes that are no multiple of 8); levels is then their count.
     std::array<CustomMip, 4> custom{};
 };
 
@@ -176,41 +185,94 @@ constexpr Case kCases[] = {
 };
 
 constexpr Case kCustomCases[] = {
-    // Render targets of the game: a surface padded to 768 rows with the height of 720 (the depth
-    // buffer's), or the buffer's height padded as well.
+    // The buffers of the game at 720p: a render target is a surface of 768 rows with the height of
+    // 768 (the height of ImageInfo(ColorBuffer) is the slice size over the pitch), a depth buffer
+    // a surface of 768 rows with the height of 720 (ImageInfo(DepthBuffer): the register's height).
     {"padded 64bpp m14 1280x768", TileMode::Thin2DThin, 64, 1280, 768, 1, 1, 1, false, 1, false, false, 0, true,
-     {{{1280 * 768, 1280, 768}}}},
+     {{{1280, 768, 2}}}},
     {"padded 32bpp m14 1280x768", TileMode::Thin2DThin, 32, 1280, 768, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{1280 * 768, 1280, 768}}}},
+     {{{1280, 768, 2}}}},
     {"padded 32bpp m0 1280x768", TileMode::Depth2DThin64, 32, 1280, 768, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{1280 * 768, 1280, 768}}}},
+     {{{1280, 768, 2}}}},
     {"depth 64bpp m14 1280x720/768", TileMode::Thin2DThin, 64, 1280, 720, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{1280 * 768, 1280, 720}}}},
+     {{{1280, 720, 2}}}},
     {"depth 32bpp m14 1280x720/768", TileMode::Thin2DThin, 32, 1280, 720, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{1280 * 768, 1280, 720}}}},
+     {{{1280, 720, 2}}}},
     {"depth 32bpp m0 1280x720/768", TileMode::Depth2DThin64, 32, 1280, 720, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{1280 * 768, 1280, 720}}}},
+     {{{1280, 720, 2}}}},
+    {"depth 32bpp m0 1280x720/768 x2", TileMode::Depth2DThin64, 32, 1280, 720, 1, 2, 1, false, 1, false, false, 0, false,
+     {{{1280, 720, 4}}}},
 
-    // Pitch or height not a multiple of 8, partial last slice, zero sized level; macro and micro
-    // modes. (The tiler may collide on addresses there; a reference that does is not compared.)
+    // Logical height or pitch below the padded one, not a multiple of 8, partial last slice, empty
+    // level, micro tiled levels of a macro mode, undersized levels; macro and micro modes.
     {"custom 64bpp m14 64x12", TileMode::Thin2DThin, 64, 64, 12, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{64 * 12, 64, 12}}}},
-    {"custom 32bpp m14 64x48 1.5 slices", TileMode::Thin2DThin, 32, 64, 32, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{64 * 48, 64, 32}}}},
+     {{{64, 12, 2}}}},
+    {"custom 32bpp m14 64x32 1.5 slices", TileMode::Thin2DThin, 32, 64, 32, 1, 1, 1, false, 1, false, false, 0, false,
+     {{{64, 32, 3}}}},
     {"custom 32bpp m13 64x32 1.5 slices", TileMode::Thin1DThin, 32, 64, 32, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{64 * 48, 64, 32}}}},
+     {{{64, 32, 3}}}},
     {"custom 32bpp m14 12x16", TileMode::Thin2DThin, 32, 12, 16, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{12 * 16, 12, 16}}}},
+     {{{12, 16, 2}}}},
+    {"custom 32bpp m13 12x12", TileMode::Thin1DThin, 32, 12, 12, 1, 1, 1, false, 1, false, false, 0, false,
+     {{{12, 12, 2}}}},
     {"custom 64bpp m13 100x64", TileMode::Thin1DThin, 64, 100, 64, 1, 1, 1, false, 1, false, false, 0, false,
-     {{{100 * 64, 100, 64}}}},
+     {{{100, 64, 2}}}},
+    {"custom 32bpp m0 100x60", TileMode::Depth2DThin64, 32, 100, 60, 1, 1, 1, false, 1, false, false, 0, false,
+     {{{100, 60, 2}}}},
     {"custom 32bpp m13 irregular chain", TileMode::Thin1DThin, 32, 64, 64, 1, 1, 4, false, 1, false, false, 0, false,
-     {{{64 * 64, 64, 64}, {32 * 24, 32, 24}, {0, 16, 16}, {16 * 16, 16, 16}}}},
+     {{{64, 64, 2}, {32, 24, 2}, {16, 16, 0}, {16, 16, 2}}}},
     {"custom 32bpp m14 irregular chain", TileMode::Thin2DThin, 32, 64, 64, 1, 1, 4, false, 1, false, false, 3, false,
-     {{{64 * 64, 64, 64}, {40 * 40, 40, 40}, {0, 16, 16}, {16 * 16, 16, 16}}}},
+     {{{64, 64, 2}, {40, 40, 2}, {16, 16, 0}, {16, 16, 2}}}},
+    {"custom 32bpp m14 chain micro mips", TileMode::Thin2DThin, 32, 64, 64, 1, 1, 3, false, 1, false, false, 3, false,
+     {{{64, 64, 2}, {40, 40, 2, true}, {12, 16, 2, true}}}},
     {"custom 128bpp m14 chain", TileMode::Thin2DThin, 128, 64, 64, 1, 1, 3, false, 1, false, false, 0, false,
-     {{{64 * 64, 64, 64}, {32 * 32, 32, 32}, {8 * 16, 8, 16}}}},
+     {{{64, 64, 2}, {32, 32, 2}, {8, 16, 2, true}}}},
+    {"undersized 32bpp m14 64x64", TileMode::Thin2DThin, 32, 64, 64, 1, 1, 1, false, 1, false, false, 0, false,
+     {{{64, 64, 1}}}},
+    {"undersized 32bpp m13 64x64", TileMode::Thin1DThin, 32, 64, 64, 1, 1, 1, false, 1, false, false, 0, false,
+     {{{64, 64, 1}}}},
 };
 
+/// The tile mode's properties as the address library takes them, from the AmdGpu tables.
+TilingCpu::Config MakeConfig(const VideoCore::ImageInfo& info) {
+    using AmdGpu::ArrayMode;
+    TilingCpu::Config cfg;
+    cfg.bits = info.num_bits;
+    cfg.samples = info.num_samples;
+    cfg.micro_mode = static_cast<u32>(AmdGpu::GetMicroTileMode(info.tile_mode));
+    cfg.thickness = AmdGpu::GetMicroTileThickness(info.array_mode);
+    cfg.macro = AmdGpu::IsMacroTiled(info.array_mode);
+    cfg.bank_swizzle = info.bank_swizzle;
+    if (!cfg.macro) {
+        return cfg;
+    }
+    const ArrayMode am = info.array_mode;
+    cfg.prt = AmdGpu::IsPrt(am);
+    cfg.mode_2d = am == ArrayMode::Array2DTiledThin1 || am == ArrayMode::Array2DTiledThick ||
+                  am == ArrayMode::Array2DTiledXThick;
+    cfg.mode_3d = am == ArrayMode::Array3DTiledThin1 || am == ArrayMode::Array3DTiledThick ||
+                  am == ArrayMode::Array3DTiledXThick;
+    cfg.split_rotates = am == ArrayMode::Array2DTiledThin1 || am == ArrayMode::Array3DTiledThin1 ||
+                        am == ArrayMode::ArrayPrt2DTiledThin1 ||
+                        am == ArrayMode::ArrayPrt3DTiledThin1;
+    const AmdGpu::PipeConfig pipe_config = AmdGpu::GetPipeConfig(info.tile_mode);
+    cfg.pipe_config = static_cast<u32>(pipe_config);
+    cfg.num_pipes = AmdGpu::GetPipeCount(pipe_config);
+    const AmdGpu::MacroTileMode mode =
+        AmdGpu::CalculateMacrotileMode(info.tile_mode, info.num_bits, info.num_samples);
+    cfg.bank_width = AmdGpu::GetBankWidth(mode);
+    cfg.bank_height = AmdGpu::GetBankHeight(mode);
+    cfg.num_banks = AmdGpu::GetNumBanks(mode);
+    cfg.macro_aspect = AmdGpu::GetMacrotileAspect(mode);
+    cfg.tile_split_bytes = AmdGpu::CalculateTileSplit(
+        info.tile_mode, info.array_mode, AmdGpu::GetMicroTileMode(info.tile_mode), info.num_bits);
+    return cfg;
+}
+
+/// The image of a case: UpdateSize for textures; the other layouts are the ones ImageInfo makes
+/// of a render target (padded pitch and height, the size of the padded slice) and, with a hand made
+/// level list, of a depth buffer (the register's height in the padded slice) and of layouts
+/// ImageInfo does not make.
 VideoCore::ImageInfo MakeInfo(const Case& c) {
     VideoCore::ImageInfo info{};
     info.props.is_tiled = true;
@@ -224,18 +286,32 @@ VideoCore::ImageInfo MakeInfo(const Case& c) {
     info.size = {c.width, c.height, c.depth};
     info.resources = {c.levels, c.layers};
     info.bank_swizzle = static_cast<u8>(c.bank_swizzle);
-    if (c.custom[0].texels != 0 || c.custom[0].pitch != 0) {
+    const TilingCpu::Config cfg = MakeConfig(info);
+    if (c.custom[0].pitch != 0) {
         u32 offset = 0;
         for (u32 mip = 0; mip < c.levels; ++mip) {
-            const u32 size = c.custom[mip].texels * (c.bits / 8);
-            info.mips_layout[mip] = {size, c.custom[mip].pitch, c.custom[mip].height, offset};
+            const CustomMip& m = c.custom[mip];
+            const bool micro = m.micro && cfg.macro;
+            const u64 slice_bytes = u64(TilingCpu::PaddedPitch(cfg, micro, m.pitch)) *
+                                    TilingCpu::PaddedHeight(cfg, micro, m.height) * c.bits *
+                                    c.samples / 8;
+            const u32 size = static_cast<u32>(slice_bytes * m.half_slices / 2);
+            info.mips_layout[mip] = {size, m.pitch, m.height, offset};
+            if (micro) {
+                info.micro_tiled_mips |= 1u << mip;
+            }
             offset += size;
         }
         info.guest_size = offset;
     } else if (c.render_target) {
-        // ImageInfo(ColorBuffer): the slice is the 8x8 tiles of the surface, the height the buffer's
-        info.guest_size = c.width * c.height * (c.bits / 8);
-        info.mips_layout[0] = {info.guest_size, c.width, c.height, 0};
+        // ImageInfo(ColorBuffer): the pitch of the register, the slice size of its tile count, the
+        // height that makes (a multiple of the macro tile height as the SDK allocates it: the
+        // game's 1280x720 targets are 3932160 bytes = 1280x768x4)
+        const u32 pitch = TilingCpu::PaddedPitch(cfg, false, c.width);
+        const u32 height = TilingCpu::PaddedHeight(cfg, false, c.height);
+        info.pitch = pitch;
+        info.guest_size = pitch * height * (c.bits / 8) * c.layers;
+        info.mips_layout[0] = {info.guest_size, pitch, height, 0};
     } else {
         info.UpdateSize();
     }
@@ -376,27 +452,226 @@ double Median(std::vector<double> v) {
     return v[v.size() / 2];
 }
 
+/// The padded size of a surface comes from two places: the kernel (and its tests) pad to the macro
+/// tile the bank and pipe parameters make (MacroTilePitch/MacroTileHeight), the layout of an image
+/// (ImageInfo::UpdateSize) to the table of macro tile extents (tile.h). They have to be the same
+/// for every macro tiled mode and texel size, or a mip of ImageInfo would not be whole padded
+/// slices. Returns the number of combinations that differ.
+int CheckExtentTables(u32& combinations) {
+    int differ = 0;
+    for (u32 mode = 0; mode < AmdGpu::NUM_TILE_MODES; ++mode) {
+        const TileMode tile_mode = static_cast<TileMode>(mode);
+        if (mode == 8 || mode >= 27) { // linear
+            continue;
+        }
+        const AmdGpu::ArrayMode array_mode = AmdGpu::GetArrayMode(tile_mode);
+        if (!AmdGpu::IsMacroTiled(array_mode)) {
+            continue;
+        }
+        for (const u32 bits : {8u, 16u, 32u, 64u, 128u}) {
+            for (const u32 samples : {1u, 2u, 4u, 8u}) {
+                VideoCore::ImageInfo info{};
+                info.tile_mode = tile_mode;
+                info.array_mode = array_mode;
+                info.num_bits = bits;
+                info.num_samples = samples;
+                const TilingCpu::Config cfg = MakeConfig(info);
+                const auto [table_pitch, table_height] =
+                    VideoCore::GetMacroTileExtents(tile_mode, bits, samples, false);
+                ++combinations;
+                if (table_pitch != TilingCpu::MacroTilePitch(cfg) ||
+                    table_height != TilingCpu::MacroTileHeight(cfg)) {
+                    ++differ;
+                    std::printf("macro tile of mode %u, %u bpp, %u samples: table %ux%u, banks and "
+                                "pipes %ux%u\n",
+                                mode, bits, samples, table_pitch, table_height,
+                                TilingCpu::MacroTilePitch(cfg), TilingCpu::MacroTileHeight(cfg));
+                }
+            }
+        }
+    }
+    return differ;
+}
+
 int g_failures = 0;
+int g_skipped = 0;
+
+/// The mips as the CPU reference takes them: what MakeTilingInfo is expected to give the kernel.
+std::vector<TilingCpu::Mip> CpuMips(const VideoCore::ImageInfo& info, u32 num_mips) {
+    std::vector<TilingCpu::Mip> mips;
+    for (u32 mip = 0; mip < num_mips; ++mip) {
+        const auto& layout = info.mips_layout[mip];
+        TilingCpu::Mip m{layout.size, layout.pitch, layout.height, layout.offset,
+                         (info.micro_tiled_mips >> mip & 1) != 0};
+        if (info.props.is_block) {
+            m.pitch = std::max((m.pitch + 3) / 4, 1U);
+            m.height = std::max((m.height + 3) / 4, 1U);
+        }
+        mips.push_back(m);
+    }
+    return mips;
+}
+
+/// One texel of the linear image and the tiled bytes it belongs to, as byte offsets of the buffers.
+struct TexelMap {
+    u64 linear, tiled;
+};
+
+/// What the map from the logical texels to tiled bytes does, by the CPU reference.
+struct MapStats {
+    u64 texels = 0, out_of_mip = 0, collisions = 0, not_contiguous = 0;
+    std::string first;
+};
+
+/// The map of all texels of the logical slices of all mips: the linear texel (x, y, slice) of a mip
+/// is at byte offset + ((slice * height + y) * pitch + x) * bytes of the linear buffer. Checks that
+/// the tiled bytes of the texels are inside the mip and that no two texels share one.
+std::vector<TexelMap> BuildMap(const TilingCpu::Config& cfg, const std::vector<TilingCpu::Mip>& mips,
+                               u32 guest_size, MapStats& stats) {
+    const u32 bytes = cfg.bits / 8;
+    std::vector<TexelMap> map;
+    std::vector<u8> owned(guest_size, 0);
+    u64 expected_offset = 0;
+    for (u32 m = 0; m < mips.size(); ++m) {
+        const TilingCpu::Mip& mip = mips[m];
+        if (mip.offset != expected_offset) {
+            ++stats.not_contiguous;
+        }
+        expected_offset += mip.size;
+        const u32 slices = TilingCpu::Slices(cfg, mip);
+        for (u32 slice = 0; slice < slices; ++slice) {
+            for (u32 y = 0; y < mip.height; ++y) {
+                for (u32 x = 0; x < mip.pitch; ++x) {
+                    const u64 tiled = mip.offset + TilingCpu::Offset(cfg, mip, x, y, slice);
+                    const u64 linear = mip.offset + (u64(slice) * mip.height + y) * mip.pitch * bytes +
+                                       u64(x) * bytes;
+                    ++stats.texels;
+                    bool bad = false;
+                    if (tiled + bytes > u64(mip.offset) + mip.size) {
+                        ++stats.out_of_mip;
+                        bad = true;
+                    } else {
+                        for (u32 i = 0; i < bytes; ++i) {
+                            if (owned[tiled + i]++) {
+                                bad = true;
+                            }
+                        }
+                        stats.collisions += bad;
+                    }
+                    if (bad && stats.first.empty()) {
+                        char text[120];
+                        std::snprintf(text, sizeof(text), "mip %u texel (%u,%u,%u) -> tiled byte %llu",
+                                      m, x, y, slice, (unsigned long long)tiled);
+                        stats.first = text;
+                    }
+                    map.push_back({linear, tiled});
+                }
+            }
+        }
+    }
+    return map;
+}
+
+/// What the buffers have to hold after the kernel: the tiler copies the texels of the map into the
+/// tiled buffer, the detiler into the linear one; everything else stays as it was.
+struct Expected {
+    std::vector<u8> tiled, linear;
+};
+
+Expected ExpectedBuffers(const std::vector<TexelMap>& map, u32 bytes, bool is_tiler,
+                         const std::vector<u32>& tiled_init, const std::vector<u32>& linear_init) {
+    Expected e;
+    e.tiled.assign(reinterpret_cast<const u8*>(tiled_init.data()),
+                   reinterpret_cast<const u8*>(tiled_init.data()) + tiled_init.size() * 4);
+    e.linear.assign(reinterpret_cast<const u8*>(linear_init.data()),
+                    reinterpret_cast<const u8*>(linear_init.data()) + linear_init.size() * 4);
+    for (const TexelMap& t : map) {
+        if (is_tiler) {
+            std::memcpy(&e.tiled[t.tiled], &e.linear[t.linear], bytes);
+        } else {
+            std::memcpy(&e.linear[t.linear], &e.tiled[t.tiled], bytes);
+        }
+    }
+    return e;
+}
+
+/// How many bytes differ and where the first is.
+std::string Diff(const u8* got, const std::vector<u8>& want, const char* what) {
+    size_t count = 0, first = 0;
+    for (size_t i = 0; i < want.size(); ++i) {
+        if (got[i] != want[i]) {
+            if (!count) {
+                first = i;
+            }
+            ++count;
+        }
+    }
+    if (!count) {
+        return {};
+    }
+    char text[120];
+    std::snprintf(text, sizeof(text), "%zu %s bytes differ (first %zu)", count, what, first);
+    return text;
+}
+
+// The checks of one case: the layout (the sizes the kernel is given, the map) and, per direction
+// and kernel, the buffers against the CPU reference and the repeat run.
+constexpr int kChecksPerCase = 2 + 2 * 2 * 2;
 
 void RunCase(id<MTLDevice> device, id<MTLCommandQueue> queue, const Case& c, u32 index) {
     const VideoCore::ImageInfo info = MakeInfo(c);
     const u32 num_mips = info.resources.levels;
-    TilingInfoBlock params{};
-    params.bank_swizzle = info.bank_swizzle;
-    params.micro_tiled_mips = info.micro_tiled_mips;
-    params.num_mips = num_mips;
-    for (u32 mip = 0; mip < num_mips; ++mip) {
-        auto& mip_info = params.mips[mip];
-        mip_info = info.mips_layout[mip];
-        if (info.props.is_block) {
-            mip_info.pitch = std::max((mip_info.pitch + 3) / 4, 1U);
-            mip_info.height = std::max((mip_info.height + 3) / 4, 1U);
+    const VideoCore::TilingInfo params = VideoCore::TileManager::MakeTilingInfo(info, num_mips);
+    const TilingCpu::Config cfg = MakeConfig(info);
+    const std::vector<TilingCpu::Mip> mips = CpuMips(info, num_mips);
+    const u32 bytes = c.bits / 8;
+
+    bool ok = true;
+    int checks = 0;
+    std::string note;
+    auto fail = [&](const std::string& what) {
+        ok = false;
+        note += " [" + what + "]";
+    };
+
+    // The sizes TileManager gives the kernel against the padded sizes of the CPU reference.
+    ++checks;
+    for (u32 m = 0; m < num_mips; ++m) {
+        const VideoCore::TilingMip& t = params.mips[m];
+        const TilingCpu::Mip& r = mips[m];
+        if (t.size != r.size || t.pitch != r.pitch || t.height != r.height || t.offset != r.offset ||
+            t.padded_pitch != TilingCpu::PaddedPitch(cfg, r.micro, r.pitch) ||
+            t.padded_height != TilingCpu::PaddedHeight(cfg, r.micro, r.height) ||
+            t.slices != TilingCpu::Slices(cfg, r)) {
+            char text[160];
+            std::snprintf(text, sizeof(text),
+                          "mip %u kernel layout %ux%u padded %ux%u slices %u, reference padded "
+                          "%ux%u slices %u",
+                          m, t.pitch, t.height, t.padded_pitch, t.padded_height, t.slices,
+                          TilingCpu::PaddedPitch(cfg, r.micro, r.pitch),
+                          TilingCpu::PaddedHeight(cfg, r.micro, r.height), TilingCpu::Slices(cfg, r));
+            fail(text);
         }
     }
 
+    // The map of the CPU reference: injective, inside the mips.
+    ++checks;
+    MapStats stats;
+    const std::vector<TexelMap> map = BuildMap(cfg, mips, info.guest_size, stats);
+    if (stats.not_contiguous || stats.out_of_mip || stats.collisions) {
+        char text[200];
+        std::snprintf(text, sizeof(text),
+                      "map of %llu texels: %llu outside the mip, %llu colliding, %llu mips not "
+                      "contiguous; %s",
+                      (unsigned long long)stats.texels, (unsigned long long)stats.out_of_mip,
+                      (unsigned long long)stats.collisions, (unsigned long long)stats.not_contiguous,
+                      stats.first.c_str());
+        fail(text);
+    }
+
     const size_t image_bytes = info.guest_size;
-    // Room for the guest size plus the macro tile rows the unpadded height reaches, then a guard.
-    const size_t tiled_size = image_bytes * 2 + (1u << 16);
+    // The guest size plus a guard area of random bytes that no write may change.
+    const size_t tiled_size = image_bytes + (1u << 16);
     const size_t linear_size = image_bytes + (1u << 16);
     Buffers b;
     b.tiled_size = tiled_size;
@@ -425,9 +700,8 @@ void RunCase(id<MTLDevice> device, id<MTLCommandQueue> queue, const Case& c, u32
     double timing[2][2]{}; // [tiler][reference], warm
     double cold[2][2]{};   // the same, one dispatch after an idle GPU
     double floor_warm = 0, floor_cold = 0; // a plain copy of the image
-    bool ok = true;
-    std::string note;
     for (const bool is_tiler : {false, true}) {
+        const char* direction = is_tiler ? "tiler" : "detiler";
         const auto dispatch = VideoCore::TileManager::MakeDispatch(info, is_tiler, {}, {}, {});
         const bool macro = dispatch.is_macro;
         const Kernel fresh =
@@ -435,58 +709,45 @@ void RunCase(id<MTLDevice> device, id<MTLCommandQueue> queue, const Case& c, u32
                        dispatch.num_constants);
         const Kernel ref = MakeKernel(device, GetShader(true, c.bits, macro), dispatch.constants,
                                       dispatch.num_constants);
-        const u32 ref_groups = static_cast<u32>((info.guest_size / (info.num_bits / 8)) / 64);
+        const u32 ref_groups = static_cast<u32>((info.guest_size / bytes + 63) / 64);
         const u32 new_groups = dispatch.group_count_x;
+        const Expected want = ExpectedBuffers(map, bytes, is_tiler, tiled_init, linear_init);
 
         auto reset = [&](const Buffers& buffers) {
             std::memcpy(buffers.tiled.contents, tiled_init.data(), tiled_size);
             std::memcpy(buffers.linear.contents, linear_init.data(), linear_size);
         };
-        reset(r);
-        Run(queue, ref, r, ref_groups);
-        // The reference must be deterministic itself (colliding addresses would race).
-        std::vector<u8> ref_tiled(static_cast<const u8*>(r.tiled.contents),
-                                  static_cast<const u8*>(r.tiled.contents) + tiled_size);
-        std::vector<u8> ref_linear(static_cast<const u8*>(r.linear.contents),
-                                   static_cast<const u8*>(r.linear.contents) + linear_size);
-        reset(r);
-        Run(queue, ref, r, ref_groups);
-        const bool deterministic =
-            std::memcmp(ref_tiled.data(), r.tiled.contents, tiled_size) == 0 &&
-            std::memcmp(ref_linear.data(), r.linear.contents, linear_size) == 0;
-
-        reset(b);
-        Run(queue, fresh, b, new_groups);
-        const u8* got_tiled = static_cast<const u8*>(b.tiled.contents);
-        const u8* got_linear = static_cast<const u8*>(b.linear.contents);
-        size_t diff_tiled = 0, diff_linear = 0, first_tiled = ~size_t(0), first_linear = ~size_t(0);
-        for (size_t i = 0; i < tiled_size; ++i) {
-            if (got_tiled[i] != ref_tiled[i]) {
-                if (!diff_tiled) {
-                    first_tiled = i;
+        // Each kernel runs twice from the same buffers: the runs have to agree (colliding
+        // addresses would race) and to be the CPU reference's.
+        for (const bool reference : {false, true}) {
+            const char* name = reference ? "reference kernel" : "kernel";
+            const Kernel& kernel = reference ? ref : fresh;
+            const Buffers& buffers = reference ? r : b;
+            const u32 groups = reference ? ref_groups : new_groups;
+            std::vector<u8> first_tiled, first_linear;
+            for (int run = 0; run < 2; ++run) {
+                reset(buffers);
+                Run(queue, kernel, buffers, groups);
+                const u8* got_tiled = static_cast<const u8*>(buffers.tiled.contents);
+                const u8* got_linear = static_cast<const u8*>(buffers.linear.contents);
+                if (run == 0) {
+                    first_tiled.assign(got_tiled, got_tiled + tiled_size);
+                    first_linear.assign(got_linear, got_linear + linear_size);
+                    ++checks;
+                    std::string d = Diff(got_tiled, want.tiled, "tiled");
+                    const std::string dl = Diff(got_linear, want.linear, "linear");
+                    d += d.empty() || dl.empty() ? dl : ", " + dl;
+                    if (!d.empty()) {
+                        fail(std::string(name) + " " + direction + " against the CPU reference: " + d);
+                    }
+                } else {
+                    ++checks;
+                    if (std::memcmp(first_tiled.data(), got_tiled, tiled_size) != 0 ||
+                        std::memcmp(first_linear.data(), got_linear, linear_size) != 0) {
+                        fail(std::string(name) + " " + direction + " not deterministic");
+                    }
                 }
-                ++diff_tiled;
             }
-        }
-        for (size_t i = 0; i < linear_size; ++i) {
-            if (got_linear[i] != ref_linear[i]) {
-                if (!diff_linear) {
-                    first_linear = i;
-                }
-                ++diff_linear;
-            }
-        }
-        if (!deterministic) {
-            note += is_tiler ? " [tiler: reference not deterministic, not compared]"
-                             : " [detiler: reference not deterministic, not compared]";
-        } else if (diff_tiled || diff_linear) {
-            ok = false;
-            char text[200];
-            std::snprintf(text, sizeof(text),
-                          " [%s: %zu tiled bytes differ (first %zu), %zu linear bytes (first %zu)]",
-                          is_tiler ? "tiler" : "detiler", diff_tiled,
-                          diff_tiled ? first_tiled : 0, diff_linear, diff_linear ? first_linear : 0);
-            note += text;
         }
 
         // GPU time: runs alternate between the two kernels, ten dispatches per command buffer,
@@ -529,6 +790,11 @@ void RunCase(id<MTLDevice> device, id<MTLCommandQueue> queue, const Case& c, u32
             }
         }
     }
+    // A check that was not made fails the case.
+    if (checks != kChecksPerCase) {
+        g_skipped += kChecksPerCase - checks;
+        fail("checks not made");
+    }
     std::printf("%-4s %-30s tile %6.3f -> %6.3f ms (x%.2f)  detile %6.3f -> %6.3f ms (x%.2f)%s\n",
                 ok ? "ok" : "FAIL", c.name, timing[1][0], timing[1][1], timing[1][0] / timing[1][1],
                 timing[0][0], timing[0][1], timing[0][0] / timing[0][1], note.c_str());
@@ -553,8 +819,14 @@ int main(int argc, char** argv) {
             return 1;
         }
         id<MTLCommandQueue> queue = [device newCommandQueue];
-        std::printf("GPU: %s; times are reference -> new (median GPU time)\n",
+        std::printf("GPU: %s; times are reference kernel -> kernel (median GPU time)\n",
                     device.name.UTF8String);
+        {
+            u32 combinations = 0;
+            const int differ = CheckExtentTables(combinations);
+            std::printf("macro tile extents of the layout table against banks and pipes: %u modes x sizes, %d differ\n", combinations, differ);
+            g_failures += differ ? 1 : 0;
+        }
         u32 index = 0;
         // an argument selects the cases whose name contains it
         u32 run = 0;
@@ -573,7 +845,7 @@ int main(int argc, char** argv) {
             std::printf("no case matches\n");
             return 1;
         }
-        std::printf("%u cases, %d failed\n", run, g_failures);
-        return g_failures ? 1 : 0;
+        std::printf("%u cases, %d failed, %d skipped\n", run, g_failures, g_skipped);
+        return g_failures || g_skipped ? 1 : 0;
     }
 }
