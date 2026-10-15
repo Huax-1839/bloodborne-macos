@@ -25,7 +25,9 @@ fi
 ( while :; do power_sample >> "$power"; sleep 60; done ) &
 sampler=$!
 trap 'kill $sampler 2>/dev/null' EXIT
-KEEP=1 BENCH_WAIT=${BENCH_WAIT:-20} BB_RENDERER=$renderer \
+# Two windows (10 s) after a 20-s wait: bench.sh only has to see the game; the walk is measured
+# from the logs.
+KEEP=1 BENCH_WAIT=${BENCH_WAIT:-20} BENCH_WINDOWS=${BENCH_WINDOWS:-2} BB_RENDERER=$renderer \
     "$(dirname -- "$0")/bench.sh" "$name" BB_FRAME_LOG="$runs/bench-$name-frames.csv" "$@" 2>&1 | tail -1
 pgrep -f bb-probe >/dev/null || { echo "$name: game not running"; exit 1; }
 shot() { W=$("$winid" bb-probe | awk '{print $1}' | head -1); [[ -n $W ]] && screencapture -x -o -l "$W" "$runs/bench-$name-$1.png"; }
