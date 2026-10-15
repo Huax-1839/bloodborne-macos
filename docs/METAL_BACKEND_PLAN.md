@@ -48,6 +48,27 @@ Targets (MacBook Air M4, 10-core GPU, Iosefka's clinic, the bench save):
 | M3 goal | 540p internal (`BB_PROFILE=m4air`, MetalFX to 1080p) at a stable 30 FPS for 20 min on the Air, on power and battery; first 720p, changed 2026-10-15 (§9: at 720p the warm Air's GPU needs 42–45 ms a frame) |
 | Stretch | 1080p internal at 30 FPS, or 60 FPS presented with MetalFX frame interpolation |
 
+**M3 acceptance rule** (set 2026-10-16 after review finding 7, by the user's choice of the
+recommended rule; §9). "Stable 30 FPS" is met when one run on AC power and one on battery each
+pass every rule below; `macos/bench/m3stats.py --expect power|battery <log>` checks them and
+exits 0 only then. The run: `IDLE_MIN=10 macos/bench/m1_run.sh <name> metal 20 BB_PROFILE=m4air`
+(10 min idle, then 20 min of the scripted walk), which writes the per-flip log
+(`bench-<name>-frames.csv`, `BB_FRAME_LOG`) and the power log (`bench-<name>-power.txt`).
+In-game span: first to last flip with ≥ 300 draws.
+
+| Rule | Threshold |
+|---|---|
+| duration | in-game span ≥ 20 min, ≥ 99% of its flips in game (no drop to a menu or loading screen) |
+| rate | mean ≥ 29.7 FPS; every full 60-s stretch ≥ 29.5 FPS; ≥ 98% of 5-s windows ≥ 29.5 FPS |
+| pacing | ≤ 1% of flips miss their 30-FPS slot (> 41.7 ms, i.e. a vblank late); p99.9 ≤ 58.3 ms |
+| hitches | ≤ 1 flip over 100 ms per 5 min (4 in 20 min); no flip over 250 ms |
+| errors | no failed command buffer / lost device in the game log |
+| conditions | power log present; idle ≥ 10 min before; Low Power Mode off throughout; one power source throughout (AC for the power run, battery for the battery run, battery ≥ 50% at its start) |
+
+Why these numbers: at the 30 cap a flip is 33.3 ms on time or 50 ms one vblank late, so 41.7 ms
+separates "on time" from "missed" independent of timer jitter; 1% missed slots is one visible
+stutter every ~3 s at worst; 100 ms is a hitch a player notices, 250 ms a freeze.
+
 Non-goals: Linux/AMD changes (the Vulkan backend must keep working everywhere), FSR 4 / FSR 4.1.1
 / DLSS in the Metal path, removing Rosetta (the process stays x86-64; see §2), a native MSL
 shader emitter (only if §5 P6 shows SPIRV-Cross is the limit).
@@ -887,3 +908,7 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-15 | P8 redirected from the submit cost to GPU time at 720p (user's decision) | P8.2: halving the command buffers costs ~6% FPS; at 720p the hot Air's GPU is busy 95% of typical frames | P8, M3 |
 | 2026-10-15 | M3 moved from 720p to 540p internal (`BB_PROFILE=m4air`), with the GPU savings that need no image change (user's decision) | P8 step 2: at 720p the GPU needs 35 ms a frame cool and 42–45 ms warm; Metal's scene passes match Vulkan's; savings without an image change ~2 ms | §1, P8, M3 |
 | 2026-10-15 | P8.5: the hitches before any target change or image change (user's decision) | M3 at 540p: 29.3 FPS on battery with a ~100-ms frame in every 5-s window (most of the missing 0.7 FPS), 28.0 on power falling with heat | P8, M3 |
+| 2026-10-16 | Review of the finished backend (8 findings); all reopened and worked through: M1 and M3 count as met only after their re-checks below | external review; each finding verified in the code and logs before acting | §1, §8, P2.4, P4, P8.4 |
+| 2026-10-16 | M3 gets a pass/fail rule (§1 "M3 acceptance rule"), checked by `m3stats.py` from per-flip and power logs (user's choice of the recommended rule) | the 2026-10-16 "met" accepted 97–98% of windows by eye, with no limit on hitches or tail latency and no record of the power state | §1, M3 |
+| 2026-10-16 | Sampler LOD bias on Metal through `MTLSamplerDescriptor.lodBias` from macOS 26; below 26 it stays dropped (logged), no shader-side bias | macOS 26 SDK has the property; the Metal path is the default only on macOS 15+, and a shader-side bias would rewrite every implicit-LOD sample of the recompiler for a shrinking set of systems | P2.4, P5 |
+| 2026-10-16 | M2 is compared at identical work: the scene mip bias off on both backends (`BB_TOGGLE_FILE` SceneMipBias); the bias's cost on Metal measured separately | MoltenVK 1.4.2 (x86_64) reports `samplerMipLodBias = 0` (probe), also with `MVK_CONFIG_USE_METAL_PRIVATE_API=1`, and a within-run A/B of the bias on Vulkan is below frame noise (43–48 vs 40.6 dB), on Metal it is not (38 vs 41 dB): Vulkan never applied the bias, Metal now does | M2 |
