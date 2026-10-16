@@ -873,6 +873,17 @@ compute encoder and fence wait in front of each pass cost more GPU time than the
 (b) Pass image membership by stamps instead of searches (3ad06d5): uncapped 32.2 vs 31.5 FPS
 interleaved against 1bc281e (+2.1%, ahead in each of 3 pairs); kept. Vulkan boots and images
 unchanged (run-to-run differences of the animated clinic are larger than the change's).
+(c) New `sample` after 3ad06d5 (`sample-metal-walk2.txt`, 30 FPS walk): `bb:DrawRec` 98% busy;
+`BindResources` 27.6% (from draws and dispatches), but mostly real work rather than repeated
+lookups: `ObtainBuffer` 12.4% (guest copies `RunGuestCopy`, `SynchronizeMemoryFromImage` →
+`DownloadImage`, `LayerProcessTraps`, `IsRegionGpuModified`/`LayerMirrored`), the HLE clears and
+copies open encoders (3.3%); the memoized parts are small (texture-set check 2.5%, samplers
+1.0%, `Transit` 1.5%). Encoder work is still the largest block: `ReleaseHeldPass` 22.2%
+(`renderCommandEncoderWithDescriptor` 12.9%, the replay ~7%), WRITE_DATA blits 8.5%.
+(d) No ARC `objc_retainAutorelease` per buffer binding (`(__bridge void*)NativeBuffer(...)` in
+`BindBufferSet` and the draw paths, 15 sites; ~1% of the thread): interleaved uncapped
+38.1/33.2/32.2 base vs 35.7/33.5/30.9, behind in 2 of 3 pairs: not kept. What is left in
+`BindResources` is below what a bench can show; the lever is the encoder block.
 
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
