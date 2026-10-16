@@ -377,8 +377,7 @@ void Scheduler::WaitReplay(u32 target) {
     if (reached(done)) {
         return;
     }
-    const auto start = BbStats::enabled ? std::chrono::steady_clock::now()
-                                        : std::chrono::steady_clock::time_point{};
+    const auto start = std::chrono::steady_clock::now();
     for (int spin = 0; !reached(done) && spin < 4096; ++spin) {
         __builtin_ia32_pause();
         done = replay_done.load(std::memory_order_acquire);
@@ -387,10 +386,12 @@ void Scheduler::WaitReplay(u32 target) {
         replay_done.wait(done, std::memory_order_acquire);
         done = replay_done.load(std::memory_order_acquire);
     }
+    const auto now = std::chrono::steady_clock::now();
+    const u64 waited = std::chrono::duration_cast<std::chrono::nanoseconds>(now - start).count();
+    BbStats::rec_replay_wait_ns.fetch_add(waited, std::memory_order_relaxed);
     if (BbStats::enabled) {
         ++replay_joins;
-        const auto now = std::chrono::steady_clock::now();
-        replay_wait_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(now - start).count();
+        replay_wait_ns += waited;
         if (now - replay_window >= std::chrono::seconds(5)) {
             if (replay_window != std::chrono::steady_clock::time_point{}) {
                 const double seconds = std::chrono::duration<double>(now - replay_window).count();
@@ -816,6 +817,10 @@ void Scheduler::Wait(u64 tick) {
                         tick, elapsed);
         }
     }
+    BbStats::rec_gpu_wait_ns.fetch_add(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start)
+            .count(),
+        std::memory_order_relaxed);
 }
 
 void Scheduler::DeferOperation(Common::UniqueFunction<void>&& func) {

@@ -4,6 +4,7 @@
 #include <xxhash.h>
 
 #include "bbport_toggles.h"
+#include "bbport_sections.h"
 #include "bbport_flush_reason.h"
 #include "bbport_free_check.h"
 #include "common/assert.h"
@@ -599,6 +600,8 @@ ImageId TextureCache::ExpandImage(const ImageInfo& info, ImageId image_id) {
 }
 
 ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
+    BbStats::find_image_calls.fetch_add(1, std::memory_order_relaxed);
+    BB_SECTION(FindImage);
     const auto& info = desc.info;
     ASSERT(info.guest_address != 0);
 

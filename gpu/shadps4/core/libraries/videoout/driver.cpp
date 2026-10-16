@@ -5,6 +5,8 @@
 #include <cmath>
 #include <vector>
 #include <chrono>
+#include <x86intrin.h>
+#include "bbport_sections.h"
 #include <cstdio>
 #include <time.h>
 #include <sys/resource.h>
@@ -532,7 +534,15 @@ void VideoOutDriver::Flip(const Request& req) {
                                    "images,image_mb,buffer_mb,protect_ms,resident_ms,create_ms,"
                                    "refresh_ms,write_fault_ms,read_faults,guest_copy_mb,draws,"
                                    "dispatches,submissions,compiles,preupload_mb,kernel_ms,alloc_mb,"
-                                   "free_mb,cam_x,cam_y,cam_z,gpu_ms,submit_age_ms,ready_age_ms,vblank,guest_age_ms,gnm_wait_ms\n");
+                                   "free_mb,cam_x,cam_y,cam_z,gpu_ms,submit_age_ms,ready_age_ms,vblank,guest_age_ms,gnm_wait_ms,rec_busy_ms,gpu_wait_ms,replay_wait_ms,find_images");
+                // BB_SECTIONS=1: the recording thread's time per section, per flip (ms).
+                for (u32 i = 0; BbSections::Enabled() && i < BbSections::Count; ++i) {
+                    std::fprintf(file, ",sec_");
+                    for (const char* c = BbSections::Names[i]; *c; ++c) {
+                        std::fputc(*c == ' ' ? '_' : *c, file);
+                    }
+                }
+                std::fputc('\n', file);
             }
             return file;
         }();
@@ -540,6 +550,16 @@ void VideoOutDriver::Flip(const Request& req) {
             static const auto log_start = now;
             static u64 log_twf, log_tick, log_present, log_compiles, log_rf, log_preupload;
             static u64 log_alloc, log_free, log_camera_frames, log_gpu_busy, log_gnm_wait;
+            static u64 log_rec_cycles, log_rec_gpu_wait, log_rec_replay_wait, log_tsc, log_tsc_ns, log_find;
+            // The recording thread's TSC cycles in ms: the TSC rate from the rows' wall times.
+            const u64 tsc_now = __rdtsc();
+            const u64 tsc_ns = static_cast<u64>(
+                std::chrono::steady_clock::now().time_since_epoch().count());
+            const double tsc_per_ms = log_tsc && tsc_ns > log_tsc_ns
+                                          ? double(tsc_now - log_tsc) / ((tsc_ns - log_tsc_ns) / 1e6)
+                                          : 0.0;
+            log_tsc = tsc_now;
+            log_tsc_ns = tsc_ns;
             // The camera position of the newest committed camera when one was committed since the
             // previous row, else empty columns.
             char camera_columns[96] = ",,";
@@ -565,7 +585,8 @@ void VideoOutDriver::Flip(const Request& req) {
             };
             std::fprintf(frame_log,
                          "%.4f,%.2f,%.2f,%.2f,%.2f,%llu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%llu,"
-                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f,%s,%.2f,%.2f,%.2f,%llu,%.2f,%.2f\n",
+                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f,%s,%.2f,%.2f,%.2f,%llu,%.2f,%.2f,"
+                         "%.2f,%.2f,%.2f,%llu",
                          std::chrono::duration<double>(now - log_start).count(), frame_ms,
                          delta(present, log_present) / 1e6, delta(tick, log_tick) / 1e6,
                          last_gpu_ns ? (gpu_ns - last_gpu_ns) / 1e6 : 0.0,
@@ -589,7 +610,22 @@ void VideoOutDriver::Flip(const Request& req) {
                          req.ready_ns ? (flip_ns - req.ready_ns) / 1e6 : 0.0,
                          static_cast<unsigned long long>(main_port.vblank_status.count),
                          guest_ns ? (flip_ns - guest_ns) / 1e6 : 0.0,
-                         delta(BbStats::gnm_frame_wait_ns.load(), log_gnm_wait) / 1e6);
+                         delta(BbStats::gnm_frame_wait_ns.load(), log_gnm_wait) / 1e6,
+                         tsc_per_ms > 0 ? delta(BbStats::rec_busy_cycles.load(), log_rec_cycles) /
+                                              tsc_per_ms
+                                        : 0.0,
+                         delta(BbStats::rec_gpu_wait_ns.load(), log_rec_gpu_wait) / 1e6,
+                         delta(BbStats::rec_replay_wait_ns.load(), log_rec_replay_wait) / 1e6,
+                         static_cast<unsigned long long>(
+                             delta(BbStats::find_image_calls.load(), log_find)));
+            static std::array<u64, BbSections::Count> log_sections{};
+            for (u32 i = 0; BbSections::Enabled() && i < BbSections::Count; ++i) {
+                const u64 c = BbSections::cycles[i].load(std::memory_order_relaxed);
+                std::fprintf(frame_log, ",%.2f",
+                             tsc_per_ms > 0 ? (c - log_sections[i]) / tsc_per_ms : 0.0);
+                log_sections[i] = c;
+            }
+            std::fputc('\n', frame_log);
             static u32 unflushed = 0;
             if (++unflushed >= 120) {
                 std::fflush(frame_log);

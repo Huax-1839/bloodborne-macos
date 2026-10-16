@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include "bbport_threads.h"
 #include "bbport_sections.h"
+#include "bbport_toggles.h"
 
 #include <array>
 #include <atomic>
@@ -240,6 +241,7 @@ private:
             const u64 start = __rdtsc();
             handler(context, reinterpret_cast<const u8*>(header + 1), header->payload);
             busy_cycles.fetch_add(__rdtsc() - start, std::memory_order_relaxed);
+            BbStats::rec_busy_cycles.fetch_add(__rdtsc() - start, std::memory_order_relaxed);
             at += header->size;
             consumed_packets.fetch_add(1, std::memory_order_release);
             consumed.store(at, std::memory_order_release);

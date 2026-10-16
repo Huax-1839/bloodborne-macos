@@ -171,6 +171,12 @@ inline std::atomic<std::uint64_t> eop_decoded{0}, eop_written{0}, gpu_labels{0};
 inline std::atomic<std::uint64_t> submits_allowed_queries{0}, submits_refused{0}, submit_done_calls{0};
 /// Guest time blocked in Gnm submissions on the previous frame (submission lock or BB_SUBMIT_LOCK=frame).
 inline std::atomic<std::uint64_t> gnm_frame_waits{0}, gnm_frame_wait_ns{0};
+/// The draw recording thread's time per frame (BB_FRAME_LOG columns rec_busy_ms, gpu_wait_ms,
+/// replay_wait_ms): TSC cycles in its packets, and inside them nanoseconds waiting for the GPU
+/// (the scheduler's Wait) and for the Metal replay thread.
+inline std::atomic<std::uint64_t> rec_busy_cycles{0}, rec_gpu_wait_ns{0}, rec_replay_wait_ns{0};
+/// TextureCache::FindImage calls (BB_FRAME_LOG column find_images): the bindings' slow path.
+inline std::atomic<std::uint64_t> find_image_calls{0};
 /// Submissions to the compute queues (sceGnmDingDong).
 inline std::atomic<std::uint64_t> asc_submits{0};
 /// The game's GPU range allocators (seen at their collector, 0x26aa860): object, live ranges, bytes.
