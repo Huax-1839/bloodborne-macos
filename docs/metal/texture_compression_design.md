@@ -85,4 +85,36 @@ main targets are 720p and native 1080p (the stretch goal), plus GPU power.
 
 ## Results
 
-(Filled in per step.)
+### Step 1: microbenchmark (2026-10-17, `tools/metal_compress_probe.mm`)
+
+M4 Air, macOS 27.0.1, arm64 build (x86-64 under Rosetta shows the same pattern), idle machine,
+4096², Private, 40 interleaved reps per variant, median GPU ms (two runs agree within ~5%):
+
+| format, content | pass | RT+Read | +ShaderWrite | +PixelFormatView | +both |
+|---|---|---|---|---|---|
+| RGBA16F, 64² constant tiles | write | 0.573 | 1.16 | 1.16 | 1.16 |
+| | read (compute, every texel) | 0.51 | 1.16 | 1.16 | 1.16 |
+| | write + read | 1.09 | 2.36 | 2.35 | 2.35 |
+| RGBA16F, noise (control) | write + read | 2.05–2.12 | ×1.13–1.17 | ×1.14–1.15 | ×1.14 |
+| RGBA8, tiles | write + read | 1.07–1.09 | ×1.14 | ×1.13–1.15 | ×1.16–1.17 |
+| RGB10A2, tiles | read / write + read | 0.51 / 1.13 | ×1.18 / ×1.12 | ×1.18 / ×1.13 | ×1.18 / ×1.13 |
+| Depth32Float(_Stencil8), tiles/plane/noise | all | — | ×0.96–1.06 | ×0.97–1.04 | ×0.97–1.06 |
+
+- On colour formats **either** usage costs the compression, both together no more. RGBA8 and
+  RGB10A2 writes sit at a ~0.6 ms fill floor for 64 MiB here, so their write cost is understated.
+- A compressed texture's `allocatedSize` is ~0.5 MiB (per 4096² target) larger than
+  `width × height × bpp`: the metadata. Textures with `ShaderWrite` or `PixelFormatView` lose it.
+  `compressionType` reads `lossless` and `allowGPUOptimizedContents` YES for every variant
+  (they say what is allowed, not what happened).
+- **Depth keeps its compression** with either usage: the lever is colour only; depth may keep
+  `PixelFormatView` (needed for the `X32_Stencil8` view) at no cost.
+- `optimizeContentsForGPUAccess:` does not bring compression back: a no-op on colour (the read
+  after it stays at the uncompressed speed, after a render-pass or a compute write), 0.4–1.6 ms of
+  work on depth for nothing. A texture has to be created without the usages.
+- Views (validation layer; a base without `PixelFormatView`): allowed and correct: sRGB ↔
+  linear twin, same-format swizzles (BGRA, RRRR), 2D → 2DArray, mip/slice sub-ranges. Need
+  `PixelFormatView`: any other format (RGBA8 → RGBA8Uint, R32Uint, BGRA8; RGBA16F → RGBA16Uint,
+  RG32Uint; RGB10A2 → R32Uint) and Depth32Float_Stencil8 → X32_Stencil8. Without the layer the
+  32-bit reinterpretations are created anyway and **silently read 0xFFFFFFFF**, so the policy
+  must never rely on the driver refusing them. Depth32Float → R32Float is refused even with
+  `PixelFormatView`.
