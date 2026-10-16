@@ -53,6 +53,16 @@ Merging the HUD's depth/no-depth passes (a pass with depth stays open for draws 
 the depth-format pipeline with depth tests off), the bloom blits (look at what they are in a
 labelled trace first), and encoding the list on another thread or in parallel (P6.5).
 
+Later (P8.6, d9619bc): a pass released because the next held pass begins is encoded on the
+scheduler's replay thread (`bb:MtlReplay`, up to `Scheduler::ReplayDepth` passes in flight, in
+order). The list moves to the job (`RenderList::TakeRecording`), the descriptor to
+`Impl::replay_passes`; the job ends the hoisted compute encoder, makes the render encoder (with
+the fence wait the release would have done), replays and ends it. Every scheduler member that
+touches the encoders, the fences or the command buffer joins the jobs first (`JoinReplay`); the
+recorded calls of the next held pass do not. Lifetimes are unchanged: the jobs finish before
+Flush commits, and the tick does not advance before. `BB_MTL_REPLAY_THREAD=0` or experiment bit
+45 (`MtlNoReplayThread`) encodes on the recording thread as before.
+
 ## Checks
 
 Unit tests (`macos/test.sh`), build, display dumps A/B within one run (`BB_MTL_HOLD` is read at

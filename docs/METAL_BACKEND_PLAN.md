@@ -884,17 +884,33 @@ copies open encoders (3.3%); the memoized parts are small (texture-set check 2.5
 `BindBufferSet` and the draw paths, 15 sites; ~1% of the thread): interleaved uncapped
 38.1/33.2/32.2 base vs 35.7/33.5/30.9, behind in 2 of 3 pairs: not kept. What is left in
 `BindResources` is below what a bench can show; the lever is the encoder block.
-(e) Held passes encoded on a replay thread (user's choice of direction; local branch
-`p8.6-replay-thread`, not on main): a pass released by the next pass's begin goes to
-`bb:MtlReplay` (4-deep job ring: hoisted encoder ended, render encoder made, list replayed,
-ended) while `bb:DrawRec` records on; everything else that needs an encoder joins the ring first.
-Moves the replay off the thread (`ReleaseHeldPass` 116 → 29-51 samples), but `bb:DrawRec` then
-waits 8-9% of its time, 2/3 at the next pass's hoisted compute encoder, the rest at blits.
-Within-run A/B (experiment bit 45): uncapped 33.9 vs 34.1 FPS; missed 30-FPS slots in a clinic
-walk at the 30 cap (8 interleaved 60-s phases, 7050 flips each) **3.52% vs 3.56%**: no effect.
-So ~10% less recording work on `bb:DrawRec` does not move missed slots at all: the recording
-thread's speed is not what decides them, or not alone (the late frames' later SubmitAndFlip
-by the guest, 24.1 vs 19.7 ms, is the other half of the 2026-10-16 finding). Not kept.
+(e) Held passes encoded on a replay thread (user's choice of direction; d9619bc): a pass
+released by the next pass's begin goes to `bb:MtlReplay` (4-deep job ring: hoisted encoder
+ended, render encoder made, list replayed, ended) while `bb:DrawRec` records on; everything else
+that needs an encoder joins the ring first (`bb:DrawRec` waits 8-9% of its time, 2/3 of it at the
+next pass's hoisted compute encoder). Uncapped: 33.9 vs 34.1 FPS (within run). At the 30 cap
+three within-run A/B walks (`missab.sh`, 8 interleaved 60-s phases each): missed slots 3.52 vs
+3.56%, 1.90 vs 4.10%, 1.63 vs 4.24%, together **2.35% vs 3.97%**; the tail (guest flip call ->
+end-of-pipe flip) p90 10.2 vs 13.7 and 12.1 vs 15.1 ms. Validation layer clean (5-min walk),
+title and clinic images as without it (the title's 2 differing tiles are the animated menu
+highlight: they differ between runs of one build too), Vulkan unchanged (32.5 FPS, clinic 44.8 dB
+against the reference). Kept; `BB_MTL_REPLAY_THREAD=0` or experiment bit 45 turns it off.
+(f) What decides a missed slot (BB_TIMELINE of a 30-cap walk, `sample` of the guest threads,
+frames CSV). Correction first: "`bb:DrawRec` 99% busy at 30 FPS" came from samples at 1 ms,
+which slow the game to ~10 FPS; unperturbed, the port idles most of the frame. A frame: the
+game's render thread (`GXRenderThread`) submits the whole frame in a 1-2 ms burst (~60
+submissions, then SubmitAndFlip) 14-28 ms after the previous flip, depending on the scene (its
+own wait `WaitPreviousFrame` rarely blocks: the frame before is retired ~16 ms after its flip);
+then the port decodes and records it, the **tail**: median 4.5-5 ms, p90 10-15 ms, p99 17-19 ms,
+most of it the GPU command thread idle while `bb:DrawRec` reaches the EOP. A slot is missed when
+call time + tail passes ~33 ms. So both halves count: the guest's call time (the game's CPU work
+under Rosetta: not ours to shorten) and the tail (recording: what (e) shortens). Missed slots are
+rare events whose rate depends on where the walk goes (a 60-s phase 0.1-7%): A/B by whole runs
+and by the tail, not by single pairs (the "wins in every pair" rule cannot be met this way).
+(g) QoS (guest threads, and the frame's host threads, at user-interactive by override,
+experiment, not kept): guest threads run at `QOS_CLASS_DEFAULT`. Across runs 2.97 vs 2.06%
+missed, but four runs of one setting ranged 1.36-3.34%; within run 2.91 vs 4.23% and 2.41 vs
+2.25%, and the tail did not shorten (5.05 vs 4.45 ms median): no effect shown.
 `ab.sh` measured 6 windows with `BENCH_WAIT=20`, i.e. reached back into the loading screen
 when loading took a few seconds longer: the "NOT IN GAME" failures in ab.sh were this, not
 hangs (fixed: 2 windows, as `m1_run.sh`).
@@ -972,3 +988,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | M3 gets a pass/fail rule (§1 "M3 acceptance rule"), checked by `m3stats.py` from per-flip and power logs (user's choice of the recommended rule) | the 2026-10-16 "met" accepted 97–98% of windows by eye, with no limit on hitches or tail latency and no record of the power state | §1, M3 |
 | 2026-10-16 | Sampler LOD bias on Metal through `MTLSamplerDescriptor.lodBias` from macOS 26; below 26 it stays dropped (logged), no shader-side bias | macOS 26 SDK has the property; the Metal path is the default only on macOS 15+, and a shader-side bias would rewrite every implicit-LOD sample of the recompiler for a shrinking set of systems | P2.4, P5 |
 | 2026-10-16 | M2 is compared at identical work: the scene mip bias off on both backends (`BB_TOGGLE_FILE` SceneMipBias); the bias's cost on Metal measured separately | MoltenVK 1.4.2 (x86_64) reports `samplerMipLodBias = 0` (probe), also with `MVK_CONFIG_USE_METAL_PRIVATE_API=1`, and a within-run A/B of the bias on Vulkan is below frame noise (43–48 vs 40.6 dB), on Metal it is not (38 vs 41 dB): Vulkan never applied the bias, Metal now does | M2 |
+| 2026-10-16 | Missed 30-FPS slots are compared by within-run A/B of whole runs and the tail (`missab.sh`), not by pairs; the replay thread kept on that basis | missed slots of 60-s phases range 0.1-7% with the walk's content, so single pairs flip sign for any change; the tail is per frame and the port's own part | P8.6, M3 |
