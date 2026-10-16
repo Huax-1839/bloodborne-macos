@@ -21,7 +21,7 @@ log=$bench/runs/bench-ab-$name.log
 phase=${PHASE:-20} cycles=${CYCLES:-6}
 mkdir -p "$bench/runs"
 echo "$a" > "$toggle"
-KEEP=1 BENCH_WAIT=${BENCH_WAIT:-20} "$here/bench.sh" "ab-$name" "$@" BB_TOGGLE_FILE="$toggle" |
+KEEP=1 BENCH_WAIT=${BENCH_WAIT:-20} BENCH_WINDOWS=${BENCH_WINDOWS:-2} "$here/bench.sh" "ab-$name" "$@" BB_TOGGLE_FILE="$toggle" |
     tail -1
 pgrep -f out/bb-probe > /dev/null || { echo "ab $name: the game is not running" >&2; exit 1; }
 

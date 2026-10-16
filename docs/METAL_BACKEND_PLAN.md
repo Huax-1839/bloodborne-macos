@@ -884,6 +884,20 @@ copies open encoders (3.3%); the memoized parts are small (texture-set check 2.5
 `BindBufferSet` and the draw paths, 15 sites; ~1% of the thread): interleaved uncapped
 38.1/33.2/32.2 base vs 35.7/33.5/30.9, behind in 2 of 3 pairs: not kept. What is left in
 `BindResources` is below what a bench can show; the lever is the encoder block.
+(e) Held passes encoded on a replay thread (user's choice of direction; local branch
+`p8.6-replay-thread`, not on main): a pass released by the next pass's begin goes to
+`bb:MtlReplay` (4-deep job ring: hoisted encoder ended, render encoder made, list replayed,
+ended) while `bb:DrawRec` records on; everything else that needs an encoder joins the ring first.
+Moves the replay off the thread (`ReleaseHeldPass` 116 → 29-51 samples), but `bb:DrawRec` then
+waits 8-9% of its time, 2/3 at the next pass's hoisted compute encoder, the rest at blits.
+Within-run A/B (experiment bit 45): uncapped 33.9 vs 34.1 FPS; missed 30-FPS slots in a clinic
+walk at the 30 cap (8 interleaved 60-s phases, 7050 flips each) **3.52% vs 3.56%**: no effect.
+So ~10% less recording work on `bb:DrawRec` does not move missed slots at all: the recording
+thread's speed is not what decides them, or not alone (the late frames' later SubmitAndFlip
+by the guest, 24.1 vs 19.7 ms, is the other half of the 2026-10-16 finding). Not kept.
+`ab.sh` measured 6 windows with `BENCH_WAIT=20`, i.e. reached back into the loading screen
+when loading took a few seconds longer: the "NOT IN GAME" failures in ab.sh were this, not
+hangs (fixed: 2 windows, as `m1_run.sh`).
 
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
