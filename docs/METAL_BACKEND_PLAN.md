@@ -851,6 +851,7 @@ Results (filled in as measured):
 | 2026-10-16 | Metal 1af7c98 | m4air, 30 cap, 20 min walk, power (`m3-rule-power`) | 29.6 | 549 ms | first run under the M3 rule: **fail** (mean 29.62, 77.8% of windows, 5.3% missed slots, 5 frames > 100 ms); the 549-ms frame was 2 compiles (537 ms): the bench cache mixed two generations (`fs_fbe7c4b6` permutation skipped at preload, 1 stale pipeline) |
 | 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
 | 2026-10-16 | Metal d9619bc (replay thread) | m4air, 30 cap, 20 min walk, power (`m3-replay-power`) | 30.0 | 100 ms | M3 rule **fail on one check**: 2.03% missed slots (<= 1%); 98.4% of windows (now passes), every other check passes; memory as before (footprint +265 MiB, earlier runs +229-273) |
+| 2026-10-16 | Metal b0a3d62 (replay thread + pipeline QoS) | m4air, 30 cap, 20 min walk, power (`m3-pipeqos-power`) | 30.0 | 66.7 ms | M3 rule **fail on one check**: 1.27% missed slots (<= 1%; the closest so far: 5.31, 1.60, 2.25, 2.03%); 98.8% of windows, every other check passes |
 
 Missed 30-FPS slots (2026-10-16, db96663; `m3-gpums-power`, `pacing2-*`, `timeline-metal` with
 `tl_frames.py`): a missed slot is a flip one vblank late (50 ms, then 17 ms), not lost throughput
@@ -911,8 +912,21 @@ and by the tail, not by single pairs (the "wins in every pair" rule cannot be me
 (h) The long tails (`m3-replay-power`, 37k flips): the slowest 5% (tail 15.8 vs median 4.4 ms)
 are frames with 806 vs 507 draws, 28.8 vs 21.7 ms GPU time and new images (0.47 vs 0.02 a
 frame): 3.5x the tail for 1.6x the draws, so the recording thread likely also waits there
-(open: what for).
-(g) QoS (guest threads, and the frame's host threads, at user-interactive by override,
+(open: what for). Per-flip recording columns (58ea730: `rec_busy_ms`, `gpu_wait_ms`,
+`replay_wait_ms`, `find_images`, `BB_SECTIONS=1` one column per section): in those frames the
+recording thread is busy 15-26 vs 5-7 ms, with no GPU waits (0.00), replay joins 2-3 vs 0.7 ms,
+FindImage calls only 66-123 vs 45-51 (the memos hold), and **every section** 2.5-3x slower,
+render state and dynamic state included, for 1.25x the draws: not more work but a slower
+thread, it loses the performance cores to the game's threads.
+(i) The frame's host threads (GPU command processing, draw preparation and recording, Metal
+replay, Vulkan recorders, signals, present) at user-interactive QoS (b0a3d62;
+`BB_PIPELINE_QOS=0` off). Within-run A/B by QoS override of those threads only (two runs,
+mirrored): missed slots 1.58 vs 1.36% and 0.92 vs 2.62%, together **1.24 vs 1.99%**; tail median
+3.77 vs 4.32 and 2.76 vs 4.97 ms (the second run: all 4 pairs), p99 13.9 vs 19.3 and 13.6 vs
+17.8 ms. Uncapped 34.0 vs 33.0 FPS (one pair). Vulkan 33.1 FPS, clinic 46.4 dB against the
+reference (the 7 tiles over are the player's idle animation; 3 of them differ between earlier
+runs too).
+(g) QoS (guest threads, and guest plus host threads, at user-interactive by override,
 experiment, not kept): guest threads run at `QOS_CLASS_DEFAULT`. Across runs 2.97 vs 2.06%
 missed, but four runs of one setting ranged 1.36-3.34%; within run 2.91 vs 4.23% and 2.41 vs
 2.25%, and the tail did not shorten (5.05 vs 4.45 ms median): no effect shown.
@@ -994,3 +1008,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | Sampler LOD bias on Metal through `MTLSamplerDescriptor.lodBias` from macOS 26; below 26 it stays dropped (logged), no shader-side bias | macOS 26 SDK has the property; the Metal path is the default only on macOS 15+, and a shader-side bias would rewrite every implicit-LOD sample of the recompiler for a shrinking set of systems | P2.4, P5 |
 | 2026-10-16 | M2 is compared at identical work: the scene mip bias off on both backends (`BB_TOGGLE_FILE` SceneMipBias); the bias's cost on Metal measured separately | MoltenVK 1.4.2 (x86_64) reports `samplerMipLodBias = 0` (probe), also with `MVK_CONFIG_USE_METAL_PRIVATE_API=1`, and a within-run A/B of the bias on Vulkan is below frame noise (43–48 vs 40.6 dB), on Metal it is not (38 vs 41 dB): Vulkan never applied the bias, Metal now does | M2 |
 | 2026-10-16 | Missed 30-FPS slots are compared by within-run A/B of whole runs and the tail (`missab.sh`), not by pairs; the replay thread kept on that basis | missed slots of 60-s phases range 0.1-7% with the walk's content, so single pairs flip sign for any change; the tail is per frame and the port's own part | P8.6, M3 |
+| 2026-10-16 | The frame's host threads run at user-interactive QoS (b0a3d62) | per-flip sections: long tails are the recording thread running 2.5-3x slower in every part, not more work; within-run A/B of a QoS override on those threads only: 1.24 vs 1.99% missed slots, tail p99 13.6-13.9 vs 17.8-19.3 ms; raising the guest threads too showed nothing | P8.6, M3 |

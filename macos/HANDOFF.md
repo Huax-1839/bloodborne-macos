@@ -25,7 +25,7 @@ reference and the Linux path).
   - M3, 30 FPS for 20 min at 540p (m4air) on power and battery: 30.0 FPS mean in both, 97–98% of
     5-s windows at 30 (2026-10-16). 720p doesn't hold 30 on the Air: its GPU needs 35 ms a frame
     cool and 42–45 ms warm. Under the stricter M3 rule (m3stats.py) only missed 30-FPS slots
-    fail: 2.03% at d9619bc (<= 1% allowed); what decides them and the work on it: plan §8,
+    fail: 1.27% at b0a3d62 (<= 1% allowed; 2.03% before the pipeline QoS); what decides them and the work on it: plan §8,
     "P8.6 recording thread" (e)-(h).
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
