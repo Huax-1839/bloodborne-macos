@@ -198,13 +198,14 @@ ComputePipeline::~ComputePipeline() {
     }
 }
 
-PsoCache::PsoCache(Device& device_, std::filesystem::path cache_dir)
+PsoCache::PsoCache(Device& device_, std::filesystem::path cache_dir, bool relaxed_math)
     : device{device_}, impl{std::make_unique<Impl>()} {
     impl->mtl_device = device.GetImpl().device;
     if (cache_dir.empty()) {
         cache_dir = ShaderCompiler::DefaultCacheDir();
     }
-    archive_path = cache_dir / "pipelines.binaryarchive";
+    archive_path = cache_dir / (relaxed_math ? "pipelines-relaxed-math.binaryarchive"
+                                             : "pipelines.binaryarchive");
 
     @autoreleasepool {
         std::error_code ec;

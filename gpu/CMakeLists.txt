@@ -295,6 +295,9 @@ target_include_directories(motion-history-test PRIVATE ..)
 add_executable(motion-shader-test EXCLUDE_FROM_ALL ../tests/test_motion_shaders.cpp ../tests/test_gpu_runtime_stubs.cpp)
 target_include_directories(motion-shader-test PRIVATE shim shadps4 third_party/gcn/include)
 target_link_libraries(motion-shader-test PRIVATE bbgpu)
+add_executable(spirv-float-rules-test EXCLUDE_FROM_ALL ../tests/test_spirv_float_rules.cpp ../tests/test_gpu_runtime_stubs.cpp)
+target_include_directories(spirv-float-rules-test PRIVATE shim shadps4 third_party/gcn/include)
+target_link_libraries(spirv-float-rules-test PRIVATE bbgpu)
 add_executable(camera-tracker-test EXCLUDE_FROM_ALL ../tests/test_camera_tracker.cpp
     shadps4/video_core/camera_tracker.cpp)
 target_compile_options(camera-tracker-test PRIVATE -UNDEBUG -Wall -Wextra -Werror

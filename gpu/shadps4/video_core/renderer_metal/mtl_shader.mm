@@ -77,6 +77,7 @@ struct SpirvScan {
     bool per_vertex{};      ///< a PerVertexKHR decoration (pull-model fragment inputs)
     bool device_address{};  ///< Capability PhysicalStorageBufferAddresses
     bool bda_pagetable{};   ///< a variable named "bda_pagetable"
+    bool depth_replacing{}; ///< OpExecutionMode DepthReplacing (a fragment shader exporting depth)
     std::array<u32, 3> local_size{0, 0, 0}; ///< OpExecutionMode LocalSize
     TessellationInfo tess;                  ///< the tessellation execution modes
 };
@@ -134,6 +135,9 @@ SpirvScan ScanSpirv(std::span<const u32> code) {
             }
             if (length >= 3) {
                 switch (code[i + 2]) {
+                case spv::ExecutionModeDepthReplacing:
+                    scan.depth_replacing = true;
+                    break;
                 case spv::ExecutionModeTriangles:
                     scan.tess.domain = TessDomain::Triangles;
                     break;
@@ -809,14 +813,16 @@ std::string FirstMetalError(const std::string& text) {
     return FirstLine(text);
 }
 
+/// `relaxed_math`: MTLMathModeRelaxed instead of Safe (macOS 15 and later; below it the library is
+/// always built without fast math). mathFloatingPointFunctions stays at its default (Fast).
 MetalObjects BuildLibrary(id<MTLDevice> device, const std::string& msl, const std::string& entry,
-                          std::string_view label) {
+                          std::string_view label, bool relaxed_math) {
     MetalObjects objects{};
     @autoreleasepool {
         MTLCompileOptions* options = [MTLCompileOptions new];
         options.languageVersion = MTLLanguageVersion3_1;
         if (@available(macOS 15.0, *)) {
-            options.mathMode = MTLMathModeSafe;
+            options.mathMode = relaxed_math ? MTLMathModeRelaxed : MTLMathModeSafe;
         } else {
             options.fastMathEnabled = NO;
         }
@@ -894,8 +900,45 @@ std::filesystem::path ShaderCompiler::DefaultCacheDir() {
            "metal";
 }
 
-ShaderCompiler::ShaderCompiler(Device& device_, std::filesystem::path cache_dir_)
-    : device{device_}, cache_dir{std::move(cache_dir_)} {
+const char* FloatRulesName(FloatRules rules) {
+    switch (rules) {
+    case FloatRules::Strict:
+        return "V0 (NoContraction everywhere, Safe math)";
+    case FloatRules::NoContraction:
+        return "V1 (no NoContraction in game fragment/compute shaders, Safe math)";
+    case FloatRules::RelaxedMath:
+        return "V2 (no NoContraction, Relaxed math in game fragment/compute shaders)";
+    }
+    return "?";
+}
+
+FloatRules ReadFloatRules() {
+    // The defaults of the two switches until the variants are measured (plan P9).
+    constexpr bool kRelaxedFloatDefault = false;
+    constexpr bool kRelaxedMathDefault = true;
+    static const FloatRules rules = [] {
+        const char* strict = std::getenv("BB_MTL_STRICT_FLOAT");
+        const char* math = std::getenv("BB_MTL_RELAXED_MATH");
+        bool relaxed = kRelaxedFloatDefault;
+        if (strict && strict[0] == '1') {
+            relaxed = false;
+        } else if (strict && strict[0] == '0') {
+            relaxed = true;
+        }
+        bool relaxed_math = kRelaxedMathDefault;
+        if (math && math[0] == '0') {
+            relaxed_math = false;
+        } else if (math && math[0] == '1') {
+            relaxed_math = true;
+        }
+        return !relaxed ? FloatRules::Strict
+                        : relaxed_math ? FloatRules::RelaxedMath : FloatRules::NoContraction;
+    }();
+    return rules;
+}
+
+ShaderCompiler::ShaderCompiler(Device& device_, std::filesystem::path cache_dir_, FloatRules rules_)
+    : device{device_}, cache_dir{std::move(cache_dir_)}, rules{rules_} {
     if (cache_dir.empty()) {
         cache_dir = DefaultCacheDir();
     }
@@ -1034,6 +1077,13 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
         cache_dir / fmt::format("{:016x}_{}{}_{:016x}.metal", hash, stage_name, tag, spirv_hash);
     id<MTLDevice> mtl_device = device.GetImpl().device;
     const std::string label{name};
+    // P9.1: Relaxed math only for the game's fragment shaders without depth export and the
+    // game's compute shaders (the Plain variants); the same decision on the cache-hit and the
+    // converting path below.
+    const bool relaxed_math = rules == FloatRules::RelaxedMath &&
+                              variant.kind == VariantKind::Plain &&
+                              (scan.stage == ShaderStage::Compute ||
+                               (scan.stage == ShaderStage::Fragment && !scan.depth_replacing));
 
     MetalObjects objects{};
     std::string msl;
@@ -1044,7 +1094,7 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
             CompiledShader parsed;
             std::string cached_msl;
             if (ParseCache(text, parsed, cached_msl) && parsed.stage == scan.stage) {
-                objects = BuildLibrary(mtl_device, cached_msl, parsed.entry, label);
+                objects = BuildLibrary(mtl_device, cached_msl, parsed.entry, label, relaxed_math);
                 if (objects.error.empty()) {
                     shader->entry = std::move(parsed.entry);
                     shader->bindings = std::move(parsed.bindings);
@@ -1086,7 +1136,7 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
         } catch (const std::exception& e) {
             return fail(CompileStatus::Failed, "SPIRV-Cross: " + FirstLine(e.what()));
         }
-        objects = BuildLibrary(mtl_device, msl, shader->entry, label);
+        objects = BuildLibrary(mtl_device, msl, shader->entry, label, relaxed_math);
         if (!objects.error.empty()) {
             return fail(CompileStatus::Failed, objects.error);
         }

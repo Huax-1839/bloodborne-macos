@@ -235,7 +235,10 @@ class PsoCache {
 public:
     /// `cache_dir` is the folder of the MSL cache (default: ShaderCompiler::DefaultCacheDir());
     /// the binary archive lives in it. Without a writable folder only the archive is lost.
-    explicit PsoCache(Device& device, std::filesystem::path cache_dir = {});
+    /// `relaxed_math`: the shaders have libraries built with MTLMathModeRelaxed (P9.1); the archive
+    /// is then a file of its own, so entries of Safe-math functions are never looked up for them.
+    explicit PsoCache(Device& device, std::filesystem::path cache_dir = {},
+                      bool relaxed_math = false);
     ~PsoCache(); // flushes the archive
 
     /// `vs` is required, `fs` may be null (depth-only pass). The key must be the one the Vulkan

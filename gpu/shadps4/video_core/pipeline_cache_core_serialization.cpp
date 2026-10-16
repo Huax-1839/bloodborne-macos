@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <array>
+#include <cstddef>
 #include <unordered_set>
 #include "common/serdes.h"
 #include "core/emulator_settings.h"
@@ -320,11 +321,18 @@ void PipelineCacheCore::WarmUp() {
         save_profile();
         return;
     }
-    const bool versions_match = profile_data.size() == header_size + sizeof(Shader::Profile) &&
+    // bbport: Shader::Profile gained a trailing field (relaxed_fragment_compute_float). A
+    // profile.bin written without it is the same profile with the field clear: it keeps the
+    // cache of every strict (Vulkan, Metal V0) run and never matches a relaxed profile.
+    constexpr size_t old_profile_size = offsetof(Shader::Profile, relaxed_fragment_compute_float);
+    const bool old_layout = profile_data.size() == header_size + old_profile_size;
+    const bool versions_match =
+        (profile_data.size() == header_size + sizeof(Shader::Profile) || old_layout) &&
         std::memcmp(profile_data.data(), cache_versions.data(), header_size) == 0;
     Shader::Profile cached_profile{};
     if (versions_match) {
-        std::memcpy(&cached_profile, profile_data.data() + header_size, sizeof(cached_profile));
+        std::memcpy(&cached_profile, profile_data.data() + header_size,
+                    old_layout ? old_profile_size : sizeof(cached_profile));
     }
     if (!versions_match || cached_profile != profile) {
         // bbport: upstream closed the cache for the session here, so it was never rewritten
@@ -335,6 +343,9 @@ void PipelineCacheCore::WarmUp() {
         Storage::DataBase::Instance().FinishPreload();
         save_profile();
         return;
+    }
+    if (old_layout) {
+        save_profile();
     }
 
     u32 num_pipelines{};

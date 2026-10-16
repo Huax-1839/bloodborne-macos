@@ -59,6 +59,11 @@ struct Profile {
     /// bbport: the game's buffer copy compute shader (its GCN program hash, from the game's profile;
     /// 0 = none): its paged stores go through to the game's memory as well.
     u64 buffer_copy_shader_hash{};
+    /// bbport (Metal, P9.1): game fragment shaders without depth export and compute shaders are
+    /// emitted without NoContraction on their float ops; positions (vertex, tessellation,
+    /// geometry) and depth exports keep it. The Vulkan backend never sets it. Keep it the last
+    /// member: the pipeline cache's profile.bin accepts the layout without it (WarmUp).
+    bool relaxed_fragment_compute_float{};
 
     bool operator==(const Profile&) const = default;
 };

@@ -84,6 +84,19 @@ TessellationInfo ReadTessellationInfo(std::span<const u32> spirv);
 /// The stage of the module's first entry point (Unknown when it is not valid SPIR-V).
 ShaderStage ReadShaderStage(std::span<const u32> spirv);
 
+/// The float rules of the game's shaders (P9.1), chosen once at startup (ReadFloatRules). They
+/// apply to game fragment shaders without depth export and to game compute shaders only; vertex,
+/// tessellation, geometry, the ES/LS kernels and depth-exporting fragment shaders (the positions
+/// and depths that depth-equal passes compare) keep NoContraction and Safe math.
+enum class FloatRules : u8 {
+    Strict,        ///< V0: NoContraction on every float op, every library with Safe math
+    NoContraction, ///< V1: those shaders without NoContraction, Safe math
+    RelaxedMath,   ///< V2: V1 plus MTLMathModeRelaxed for those shaders' libraries
+};
+const char* FloatRulesName(FloatRules rules);
+/// BB_MTL_STRICT_FLOAT (1: V0, 0: V1 or V2) and BB_MTL_RELAXED_MATH (0: V1, 1: V2); read once.
+FloatRules ReadFloatRules();
+
 /// How a stage is compiled. Plain is the direct pipeline (vertex function, fragment function,
 /// compute kernel); the others are the stages of a tessellated draw, the way MoltenVK builds them
 /// with SPIRV-Cross (P4.4): the vertex shader runs as a compute kernel that writes its outputs to
@@ -208,7 +221,10 @@ class ShaderCompiler {
 public:
     /// `cache_dir` holds the MSL disk cache; empty selects <user>/cache/<title id>/metal, created
     /// on first use. A cache that cannot be written only costs the speed-up.
-    explicit ShaderCompiler(Device& device, std::filesystem::path cache_dir = {});
+    /// `rules` decides which game shaders get Relaxed math (FloatRules::RelaxedMath only); the
+    /// SPIR-V's NoContraction is the recompiler's business (Shader::Profile).
+    explicit ShaderCompiler(Device& device, std::filesystem::path cache_dir = {},
+                            FloatRules rules = FloatRules::Strict);
     ~ShaderCompiler();
 
     /// `hash` is the guest shader hash (log messages and cache file name), `name` a label for
@@ -239,6 +255,7 @@ public:
 private:
     Device& device;
     std::filesystem::path cache_dir;
+    FloatRules rules;
     Counters counters;
 };
 

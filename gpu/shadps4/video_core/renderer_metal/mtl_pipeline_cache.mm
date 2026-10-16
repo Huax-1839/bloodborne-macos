@@ -4,6 +4,7 @@
 // else (keys, programs, permutations, SPIR-V, the disk cache) is the core's.
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <concepts>
@@ -111,6 +112,9 @@ Shader::Profile MakeShaderProfile(Device& device, const VideoCore::BackendLimits
         .needs_clip_distance_emulation = false,
         // MoltenVK: true (MSL [[stencil]] output).
         .supports_shader_stencil_export = true,
+        // P9.1: V1 and V2 emit game fragment/compute shaders without NoContraction; part of the
+        // profile, so the disk cache of those rules never meets a strict one.
+        .relaxed_fragment_compute_float = ReadFloatRules() != FloatRules::Strict,
     };
 }
 
@@ -179,9 +183,13 @@ PipelineCache::PipelineCache(Device& device_, const VideoCore::BackendLimits& li
                              AmdGpu::Liverpool* liverpool_, u32 sparse_page_shift,
                              std::filesystem::path msl_cache_dir)
     : PipelineCacheCore{liverpool_, MakeShaderProfile(device_, limits), MakePipelineCapabilities(),
-                        sparse_page_shift, "metal"},
-      device{device_}, compiler{device_, msl_cache_dir}, pso_cache{device_, msl_cache_dir},
+                        sparse_page_shift,
+                        // V1 and V2 share their SPIR-V; V0 keeps the cache it always had.
+                        ReadFloatRules() == FloatRules::Strict ? "metal" : "metal-relaxed"},
+      device{device_}, compiler{device_, msl_cache_dir, ReadFloatRules()},
+      pso_cache{device_, msl_cache_dir, ReadFloatRules() == FloatRules::RelaxedMath},
       pass_through{device_} {
+    std::printf("GPU: Metal float rules %s\n", FloatRulesName(ReadFloatRules()));
     WarmUp();
 }
 

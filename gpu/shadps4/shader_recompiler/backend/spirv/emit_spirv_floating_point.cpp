@@ -6,8 +6,22 @@
 
 namespace Shader::Backend::SPIRV {
 
+// bbport (Metal, P9.1): with Profile::relaxed_fragment_compute_float the float ops of fragment
+// shaders without depth export and of compute shaders may be contracted. Positions stay strict:
+// depth-equal passes recompute them in different shaders and must get bit-identical results, and
+// a depth export feeds the same comparison.
+static bool KeepsStrictFloat(const EmitContext& ctx) {
+    if (!ctx.profile.relaxed_fragment_compute_float) {
+        return true;
+    }
+    return !(ctx.sw_stage == SwStage::Compute ||
+             (ctx.sw_stage == SwStage::Fragment && !ctx.info.stores.GetAny(IR::Attribute::Depth)));
+}
+
 Id Decorate(EmitContext& ctx, IR::Inst* inst, Id op) {
-    ctx.Decorate(op, spv::Decoration::NoContraction);
+    if (KeepsStrictFloat(ctx)) {
+        ctx.Decorate(op, spv::Decoration::NoContraction);
+    }
     return op;
 }
 
