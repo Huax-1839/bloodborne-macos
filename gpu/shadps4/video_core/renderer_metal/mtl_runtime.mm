@@ -93,51 +93,10 @@ u32 BytesOf(vk::Format format) {
     return vk::blockSize(format);
 }
 
-/// Whether the Metal texture of `base` can have a view in the pixel format of `view`. Metal
-/// aborts on an incompatible view (not even the debug layer is needed): the same format, the
-/// sRGB twin, uncompressed color formats of one texel size and BC formats of one family.
+/// Whether the Metal texture of `base` can have a view in the pixel format of `view`
+/// (VkToMtl::ViewCompatible; Metal aborts on an incompatible view).
 bool ViewCompatible(vk::Format base, vk::Format view) {
-    const u32 base_pf = VkToMtl::PixelFormat(base);
-    const u32 view_pf = VkToMtl::PixelFormat(view);
-    if (base_pf == view_pf) {
-        return true;
-    }
-    if (!base_pf || !view_pf || VkToMtl::IsDepthPixelFormat(base_pf) ||
-        VkToMtl::IsDepthPixelFormat(view_pf) || VkToMtl::HasStencilPixelFormat(base_pf) ||
-        VkToMtl::HasStencilPixelFormat(view_pf)) {
-        return false;
-    }
-    const auto special = [](u32 pf) {
-        return pf == u32(MTLPixelFormatRGB9E5Float) || pf == u32(MTLPixelFormatRG11B10Float);
-    };
-    if (special(base_pf) || special(view_pf)) {
-        return false;
-    }
-    const bool base_block = vk::blockExtent(base)[0] > 1;
-    const bool view_block = vk::blockExtent(view)[0] > 1;
-    if (base_block || view_block) {
-        const auto family = [](u32 pf) -> u32 {
-            switch (MTLPixelFormat(pf)) {
-            case MTLPixelFormatBC1_RGBA:
-            case MTLPixelFormatBC1_RGBA_sRGB:
-                return 1;
-            case MTLPixelFormatBC2_RGBA:
-            case MTLPixelFormatBC2_RGBA_sRGB:
-                return 2;
-            case MTLPixelFormatBC3_RGBA:
-            case MTLPixelFormatBC3_RGBA_sRGB:
-                return 3;
-            case MTLPixelFormatBC7_RGBAUnorm:
-            case MTLPixelFormatBC7_RGBAUnorm_sRGB:
-                return 7;
-            default:
-                return 0;
-            }
-        };
-        return base_block && view_block && family(base_pf) != 0 &&
-               family(base_pf) == family(view_pf);
-    }
-    return vk::blockSize(base) == vk::blockSize(view);
+    return VkToMtl::ViewCompatible(base, view);
 }
 
 MTLTextureType TextureTypeOf(const vk::ImageCreateInfo& info) {
@@ -481,6 +440,16 @@ BackendLimits MakeLimits(Device& device) {
     // The viewport of the clip-disabled path (screen-space positions, RectList) is this size.
     limits.max_viewport_width = 16384;
     limits.max_viewport_height = 16384;
+    // P10.1 (docs/metal/texture_compression_design.md): the texture cache creates images without
+    // ShaderWrite and PixelFormatView and promotes them on first need, so the GPU keeps them
+    // losslessly compressed. BB_MTL_FULL_USAGE=1 restores the usages every image had.
+    const char* full_usage = std::getenv("BB_MTL_FULL_USAGE");
+    limits.lean_image_usage = !(full_usage && full_usage[0] == '1');
+    LOG_INFO(Render, "Metal: texture cache images are created {}",
+             limits.lean_image_usage
+                 ? "lean (ShaderWrite and PixelFormatView on first need, BB_MTL_FULL_USAGE=1 "
+                   "restores them for every image)"
+                 : "with ShaderWrite and PixelFormatView (BB_MTL_FULL_USAGE=1)");
     return limits;
 }
 
@@ -1118,6 +1087,19 @@ void Runtime::CreateImageView(ImageView& out, const vk::ImageViewCreateInfo& inf
             }
             if (base_format && ViewCompatible(*base_format, format)) {
                 pixel_format = MTLPixelFormat(view_pf);
+                // P10.1 safety net: the usage is promoted before (RequiredViewUsage); without it
+                // the driver makes the view anyway and it can read 0xFFFFFFFF. Never silent.
+                if (!(base.usage & MTLTextureUsagePixelFormatView) &&
+                    !VkToMtl::IsSrgbTwinPixelFormat(u32(base.pixelFormat), view_pf) &&
+                    impl->FirstTime("view usage " + vk::to_string(*base_format) +
+                                    vk::to_string(format))) {
+                    LOG_ERROR(Render, "Metal: a view of format {} of a texture of format {} "
+                                      "without PixelFormatView (texture \"{}\", usage {}); the "
+                                      "view may read garbage",
+                              vk::to_string(format), vk::to_string(*base_format),
+                              base.label ? [base.label UTF8String] : "?",
+                              static_cast<unsigned long long>(base.usage));
+                }
             } else if (impl->FirstTime("view format " + vk::to_string(format))) {
                 LOG_ERROR(Render, "Metal: a view of format {} of a texture of format {} is not "
                                   "possible; using the texture's format",
@@ -1514,13 +1496,24 @@ namespace {
 /// The texture to copy `src` out of so that its pixel format equals the destination's, nil when
 /// no such view exists (Metal blits between equal pixel formats only). A view made here is
 /// recorded unretained: `keep_alive` is set so the caller holds it until the tick completes.
-id<MTLTexture> CopySource(id<MTLTexture> src, vk::Format src_format, id<MTLTexture> dst,
-                          vk::Format dst_format, __strong id<MTLTexture>& keep_alive) {
+id<MTLTexture> CopySource(Runtime::Impl& impl, id<MTLTexture> src, vk::Format src_format,
+                          id<MTLTexture> dst, vk::Format dst_format,
+                          __strong id<MTLTexture>& keep_alive) {
     if (src.pixelFormat == dst.pixelFormat) {
         return src;
     }
     if (!ViewCompatible(src_format, dst_format)) {
         return nil;
+    }
+    // P10.1 safety net: the callers promote the source first (PromoteCopySource); without the
+    // usage the driver makes the view anyway and it can read garbage. Never silent.
+    if (!(src.usage & MTLTextureUsagePixelFormatView) &&
+        !VkToMtl::IsSrgbTwinPixelFormat(u32(src.pixelFormat), u32(dst.pixelFormat)) &&
+        impl.FirstTime("copy view usage " + vk::to_string(src_format) + vk::to_string(dst_format))) {
+        LOG_ERROR(Render, "Metal: a copy reads a texture of format {} (usage {}) as {} without "
+                          "PixelFormatView; the copy may read garbage",
+                  vk::to_string(src_format), static_cast<unsigned long long>(src.usage),
+                  vk::to_string(dst_format));
     }
     keep_alive = [src newTextureViewWithPixelFormat:dst.pixelFormat];
     if (ImageUsageLog::Enabled()) {
@@ -1551,6 +1544,7 @@ void Runtime::CopyImage(Image* src, Image* dst) {
     // Match sample count before copying
     SetBackingSamples(dst, dst->info.num_samples, false);
     SetBackingSamples(src, src->info.num_samples);
+    PromoteCopySource(src, *dst);
 
     const vk::ImageType src_type = src->backing->image.image_ci.imageType;
     const vk::ImageType dst_type = dst->backing->image.image_ci.imageType;
@@ -1574,7 +1568,7 @@ void Runtime::CopyImage(Image* src, Image* dst) {
         id<MTLTexture> dst_texture = NativeTexture(*dst);
         id<MTLTexture> view = nil;
         id<MTLTexture> src_texture =
-            CopySource(NativeTexture(*src), src_format, dst_texture, dst_format, view);
+            CopySource(*impl, NativeTexture(*src), src_format, dst_texture, dst_format, view);
         if (view) {
             scheduler.DeferOperation([view] { (void)view; });
         }
@@ -1729,6 +1723,7 @@ void Runtime::CopyMip(Image* src, Image* dst, u32 mip, u32 slice) {
 
     SetBackingSamples(dst, dst->info.num_samples);
     SetBackingSamples(src, src->info.num_samples);
+    PromoteCopySource(src, *dst);
 
     bool needs_flush = Transit(src, vk::ImageLayout::eTransferSrcOptimal,
                                vk::PipelineStageFlagBits2::eCopy,
@@ -1743,8 +1738,8 @@ void Runtime::CopyMip(Image* src, Image* dst, u32 mip, u32 slice) {
         id<MTLTexture> dst_texture = NativeTexture(*dst);
         id<MTLTexture> view = nil;
         id<MTLTexture> src_texture =
-            CopySource(NativeTexture(*src), src->backing->image.image_ci.format, dst_texture,
-                       dst->backing->image.image_ci.format, view);
+            CopySource(*impl, NativeTexture(*src), src->backing->image.image_ci.format,
+                       dst_texture, dst->backing->image.image_ci.format, view);
         if (view) {
             scheduler.DeferOperation([view] { (void)view; });
         }
@@ -1867,6 +1862,7 @@ void Runtime::ResolveImage(Image* src, Image* dst, const SubresourceRange& src_r
         return;
     }
     SetBackingSamples(dst, 1, false);
+    PromoteCopySource(src, *dst);
 
     const bool needs_resolve = src->backing->num_samples != 1;
     const auto dst_stage =
@@ -1889,9 +1885,9 @@ void Runtime::ResolveImage(Image* src, Image* dst, const SubresourceRange& src_r
         id<MTLTexture> dst_texture = NativeTexture(*dst);
         if (!needs_resolve) {
             id<MTLTexture> view = nil;
-            id<MTLTexture> source = CopySource(src_texture, src->backing->image.image_ci.format,
-                                               dst_texture, dst->backing->image.image_ci.format,
-                                               view);
+            id<MTLTexture> source = CopySource(*impl, src_texture,
+                                               src->backing->image.image_ci.format, dst_texture,
+                                               dst->backing->image.image_ci.format, view);
             if (view) {
                 scheduler.DeferOperation([view] { (void)view; });
             }
@@ -2051,11 +2047,19 @@ void Runtime::SetBackingSamples(Image* image, u32 num_samples, bool copy_backing
     }
     ASSERT_MSG(!image->info.props.is_depth, "Swapping samples is only valid for color images");
     Image::BackingImage* new_backing;
-    auto it = std::ranges::find(backing_images, num_samples, &Image::BackingImage::num_samples);
+    // (A backing PromoteImageUsage replaced is retired: never matched again.)
+    auto it = std::ranges::find_if(backing_images, [num_samples](const Image::BackingImage& b) {
+        return !b.retired && b.num_samples == num_samples;
+    });
     if (it == backing_images.end()) {
         auto new_image_ci = backing->image.image_ci;
         new_image_ci.samples =
             Vulkan::LiverpoolToVK::NumSamples(num_samples, image->supported_samples);
+        if (new_image_ci.samples != vk::SampleCountFlagBits::e1) {
+            // P10.1: a multisampled backing keeps the mutable format flag (PromoteImageUsage
+            // copies single sampled textures only).
+            new_image_ci.flags |= vk::ImageCreateFlagBits::eMutableFormat;
+        }
 
         new_backing = &backing_images.emplace_back();
         new_backing->num_samples = num_samples;
@@ -2100,6 +2104,165 @@ void Runtime::SetBackingSamples(Image* image, u32 num_samples, bool copy_backing
     }
 
     backing = new_backing;
+}
+
+// ---- Promotion of images created lean (P10.1) ------------------------------------------------------
+
+ImageUsagePromotion Runtime::RequiredViewUsage(const Image& image, const ImageViewInfo& view) const {
+    const Image::BackingImage* backing = image.backing;
+    if (!backing || !backing->image.native || backing->retired) {
+        return ImageUsagePromotion::None;
+    }
+    const vk::ImageCreateInfo& ci = backing->image.image_ci;
+    if (ci.samples != vk::SampleCountFlagBits::e1) {
+        return ImageUsagePromotion::None; // multisampled backings are made with the flag
+    }
+    const u32 pixel_format = VkToMtl::PixelFormat(ci.format);
+    if (VkToMtl::IsDepthPixelFormat(pixel_format) || VkToMtl::HasStencilPixelFormat(pixel_format)) {
+        return ImageUsagePromotion::None; // depth keeps both usages from its creation
+    }
+    ImageUsagePromotion need = ImageUsagePromotion::None;
+    // A shader writes the image (CreateImage: the storage usage is ShaderWrite of a single sampled
+    // texture; block formats are not written by shaders).
+    if (view.is_storage && !(ci.usage & vk::ImageUsageFlagBits::eStorage) &&
+        vk::blockExtent(ci.format)[0] <= 1) {
+        need |= ImageUsagePromotion::Storage;
+    }
+    // CreateImageView makes the view in another format only when ViewCompatible; the sRGB twin
+    // needs no usage.
+    if (!(ci.flags & vk::ImageCreateFlagBits::eMutableFormat) &&
+        VkToMtl::ViewNeedsPixelFormatUsage(ci.format, SubstituteFormat(view.format))) {
+        need |= ImageUsagePromotion::MutableFormat;
+    }
+    return need;
+}
+
+void Runtime::PromoteCopySource(Image* src, const Image& dst) {
+    if (!Limits().lean_image_usage || !src->backing || !dst.backing) {
+        return;
+    }
+    const vk::ImageCreateInfo& src_ci = src->backing->image.image_ci;
+    if ((src_ci.flags & vk::ImageCreateFlagBits::eMutableFormat) ||
+        src_ci.samples != vk::SampleCountFlagBits::e1) {
+        return;
+    }
+    // CopySource views the source in the destination's pixel format when they differ.
+    if (VkToMtl::ViewNeedsPixelFormatUsage(src_ci.format, dst.backing->image.image_ci.format)) {
+        PromoteImageUsage(src, ImageUsagePromotion::MutableFormat);
+    }
+}
+
+void Runtime::PromoteImageUsage(Image* image, ImageUsagePromotion usage) {
+    Image::BackingImage* old = image->backing;
+    if (!old || !old->image.native || old->retired) {
+        return;
+    }
+    const vk::ImageCreateInfo& old_ci = old->image.image_ci;
+    ImageUsagePromotion missing = ImageUsagePromotion::None;
+    if (True(usage & ImageUsagePromotion::Storage) &&
+        !(old_ci.usage & vk::ImageUsageFlagBits::eStorage)) {
+        missing |= ImageUsagePromotion::Storage;
+    }
+    if (True(usage & ImageUsagePromotion::MutableFormat) &&
+        !(old_ci.flags & vk::ImageCreateFlagBits::eMutableFormat)) {
+        missing |= ImageUsagePromotion::MutableFormat;
+    }
+    if (False(missing)) {
+        return;
+    }
+    BeforeImageAccess();
+    if (old_ci.samples != vk::SampleCountFlagBits::e1) {
+        // Never made lean (Image::Image, SetBackingSamples): nothing copies multisampled textures.
+        if (impl->FirstTime("promote multisampled")) {
+            LOG_ERROR(Render, "Metal: a multisampled texture ({}) needs a usage it was created "
+                              "without; not promoted",
+                      vk::to_string(old_ci.format));
+        }
+        return;
+    }
+
+    @autoreleasepool {
+        // 1. The new backing: the creation info of the old one with the usage, the same name.
+        vk::ImageCreateInfo ci = old_ci;
+        ci.pNext = nullptr;
+        if (True(missing & ImageUsagePromotion::Storage)) {
+            ci.usage |= vk::ImageUsageFlagBits::eStorage;
+        }
+        if (True(missing & ImageUsagePromotion::MutableFormat)) {
+            ci.flags |= vk::ImageCreateFlagBits::eMutableFormat;
+        }
+        std::string name;
+        {
+            id<MTLTexture> old_texture = (__bridge id<MTLTexture>)old->image.native;
+            name = old_texture.label ? std::string([old_texture.label UTF8String])
+                                     : fmt::format("Image {}x{}x{} {} {:#x}:{:#x}",
+                                                   image->info.size.width, image->info.size.height,
+                                                   image->info.size.depth,
+                                                   vk::to_string(image->info.pixel_format),
+                                                   image->info.guest_address,
+                                                   image->info.guest_size);
+        }
+        constexpr std::string_view suffix = " (promoted)";
+        if (!name.ends_with(suffix)) {
+            name += suffix;
+        }
+        // (A deque: the address of `old` stays valid.)
+        Image::BackingImage& fresh = image->backing_images.emplace_back();
+        fresh.num_samples = old->num_samples;
+        CreateImage(fresh.image, ci);
+        SetImageName(fresh.image, name);
+
+        // 2. The contents. Everything recorded so far writes the old texture, everything after
+        // this call uses the new one, so the copy goes between them in stream order: the Transit
+        // resolves a scene proxy that is ahead of its native image (Runtime::Transit), the blit
+        // encoder ends the open render pass (a held pass is released first) and Metal orders the
+        // blit after the encoders that wrote the (hazard tracked) old texture. A texture that was
+        // never used (no transition left its state) has nothing to carry over.
+        const bool written = old->state.layout != vk::ImageLayout::eUndefined;
+        if (written) {
+            if (Transit(image, vk::ImageLayout::eTransferSrcOptimal,
+                        vk::PipelineStageFlagBits2::eCopy, vk::AccessFlagBits2::eTransferRead)) {
+                FlushBarriers();
+            }
+            scheduler.BlitEncoder(__func__);
+            id<MTLBlitCommandEncoder> blit = impl->sched.blit;
+            [blit copyFromTexture:(__bridge id<MTLTexture>)old->image.native
+                        toTexture:(__bridge id<MTLTexture>)fresh.image.native];
+            // What the copy leaves: all subresources written by a transfer.
+            fresh.state.pl_stage = vk::PipelineStageFlagBits2::eCopy;
+            fresh.state.access_mask = vk::AccessFlagBits2::eTransferWrite;
+            fresh.state.layout = vk::ImageLayout::eTransferDstOptimal;
+        }
+        LOG_DEBUG(Render, "Metal: promoted {} (storage {}, mutable format {}, copied {})", name,
+                  True(missing & ImageUsagePromotion::Storage),
+                  True(missing & ImageUsagePromotion::MutableFormat), written);
+
+        // 3. Switch, and retire the old backing. Its views go through the deferred destroy like
+        // the views of a deleted image (TextureCache::DeleteImage): the slots are erased once the
+        // GPU is done with the open tick, and each view's native texture is released after that.
+        // Until then a ViewId of the old backing that the caller still holds (a stage's bindings
+        // made before this call) stays valid and reads the old texture, whose contents are the
+        // ones copied. The old texture itself is released by DestroyImage after the open tick,
+        // which contains the copy; the native views keep it alive until they are released.
+        image->backing = &fresh;
+        if (True(missing & ImageUsagePromotion::Storage)) {
+            image->usage_flags |= vk::ImageUsageFlagBits::eStorage;
+        }
+        old->retired = true;
+        old->image_view_infos.clear();
+        old->last_view = 0;
+        old->subresource_states.clear();
+        if (!old->image_view_ids.empty()) {
+            scheduler.DeferOperation([views = image->slot_image_views,
+                                      ids = std::move(old->image_view_ids)] {
+                for (const ImageViewId id : ids) {
+                    views->erase(id);
+                }
+            });
+            old->image_view_ids.clear();
+        }
+        DestroyImage(old->image);
+    }
 }
 
 } // namespace Metal

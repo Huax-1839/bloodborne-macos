@@ -783,6 +783,12 @@ ImageView& TextureCache::FindTexture(ImageId image_id, const ImageDesc& desc, Vi
             download_images.emplace(image_id);
             downloads_queued.store(true, std::memory_order_release);
         }
+        // bbport (P10.1): a storage binding of an image created without the storage usage
+        // promotes it here, before the refresh (which then uploads into the new backing) and
+        // before the view memo (which could return a view of the old one). FindView does the
+        // same for every other view that needs a usage; a memo hit needs none, it was made by a
+        // FindView of the same T# on this backing.
+        image.EnsureViewUsage(desc.view_info);
     }
     if (refresh) {
         UpdateImage(image_id);

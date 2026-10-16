@@ -910,6 +910,9 @@ void Upscaler::RunLive() {
         depth.info.size.height != oh || w > ow || h > oh) {
         return;
     }
+    // The merge writes the scene colour from a shader: an image the texture cache created without
+    // ShaderWrite (P10.1) gets it now, before the texture is fetched (a promotion replaces it).
+    runtime.PromoteImageUsage(&color, VideoCore::ImageUsagePromotion::Storage);
     id<MTLTexture> native_color = NativeTexture(color);
     id<MTLTexture> native_depth = NativeTexture(depth);
     const auto plain = [](id<MTLTexture> texture) {

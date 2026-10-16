@@ -15,7 +15,8 @@ using namespace Vulkan;
 
 Common::IncrementalIdProvider<u64> Image::global_image_uid{};
 
-static vk::ImageUsageFlags ImageUsageFlags(const BackendLimits& limits, const ImageInfo& info) {
+static vk::ImageUsageFlags ImageUsageFlags(const BackendLimits& limits, const ImageInfo& info,
+                                           bool lean) {
     vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eTransferSrc |
                                 vk::ImageUsageFlagBits::eTransferDst |
                                 vk::ImageUsageFlagBits::eSampled;
@@ -30,13 +31,18 @@ static vk::ImageUsageFlags ImageUsageFlags(const BackendLimits& limits, const Im
             // Always create images with storage flag to avoid needing re-creation in case of e.g
             // compute clears This sacrifices a bit of performance but is less work. ExtendedUsage
             // flag is also used.
-            usage |= vk::ImageUsageFlagBits::eStorage;
+            // bbport (P10.1): not when the backend promotes images on first need (lean).
+            if (!lean) {
+                usage |= vk::ImageUsageFlagBits::eStorage;
+            }
         }
     } else {
         // Similarly to above, we specify storage usage. This is typically not supported by
         // compressed formats, but may be used for uncompressed views. In order to satisfy this,
         // we will also specify the extended usage bit.
-        usage |= vk::ImageUsageFlagBits::eStorage;
+        if (!lean) {
+            usage |= vk::ImageUsageFlagBits::eStorage;
+        }
     }
 
     return usage;
@@ -109,8 +115,15 @@ Image::Image(CacheBackend& backend_, Common::SlotVector<ImageView>& slot_image_v
 
     image_uid = global_image_uid.Next();
     mip_hashes.resize(info.resources.levels);
-    vk::ImageCreateFlags flags{vk::ImageCreateFlagBits::eMutableFormat |
-                               vk::ImageCreateFlagBits::eExtendedUsage};
+    // bbport (P10.1): a backend that promotes images on first need (BackendLimits::lean_image_usage)
+    // gets colour and block images without the storage usage and the mutable format flag; depth
+    // keeps the flag (it costs no compression there and the stencil view needs it) and so do
+    // multisampled images (PromoteImageUsage cannot copy those).
+    const bool lean = backend_.Limits().lean_image_usage && info.num_samples <= 1;
+    vk::ImageCreateFlags flags{vk::ImageCreateFlagBits::eExtendedUsage};
+    if (!lean || info.props.is_depth) {
+        flags |= vk::ImageCreateFlagBits::eMutableFormat;
+    }
     if (info.props.is_volume) {
         flags |= vk::ImageCreateFlagBits::e2DArrayCompatible;
         if (backend_.Limits().image_2d_view_of_3d) {
@@ -121,7 +134,7 @@ Image::Image(CacheBackend& backend_, Common::SlotVector<ImageView>& slot_image_v
         flags |= vk::ImageCreateFlagBits::eBlockTexelViewCompatible;
     }
 
-    usage_flags = ImageUsageFlags(backend_.Limits(), info);
+    usage_flags = ImageUsageFlags(backend_.Limits(), info, lean);
     format_features = FormatFeatureFlags(usage_flags);
     if (info.props.is_depth) {
         aspect_mask = vk::ImageAspectFlagBits::eDepth;
@@ -172,10 +185,26 @@ Image::Image(CacheBackend& backend_, Common::SlotVector<ImageView>& slot_image_v
 
 Image::~Image() = default;
 
+void Image::EnsureViewUsage(const ImageViewInfo& view_info) {
+    if (!backing || !backend->Limits().lean_image_usage) {
+        return;
+    }
+    // A view in the image's own format that no shader writes needs nothing (the common case).
+    if (!view_info.is_storage && view_info.format == info.pixel_format) {
+        return;
+    }
+    if (const auto usage = backend->RequiredViewUsage(*this, view_info);
+        usage != ImageUsagePromotion::None) {
+        backend->PromoteImageUsage(this, usage);
+    }
+}
+
 ImageView& Image::FindView(const ImageViewInfo& view_info, bool ensure_guest_samples) {
     if (ensure_guest_samples && backing->num_samples > 1 != info.num_samples > 1) {
         backend->SetBackingSamples(this, info.num_samples);
     }
+    // bbport (P10.1): before the views of the backing are looked up (a promotion replaces it).
+    EnsureViewUsage(view_info);
     const auto& view_infos = backing->image_view_infos;
     if (backing->last_view < view_infos.size() && view_infos[backing->last_view] == view_info) {
         return (*slot_image_views)[backing->image_view_ids[backing->last_view]];

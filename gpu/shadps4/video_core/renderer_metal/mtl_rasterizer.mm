@@ -86,6 +86,7 @@ struct Rasterizer::Impl {
     std::atomic<u64> no_pipeline_draws{};
     std::atomic<u64> null_textures{}, null_samplers{}, missing_bindings{};
     std::atomic<bool> null_texture_logged{}, overflow_logged{};
+    std::atomic<bool> storage_usage_logged{}; ///< P10.1 safety net (BindTextureSet)
     std::atomic<u32> missing_logs{};
     /// BbStats draw drops: the current draw's missing bindings / null textures are counted once
     /// (reset by BeginResourceBindings).
@@ -556,6 +557,22 @@ void Rasterizer::BindTextureSet(std::span<const TextureBinding> textures,
             if (!impl->null_texture_logged.exchange(true)) {
                 LOG_WARNING(Render, "Metal: a texture binding has no image view (a null "
                                     "descriptor binds nil); counted in BB_FRAME_STATS");
+            }
+        }
+        if (texture.storage && native && !texture.replacement_view) {
+            // P10.1 safety net: a storage binding of a texture without ShaderWrite (a view
+            // inherits the usage of its base; the promotion in Image::EnsureViewUsage makes sure
+            // it has it). The writes would be dropped or rejected by the driver: never silent.
+            @autoreleasepool {
+                id<MTLTexture> bound = (__bridge id<MTLTexture>)native;
+                id<MTLTexture> root = bound.parentTexture ? bound.parentTexture : bound;
+                if (!((bound.usage | root.usage) & MTLTextureUsageShaderWrite) &&
+                    !impl->storage_usage_logged.exchange(true)) {
+                    LOG_ERROR(Render, "Metal: a storage binding of a texture without ShaderWrite "
+                                      "(\"{}\", usage {}); its shader writes are lost",
+                              root.label ? [root.label UTF8String] : "?",
+                              static_cast<unsigned long long>(root.usage));
+                }
             }
         }
         if (ImageUsageLog::Enabled()) {

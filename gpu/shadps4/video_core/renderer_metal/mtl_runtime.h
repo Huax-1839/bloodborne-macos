@@ -161,6 +161,12 @@ public:
                     const vk::ClearValue& clear_value) override;
     void SetBackingSamples(VideoCore::Image* image, u32 num_samples,
                            bool copy_backing = true) override;
+    VideoCore::ImageUsagePromotion RequiredViewUsage(
+        const VideoCore::Image& image, const VideoCore::ImageViewInfo& view) const override;
+    /// P10.1: a new backing with the usage, the contents copied, the old one retired. The caller
+    /// holds no view of the image across the call (a ViewId it got before stays valid until the
+    /// open tick has completed and reads the old texture).
+    void PromoteImageUsage(VideoCore::Image* image, VideoCore::ImageUsagePromotion usage) override;
 
     // Access tracking
     void AccessBuffer(const VideoCore::Buffer* handle, u64 offset, u64 size,
@@ -241,6 +247,9 @@ private:
     /// Whether the texels of the image's Metal texture are laid out as its guest format says
     /// (same texel size, no depth conversion); logs once per format when not.
     bool CopyCompatible(const VideoCore::Image& image, const char* what);
+
+    /// Promotes `src` to PixelFormatView when a copy into `dst` views it in another pixel format.
+    void PromoteCopySource(VideoCore::Image* src, const VideoCore::Image& dst);
 
     Device& device;
     Scheduler& scheduler;

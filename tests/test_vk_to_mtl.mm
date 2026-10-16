@@ -795,6 +795,47 @@ static void TestObjects(id<MTLDevice> device) {
     CHECK([device newDepthStencilStateWithDescriptor:depth_stencil] != nil, "depth stencil state");
 }
 
+// P10.1: which views of a texture made without MTLTextureUsagePixelFormatView are legal (step 1 of
+// docs/metal/texture_compression_design.md: the sRGB twin and same-format views need nothing, any
+// other format of the same texel size needs the usage, an incompatible format is not made at all).
+static void TestViewUsage() {
+    using F = vk::Format;
+    const auto needs = [](F base, F view) { return VkToMtl::ViewNeedsPixelFormatUsage(base, view); };
+    // Needs nothing
+    CHECK(!needs(F::eR8G8B8A8Unorm, F::eR8G8B8A8Unorm), "same format");
+    CHECK(!needs(F::eR8G8B8A8Unorm, F::eR8G8B8A8Srgb), "rgba8 -> its sRGB twin");
+    CHECK(!needs(F::eR8G8B8A8Srgb, F::eR8G8B8A8Unorm), "rgba8 sRGB -> its linear twin");
+    CHECK(!needs(F::eB8G8R8A8Srgb, F::eB8G8R8A8Unorm), "bgra8 sRGB -> linear");
+    CHECK(!needs(F::eBc1RgbaUnormBlock, F::eBc1RgbaSrgbBlock), "bc1 -> its sRGB twin");
+    CHECK(!needs(F::eBc7UnormBlock, F::eBc7SrgbBlock), "bc7 -> its sRGB twin");
+    // Needs the usage: another format of the same texel size
+    CHECK(needs(F::eR16G16B16A16Sfloat, F::eR32G32Uint), "rgba16f -> rg32 uint");
+    CHECK(needs(F::eR8G8B8A8Unorm, F::eR8G8B8A8Uint), "rgba8 -> rgba8 uint");
+    CHECK(needs(F::eR8G8B8A8Unorm, F::eR32Uint), "rgba8 -> r32 uint");
+    CHECK(needs(F::eR8G8B8A8Unorm, F::eB8G8R8A8Unorm), "rgba8 -> bgra8");
+    CHECK(needs(F::eR8G8B8A8Srgb, F::eB8G8R8A8Srgb), "rgba8 sRGB -> bgra8 sRGB (display buffers)");
+    CHECK(needs(F::eR8G8B8A8Uint, F::eR8G8B8A8Srgb), "rgba8 uint -> rgba8 sRGB");
+    CHECK(needs(F::eR16G16B16A16Sfloat, F::eR16G16B16A16Uint), "rgba16f -> rgba16 uint");
+    CHECK(needs(F::eA2B10G10R10UnormPack32, F::eR32Uint), "rgb10a2 -> r32 uint");
+    // Not made (CreateImageView falls back to the base format): nothing to promote for
+    CHECK(!needs(F::eR8G8B8A8Unorm, F::eR16Sfloat), "different texel size is not a view");
+    CHECK(!needs(F::eB10G11R11UfloatPack32, F::eR32Uint), "rg11b10f has no views");
+    CHECK(!needs(F::eD32SfloatS8Uint, F::eR32Sfloat), "depth is never promoted this way");
+    CHECK(!needs(F::eBc1RgbaUnormBlock, F::eR32G32Uint), "bc1 -> rg32 uint is refused");
+    CHECK(!needs(F::eBc1RgbaUnormBlock, F::eBc3UnormBlock), "bc1 -> bc3 is another family");
+    CHECK(!needs(F::eUndefined, F::eR8G8B8A8Unorm), "undefined base");
+    // The twin relation is symmetric and only about sRGB-ness.
+    const u32 rgba8 = VkToMtl::PixelFormat(F::eR8G8B8A8Unorm);
+    const u32 rgba8_srgb = VkToMtl::PixelFormat(F::eR8G8B8A8Srgb);
+    const u32 bgra8_srgb = VkToMtl::PixelFormat(F::eB8G8R8A8Srgb);
+    CHECK(VkToMtl::IsSrgbTwinPixelFormat(rgba8, rgba8_srgb) &&
+              VkToMtl::IsSrgbTwinPixelFormat(rgba8_srgb, rgba8),
+          "twin symmetric");
+    CHECK(!VkToMtl::IsSrgbTwinPixelFormat(rgba8, rgba8), "a format is not its own twin");
+    CHECK(!VkToMtl::IsSrgbTwinPixelFormat(rgba8_srgb, bgra8_srgb), "rgba and bgra differ");
+    CHECK(!VkToMtl::IsSrgbTwinPixelFormat(0, 0), "invalid");
+}
+
 int main() {
     @autoreleasepool {
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -825,6 +866,7 @@ int main() {
         CHECK(VkToMtl::VertexFormat(vk::Format::eUndefined) == MTLVertexFormatInvalid,
               "Undefined has a vertex format");
         TestComposeSwizzle();
+        TestViewUsage();
         TestEnums();
         TestObjects(device);
         TestTexelOrder(device);

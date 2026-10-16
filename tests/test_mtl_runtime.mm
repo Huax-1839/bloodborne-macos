@@ -592,6 +592,152 @@ static void TestViewsAndSamplers(Fixture& f) {
     Settle(f);
 }
 
+/// P10.1: images are created without ShaderWrite and PixelFormatView and promoted on first need
+/// (Runtime::RequiredViewUsage, PromoteImageUsage): the contents follow, the old backing and its
+/// views are retired through the deferred destroy, nothing matches the retired backing again.
+static void TestPromotion(Fixture& f) {
+    std::printf("usage promotion\n");
+    using F = vk::Format;
+    if (!f.runtime.Limits().lean_image_usage) {
+        std::printf("  (BB_MTL_FULL_USAGE=1: skipped)\n");
+        return;
+    }
+    const auto plain_view = [](F format, u32 levels = 1) {
+        ImageViewInfo info;
+        info.format = format;
+        info.type = AmdGpu::ImageType::Color2D;
+        info.range = {{0, 0}, {levels, 1}};
+        return info;
+    };
+    {
+        // A storage view promotes the image to ShaderWrite; contents, name and state follow.
+        Img img{f.runtime, MakeInfo(F::eR8G8B8A8Unorm, 32, 32, 2)};
+        @autoreleasepool {
+            CHECK(!(img.Texture().usage & MTLTextureUsageShaderWrite));
+            CHECK(!(img.Texture().usage & MTLTextureUsagePixelFormatView));
+        }
+        CHECK(!(img.image->usage_flags & vk::ImageUsageFlagBits::eStorage));
+        const auto data = Pattern(32 * 32 * 4 + 16 * 16 * 4, 21);
+        const std::array<vk::BufferImageCopy, 2> copies{
+            WholeCopy(32, 32, 0, 1, 1, 0), WholeCopy(16, 16, 1, 1, 1, 32 * 32 * 4)};
+        Upload(f, *img.image, data, copies);
+        // A view in the image's own format and a swizzle need nothing
+        const auto* first_backing = img.image->backing;
+        img.image->FindView(plain_view(F::eR8G8B8A8Unorm, 2));
+        ImageViewInfo swizzled = plain_view(F::eR8G8B8A8Unorm, 2);
+        swizzled.mapping.r = vk::ComponentSwizzle::eB;
+        img.image->FindView(swizzled);
+        img.image->FindView(plain_view(F::eR8G8B8A8Srgb, 2));
+        CHECK(img.image->backing == first_backing && img.image->backing_images.size() == 1);
+        CHECK(!first_backing->image_view_ids.empty());
+        __weak id<MTLTexture> weak_old = (__bridge id<MTLTexture>)first_backing->image.native;
+        const size_t old_views = first_backing->image_view_ids.size();
+        CHECK(old_views == 3);
+
+        ImageViewInfo storage = plain_view(F::eR8G8B8A8Unorm, 2);
+        storage.is_storage = true;
+        ImageView& view = img.image->FindView(storage);
+        CHECK(img.image->backing != first_backing && img.image->backing_images.size() == 2);
+        CHECK(first_backing->retired && first_backing->image_view_ids.empty() &&
+              first_backing->image_view_infos.empty() && first_backing->image.native == nullptr);
+        CHECK(!img.image->backing->retired && img.image->backing->num_samples == 1);
+        @autoreleasepool {
+            CHECK(img.Texture().usage & MTLTextureUsageShaderWrite);
+            CHECK(!(img.Texture().usage & MTLTextureUsagePixelFormatView));
+            CHECK([img.Texture().label hasSuffix:@" (promoted)"]);
+            CHECK(img.Texture().mipmapLevelCount == 2);
+        }
+        CHECK(img.image->usage_flags & vk::ImageUsageFlagBits::eStorage);
+        CHECK(view.native == img.image->backing->image.native);
+        CHECK(img.image->backing->state.layout == vk::ImageLayout::eTransferDstOptimal);
+        CHECK(Download(f, *img.image, copies, data.size()) == data);
+        // A second need changes nothing
+        const auto* promoted = img.image->backing;
+        img.image->FindView(storage);
+        f.runtime.PromoteImageUsage(img.image.get(), ImageUsagePromotion::Storage);
+        CHECK(img.image->backing == promoted && img.image->backing_images.size() == 2);
+        // The old texture and its views are released once the GPU is done with them (the views'
+        // slots first, then their textures: a few ticks)
+        for (int i = 0; i < 100 && weak_old; ++i) {
+            Settle(f);
+            f.runtime.PopPendingOperations();
+        }
+        CHECK(weak_old == nil);
+        // The retired backing is never matched again: a sample count switch there and back
+        // ends on the promoted backing, and the multisampled one is made with the mutable flag.
+        f.runtime.SetBackingSamples(img.image.get(), 4, false);
+        CHECK(img.image->backing->num_samples == 4 &&
+              (img.image->backing->image.image_ci.flags & vk::ImageCreateFlagBits::eMutableFormat));
+        f.runtime.SetBackingSamples(img.image.get(), 1, false);
+        CHECK(img.image->backing == promoted);
+        Settle(f);
+    }
+    {
+        // An image nothing ever wrote is promoted without a copy; the state stays undefined.
+        Img img{f.runtime, MakeInfo(F::eR16G16B16A16Sfloat, 32, 32)};
+        ImageViewInfo storage = plain_view(F::eR16G16B16A16Sfloat);
+        storage.is_storage = true;
+        img.image->FindView(storage);
+        CHECK(img.image->backing_images.size() == 2 && img.image->backing_images.front().retired);
+        CHECK(img.image->backing->state.layout == vk::ImageLayout::eUndefined);
+        @autoreleasepool {
+            CHECK(img.Texture().usage & MTLTextureUsageShaderWrite);
+        }
+        Settle(f);
+    }
+    {
+        // A view in another format promotes to PixelFormatView; the sRGB twin does not.
+        Img img{f.runtime, MakeInfo(F::eR8G8B8A8Unorm, 16, 16)};
+        const auto data = Pattern(16 * 16 * 4, 22);
+        Upload(f, *img.image, data, std::array{WholeCopy(16, 16)});
+        ImageView& srgb = img.image->FindView(plain_view(F::eR8G8B8A8Srgb));
+        CHECK(img.image->backing_images.size() == 1 &&
+              ((__bridge id<MTLTexture>)srgb.native).pixelFormat == MTLPixelFormatRGBA8Unorm_sRGB);
+        ImageView& uint_view = img.image->FindView(plain_view(F::eR8G8B8A8Uint));
+        CHECK(img.image->backing_images.size() == 2);
+        @autoreleasepool {
+            CHECK(img.Texture().usage & MTLTextureUsagePixelFormatView);
+            CHECK(!(img.Texture().usage & MTLTextureUsageShaderWrite));
+        }
+        CHECK(((__bridge id<MTLTexture>)uint_view.native).pixelFormat == MTLPixelFormatRGBA8Uint);
+        CHECK(Download(f, *img.image, std::array{WholeCopy(16, 16)}, data.size()) == data);
+        // A format Metal cannot view it as (another texel size) needs nothing
+        img.image->FindView(plain_view(F::eR16Sfloat));
+        CHECK(img.image->backing_images.size() == 2);
+        Settle(f);
+    }
+    {
+        // A copy that reads the source in the destination's format promotes the source.
+        Img src{f.runtime, MakeInfo(F::eR8G8B8A8Unorm, 16, 16)};
+        Img dst{f.runtime, MakeInfo(F::eR32Uint, 16, 16)};
+        const auto data = Pattern(16 * 16 * 4, 23);
+        Upload(f, *src.image, data, std::array{WholeCopy(16, 16)});
+        f.runtime.CopyImage(src.image.get(), dst.image.get());
+        CHECK(src.image->backing_images.size() == 2);
+        @autoreleasepool {
+            CHECK(src.Texture().usage & MTLTextureUsagePixelFormatView);
+        }
+        CHECK(Download(f, *dst.image, std::array{WholeCopy(16, 16)}, data.size()) == data);
+        Settle(f);
+    }
+    {
+        // Depth keeps the usage from its creation (the stencil view needs it, compression is
+        // unaffected); no view of it promotes.
+        ImageInfo depth_info = MakeInfo(F::eD32SfloatS8Uint, 16, 16);
+        depth_info.props.is_depth = 1;
+        depth_info.props.has_stencil = 1;
+        Img depth{f.runtime, depth_info};
+        @autoreleasepool {
+            CHECK(depth.Texture().usage & MTLTextureUsagePixelFormatView);
+        }
+        ImageViewInfo view = plain_view(F::eR32Sfloat);
+        view.is_storage = true; // (depth_write_enable)
+        depth.image->FindView(view);
+        CHECK(depth.image->backing_images.size() == 1);
+    }
+    Settle(f);
+}
+
 static void TestDeferredDestroy(Fixture& f) {
     std::printf("deferred destroy\n");
     Settle(f);
@@ -947,6 +1093,7 @@ int main() {
         TestGuestChunk(f);
         TestImages(f);
         TestViewsAndSamplers(f);
+        TestPromotion(f);
         TestDeferredDestroy(f);
         TestImageCopies(f);
         TestKernels(f);

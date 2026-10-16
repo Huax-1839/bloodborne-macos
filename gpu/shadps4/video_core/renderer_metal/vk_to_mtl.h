@@ -75,6 +75,23 @@ bool HasStencil(vk::Format format);
 bool IsDepthPixelFormat(u32 mtl_pixel_format);
 bool HasStencilPixelFormat(u32 mtl_pixel_format);
 
+/// Whether the Metal texture of `base` can have a view in the pixel format of `view` (both are
+/// formats a texture can be made in: PixelFormat is not 0). Metal aborts on an incompatible view
+/// (not even the debug layer is needed): the same format, the sRGB twin, uncompressed color
+/// formats of one texel size and BC formats of one family.
+bool ViewCompatible(vk::Format base, vk::Format view);
+
+/// Whether two Metal pixel formats differ only in sRGB-ness (RGBA8Unorm and RGBA8Unorm_sRGB, the
+/// BC formats and their sRGB variants). A view that is a twin of its texture's format needs no
+/// MTLTextureUsagePixelFormatView.
+bool IsSrgbTwinPixelFormat(u32 a, u32 b);
+
+/// Whether a view in `view` of a texture made in `base` (both as ViewCompatible takes them)
+/// needs MTLTextureUsagePixelFormatView on the texture: another pixel format that ViewCompatible
+/// allows and that is not the sRGB twin (texture-cache code falls back to the base format for the
+/// others, which needs nothing). Swizzles, sub-ranges and 2D to 2D array views never need it.
+bool ViewNeedsPixelFormatUsage(vk::Format base, vk::Format view);
+
 // ---- Blend, depth, stencil --------------------------------------------------------------------
 
 /// MTLBlendFactor, including the dual-source factors (Source1Color, ...) and Constant{Color,Alpha}

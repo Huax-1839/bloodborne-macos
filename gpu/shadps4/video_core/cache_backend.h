@@ -10,6 +10,7 @@
 #include <boost/container_hash/hash.hpp>
 
 #include "bbport_copy.h"
+#include "common/enum.h"
 #include "common/types.h"
 #include "common/unique_function.h"
 #include "video_core/amdgpu/tiling.h"
@@ -29,6 +30,7 @@ namespace VideoCore {
 
 struct Image;
 struct ImageView;
+struct ImageViewInfo;
 struct UniqueImage;
 class Sampler;
 
@@ -59,7 +61,20 @@ struct BackendLimits {
     bool patch_list_restart{};          ///< primitive restart in patch lists
     bool vertex_input_dynamic_state{};  ///< vertex input descriptions are set at draw time
     bool null_descriptor{};             ///< an unbound buffer can be a null descriptor
+    /// bbport (P10.1): images are created without the storage usage and the mutable format flag
+    /// (depth keeps the flag) and gain them by CacheBackend::PromoteImageUsage when a view needs
+    /// them (the Apple GPU keeps images without them losslessly compressed). Only the Metal runtime
+    /// sets it; with it clear the caches create the images as they always did.
+    bool lean_image_usage{};
 };
+
+/// What an image created lean (BackendLimits::lean_image_usage) can gain afterwards.
+enum class ImageUsagePromotion : u32 {
+    None = 0,
+    Storage = 1 << 0,       ///< the storage usage: a shader writes the image
+    MutableFormat = 1 << 1, ///< the mutable format flag: a view in another (non sRGB twin) format
+};
+DECLARE_ENUM_FLAG_OPERATORS(ImageUsagePromotion)
 
 /// What the creator of a buffer needs to know about its memory.
 struct BufferMemory {
@@ -295,6 +310,19 @@ public:
 
     /// Gives `image` a backing image with `num_samples` samples (copying the old one if asked).
     virtual void SetBackingSamples(Image* image, u32 num_samples, bool copy_backing = true) = 0;
+
+    /// bbport (P10.1, used with BackendLimits::lean_image_usage): what `image` has to gain, beyond
+    /// what its current backing has, for the backend to make a view as `view` describes (and to be
+    /// written by a shader when the view is a storage view). None when the view needs nothing.
+    [[nodiscard]] virtual ImageUsagePromotion RequiredViewUsage(const Image& image,
+                                                                const ImageViewInfo& view) const {
+        return ImageUsagePromotion::None;
+    }
+
+    /// bbport (P10.1): gives `image` a backing with the extra usage (the contents carried over,
+    /// the old backing and its views retired: the caller must not hold views of the image across
+    /// the call). A no-op when the backing has it, and for a backend whose images always have it.
+    virtual void PromoteImageUsage(Image* image, ImageUsagePromotion usage) {}
 
     // Access tracking
 

@@ -143,6 +143,12 @@ struct Image {
 
     ImageView& FindView(const ImageViewInfo& view_info, bool ensure_guest_samples = true);
 
+    /// bbport (P10.1, BackendLimits::lean_image_usage): promotes the image if a view as
+    /// `view_info` needs a usage its backing was created without (FindView does it; the texture
+    /// cache also calls it for a storage binding before its view memo). A no-op, and cheap, for a
+    /// backend that creates every image with the usages.
+    void EnsureViewUsage(const ImageViewInfo& view_info);
+
     using Barriers = boost::container::small_vector<vk::ImageMemoryBarrier2, 32>;
     void GetBarriers(Barriers& out_barriers, vk::ImageLayout dst_layout, vk::AccessFlags2 dst_mask,
                      vk::PipelineStageFlags2 dst_stage,
@@ -203,6 +209,9 @@ public:
         boost::container::small_vector<ImageViewId, 4> image_view_ids;
         u32 last_view = 0; ///< bbport: index of the view FindView returned last
         u32 num_samples;
+        /// bbport (P10.1): replaced by a promoted backing (PromoteImageUsage); never the image's
+        /// backing again, SetBackingSamples does not match it.
+        bool retired = false;
     };
     std::deque<BackingImage> backing_images;
     boost::container::static_vector<u64, 16> mip_hashes{};

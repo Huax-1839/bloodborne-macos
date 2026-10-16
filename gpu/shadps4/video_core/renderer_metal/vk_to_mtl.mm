@@ -4,6 +4,8 @@
 
 #include "video_core/renderer_metal/vk_to_mtl.h"
 
+#include <vulkan/vulkan_format_traits.hpp>
+
 namespace Metal::VkToMtl {
 
 static_assert(SwizzleZero == MTLTextureSwizzleZero && SwizzleOne == MTLTextureSwizzleOne &&
@@ -441,6 +443,85 @@ bool HasStencilPixelFormat(u32 format) {
     default:
         return false;
     }
+}
+
+bool ViewCompatible(vk::Format base, vk::Format view) {
+    const u32 base_pf = PixelFormat(base);
+    const u32 view_pf = PixelFormat(view);
+    if (base_pf == view_pf) {
+        return true;
+    }
+    if (!base_pf || !view_pf || IsDepthPixelFormat(base_pf) || IsDepthPixelFormat(view_pf) ||
+        HasStencilPixelFormat(base_pf) || HasStencilPixelFormat(view_pf)) {
+        return false;
+    }
+    const auto special = [](u32 pf) {
+        return pf == u32(MTLPixelFormatRGB9E5Float) || pf == u32(MTLPixelFormatRG11B10Float);
+    };
+    if (special(base_pf) || special(view_pf)) {
+        return false;
+    }
+    const bool base_block = vk::blockExtent(base)[0] > 1;
+    const bool view_block = vk::blockExtent(view)[0] > 1;
+    if (base_block || view_block) {
+        const auto family = [](u32 pf) -> u32 {
+            switch (MTLPixelFormat(pf)) {
+            case MTLPixelFormatBC1_RGBA:
+            case MTLPixelFormatBC1_RGBA_sRGB:
+                return 1;
+            case MTLPixelFormatBC2_RGBA:
+            case MTLPixelFormatBC2_RGBA_sRGB:
+                return 2;
+            case MTLPixelFormatBC3_RGBA:
+            case MTLPixelFormatBC3_RGBA_sRGB:
+                return 3;
+            case MTLPixelFormatBC7_RGBAUnorm:
+            case MTLPixelFormatBC7_RGBAUnorm_sRGB:
+                return 7;
+            default:
+                return 0;
+            }
+        };
+        return base_block && view_block && family(base_pf) != 0 &&
+               family(base_pf) == family(view_pf);
+    }
+    return vk::blockSize(base) == vk::blockSize(view);
+}
+
+bool IsSrgbTwinPixelFormat(u32 a, u32 b) {
+    // The linear counterpart of an sRGB pixel format, the format itself for every other one.
+    const auto linear = [](u32 pf) -> u32 {
+        switch (MTLPixelFormat(pf)) {
+        case MTLPixelFormatR8Unorm_sRGB:
+            return PF(R8Unorm);
+        case MTLPixelFormatRG8Unorm_sRGB:
+            return PF(RG8Unorm);
+        case MTLPixelFormatRGBA8Unorm_sRGB:
+            return PF(RGBA8Unorm);
+        case MTLPixelFormatBGRA8Unorm_sRGB:
+            return PF(BGRA8Unorm);
+        case MTLPixelFormatBC1_RGBA_sRGB:
+            return PF(BC1_RGBA);
+        case MTLPixelFormatBC2_RGBA_sRGB:
+            return PF(BC2_RGBA);
+        case MTLPixelFormatBC3_RGBA_sRGB:
+            return PF(BC3_RGBA);
+        case MTLPixelFormatBC7_RGBAUnorm_sRGB:
+            return PF(BC7_RGBAUnorm);
+        default:
+            return pf;
+        }
+    };
+    return a != b && a != 0 && linear(a) == linear(b);
+}
+
+bool ViewNeedsPixelFormatUsage(vk::Format base, vk::Format view) {
+    const u32 base_pf = PixelFormat(base);
+    const u32 view_pf = PixelFormat(view);
+    if (!view_pf || !base_pf || view_pf == base_pf) {
+        return false;
+    }
+    return ViewCompatible(base, view) && !IsSrgbTwinPixelFormat(base_pf, view_pf);
 }
 
 u32 BlendFactor(vk::BlendFactor factor) {
