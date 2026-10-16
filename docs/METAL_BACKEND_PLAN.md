@@ -848,6 +848,8 @@ Results (filled in as measured):
 | 2026-10-15 | Metal (P7) | m4air + `BB_RENDER_RES=1280x720`, 30 cap, 20 min walk | 24.9 power / 29.0 battery | 367 / 167 ms | P7.4, M3 at 720p not met |
 | 2026-10-15 | Metal 7d0e468 | m4air, 30 cap, 20 min walk | 28.0 power / 29.3 battery | ~100 ms in every 5-s window | after P8.4; M3 at 540p not met |
 | 2026-10-16 | Metal 22396a0 / 3e1352c | m4air, 30 cap, 20 min walk (`m3-540-power-2`, `m3-540-battery-2`) | 30.0 power / 30.0 battery | 117 / 183 ms | P8.5; **M3 met**, 98% / 97% of 5-s windows at 30 |
+| 2026-10-16 | Metal 1af7c98 | m4air, 30 cap, 20 min walk, power (`m3-rule-power`) | 29.6 | 549 ms | first run under the M3 rule: **fail** (mean 29.62, 77.8% of windows, 5.3% missed slots, 5 frames > 100 ms); the 549-ms frame was 2 compiles (537 ms): the bench cache mixed two generations (`fs_fbe7c4b6` permutation skipped at preload, 1 stale pipeline) |
+| 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
 
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
