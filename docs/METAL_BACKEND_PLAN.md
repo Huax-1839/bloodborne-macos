@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done, every milestone met: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 met at 540p (m4air, 2026-10-16, after P8; target moved from 720p by the user's decision, §9). Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -60,14 +60,15 @@ In-game span: first to last flip with ≥ 300 draws.
 |---|---|
 | duration | in-game span ≥ 20 min, ≥ 99% of its flips in game (no drop to a menu or loading screen) |
 | rate | mean ≥ 29.7 FPS; every full 60-s stretch ≥ 29.5 FPS; ≥ 98% of 5-s windows ≥ 29.5 FPS |
-| pacing | ≤ 1% of flips miss their 30-FPS slot (> 41.7 ms, i.e. a vblank late); p99.9 ≤ 58.3 ms |
+| pacing | ≤ 2% of flips miss their 30-FPS slot (> 41.7 ms, i.e. a vblank late; 1% until 2026-10-16, §9); p99.9 ≤ 58.3 ms |
 | hitches | ≤ 1 flip over 100 ms per 5 min (4 in 20 min); no flip over 250 ms |
 | errors | no failed command buffer / lost device in the game log |
 | conditions | power log present; idle ≥ 10 min before; Low Power Mode off throughout; one power source throughout (AC for the power run, battery for the battery run, battery ≥ 50% at its start) |
 
 Why these numbers: at the 30 cap a flip is 33.3 ms on time or 50 ms one vblank late, so 41.7 ms
-separates "on time" from "missed" independent of timer jitter; 1% missed slots is one visible
-stutter every ~3 s at worst; 100 ms is a hitch a player notices, 250 ms a freeze.
+separates "on time" from "missed" independent of timer jitter; 2% missed slots is one 50-ms
+frame every ~1.7 s at worst (in practice they cluster in heavy stretches of the walk), and runs
+of one build vary by more than 1 point (P8.6), so a 1% line was decided by run-to-run noise; 100 ms is a hitch a player notices, 250 ms a freeze.
 
 Non-goals: Linux/AMD changes (the Vulkan backend must keep working everywhere), FSR 4 / FSR 4.1.1
 / DLSS in the Metal path, removing Rosetta (the process stays x86-64; see §2), a native MSL
@@ -583,9 +584,12 @@ with macOS 15+:
 - M1 (same image as Vulkan): 2026-10-14, P4.
 - M2 (≥ Vulkan FPS): 2026-10-15, +10% in each profile of the M2 protocol (table below); the
   original 36 FPS at 540p uncapped was dropped (§9).
-- M3 (30 FPS for 20 min at 540p, m4air, on power and battery): 2026-10-16, after P8.5; 30.0 FPS
-  mean in both runs, 97–98% of 5-s windows at 30, no device errors (§5 P8). The target moved from
-  720p, where the warm Air's GPU needs 42–45 ms a frame (§9).
+- M3 (30 FPS for 20 min at 540p, m4air, on power and battery): by eye 2026-10-16 after P8.5
+  (30.0 FPS mean in both runs, 97–98% of 5-s windows at 30). Under the acceptance rule (§1):
+  **power passes** (b0a3d62, `m3-pipeqos-power`: 1.27% missed slots, 98.8% of windows, worst
+  frame 66.7 ms) since the missed-slot limit moved from 1% to 2% (user's decision, §9);
+  **the battery run is pending** (waiting for the user). The target moved from 720p, where the
+  warm Air's GPU needs 42–45 ms a frame (§9).
 
 How it got there, in short: P6 found the kernel's command buffer submission and residency churn
 as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 closed the gaps
@@ -812,8 +816,13 @@ commit (kept privately, not in this repository):
 - [x] P8 GPU time at 720p, then M3 at 540p (2026-10-15/16; §5 P8): 720p measured (35–45 ms GPU
   a frame, scene passes as on Vulkan, ~2 ms savable without an image change; M3 moved to 540p by
   the user); P8.4 tiling kernel (0.74 → 0.53 ms a frame); P8.5 hitches fixed (guest memory out
-  of the residency set, b13e837); **M3 met**: on power 30.0 FPS mean, 98% of 5-s windows at 30;
-  on battery 30.0, 97%; no device errors
+  of the residency set, b13e837); M3 by eye: on power 30.0 FPS mean, 98% of 5-s windows at 30;
+  on battery 30.0, 97%; no device errors. P8.6 (recording thread: replay thread d9619bc, pipeline
+  QoS b0a3d62) for the acceptance rule: power passes at 1.27% missed slots (limit 2% since
+  2026-10-16, §9)
+  - [ ] M3 battery run under the acceptance rule (`IDLE_MIN=10 macos/bench/m1_run.sh
+    m3-<name>-battery metal 20 BB_PROFILE=m4air`, then `m3stats.py --expect battery`): waiting
+    for the user
 
 Results (filled in as measured):
 
@@ -851,7 +860,7 @@ Results (filled in as measured):
 | 2026-10-16 | Metal 1af7c98 | m4air, 30 cap, 20 min walk, power (`m3-rule-power`) | 29.6 | 549 ms | first run under the M3 rule: **fail** (mean 29.62, 77.8% of windows, 5.3% missed slots, 5 frames > 100 ms); the 549-ms frame was 2 compiles (537 ms): the bench cache mixed two generations (`fs_fbe7c4b6` permutation skipped at preload, 1 stale pipeline) |
 | 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
 | 2026-10-16 | Metal d9619bc (replay thread) | m4air, 30 cap, 20 min walk, power (`m3-replay-power`) | 30.0 | 100 ms | M3 rule **fail on one check**: 2.03% missed slots (<= 1%); 98.4% of windows (now passes), every other check passes; memory as before (footprint +265 MiB, earlier runs +229-273) |
-| 2026-10-16 | Metal b0a3d62 (replay thread + pipeline QoS) | m4air, 30 cap, 20 min walk, power (`m3-pipeqos-power`) | 30.0 | 66.7 ms | M3 rule **fail on one check**: 1.27% missed slots (<= 1%; the closest so far: 5.31, 1.60, 2.25, 2.03%); 98.8% of windows, every other check passes |
+| 2026-10-16 | Metal b0a3d62 (replay thread + pipeline QoS) | m4air, 30 cap, 20 min walk, power (`m3-pipeqos-power`) | 30.0 | 66.7 ms | M3 rule **fail on one check**: 1.27% missed slots (<= 1%; the closest so far: 5.31, 1.60, 2.25, 2.03%); 98.8% of windows, every other check passes; **passes** with the limit at 2% (§9) |
 
 Missed 30-FPS slots (2026-10-16, db96663; `m3-gpums-power`, `pacing2-*`, `timeline-metal` with
 `tl_frames.py`): a missed slot is a flip one vblank late (50 ms, then 17 ms), not lost throughput
@@ -933,6 +942,9 @@ missed, but four runs of one setting ranged 1.36-3.34%; within run 2.91 vs 4.23%
 `ab.sh` measured 6 windows with `BENCH_WAIT=20`, i.e. reached back into the loading screen
 when loading took a few seconds longer: the "NOT IN GAME" failures in ab.sh were this, not
 hangs (fixed: 2 windows, as `m1_run.sh`).
+Where P8.6 stops (2026-10-16, user's decision, §9): the power run at b0a3d62 misses 1.27% of
+slots and passes the rule since its limit moved to 2%; the remaining misses are a known limit.
+Below 1% would need encoder creation off the recording thread's path (`ReleaseHeldPass`, (c)).
 
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
@@ -1009,3 +1021,5 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | M2 is compared at identical work: the scene mip bias off on both backends (`BB_TOGGLE_FILE` SceneMipBias); the bias's cost on Metal measured separately | MoltenVK 1.4.2 (x86_64) reports `samplerMipLodBias = 0` (probe), also with `MVK_CONFIG_USE_METAL_PRIVATE_API=1`, and a within-run A/B of the bias on Vulkan is below frame noise (43–48 vs 40.6 dB), on Metal it is not (38 vs 41 dB): Vulkan never applied the bias, Metal now does | M2 |
 | 2026-10-16 | Missed 30-FPS slots are compared by within-run A/B of whole runs and the tail (`missab.sh`), not by pairs; the replay thread kept on that basis | missed slots of 60-s phases range 0.1-7% with the walk's content, so single pairs flip sign for any change; the tail is per frame and the port's own part | P8.6, M3 |
 | 2026-10-16 | The frame's host threads run at user-interactive QoS (b0a3d62) | per-flip sections: long tails are the recording thread running 2.5-3x slower in every part, not more work; within-run A/B of a QoS override on those threads only: 1.24 vs 1.99% missed slots, tail p99 13.6-13.9 vs 17.8-19.3 ms; raising the guest threads too showed nothing | P8.6, M3 |
+| 2026-10-16 | M3 rule: missed 30-FPS slots ≤ 2% instead of ≤ 1% (user's decision) | the best run (b0a3d62, power) misses 1.27% and passes every other check; runs of one build vary by more than 1 point (1.36-3.34%), 60-s stretches 0.1-7%, so 1% vs 1.27% is noise; a miss is a 50-ms frame, not a hitch; Vulkan misses ~6% in the clinic bench; part of the misses is the game's own CPU time under Rosetta | §1, M3, `m3stats.py` |
+| 2026-10-16 | The P8.6 work on the recording thread stops here: the remaining misses are a known limit, not chased further | b0a3d62 passes the rule on power; below 1% would need deeper work on encoder creation (`ReleaseHeldPass`) for a difference a player hardly notices | P8.6, M3 |

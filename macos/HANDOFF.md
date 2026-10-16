@@ -23,10 +23,11 @@ reference and the Linux path).
   - M2, ≥ Vulkan FPS: +10% in each profile (m4air uncapped 32.2 vs 29.2, capped 29.4 vs 26.8,
     native 1080p 9.8 vs 8.9; 2026-10-15).
   - M3, 30 FPS for 20 min at 540p (m4air) on power and battery: 30.0 FPS mean in both, 97–98% of
-    5-s windows at 30 (2026-10-16). 720p doesn't hold 30 on the Air: its GPU needs 35 ms a frame
-    cool and 42–45 ms warm. Under the stricter M3 rule (m3stats.py) only missed 30-FPS slots
-    fail: 1.27% at b0a3d62 (<= 1% allowed; 2.03% before the pipeline QoS); what decides them and the work on it: plan §8,
-    "P8.6 recording thread" (e)-(h).
+    5-s windows at 30 (2026-10-16, by eye). 720p doesn't hold 30 on the Air: its GPU needs 35 ms
+    a frame cool and 42–45 ms warm. Under the M3 acceptance rule (m3stats.py) the power run
+    passes at b0a3d62 (1.27% missed 30-FPS slots; the limit moved from 1% to 2% on 2026-10-16,
+    plan §9); **the battery run under the rule is still to do** (waiting for the user). What
+    decides missed slots: plan §8, "P8.6 recording thread" (e)-(i).
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
@@ -35,7 +36,8 @@ reference and the Linux path).
 
 ## Next
 
-The options, in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
+First the M3 battery run under the acceptance rule (when the user is ready). Then the options,
+in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
 kernel's command buffer submission: Metal 4 command model, P6.4 untracked resources, fewer
 command buffers a frame), small open checks. An ARM64 renderer is assessed in
