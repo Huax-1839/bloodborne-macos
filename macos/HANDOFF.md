@@ -28,6 +28,14 @@ reference and the Linux path).
     passes at b0a3d62 (1.27% missed 30-FPS slots; the limit moved from 1% to 2% on 2026-10-16,
     plan §9); **the battery run under the rule is still to do** (waiting for the user). What
     decides missed slots: plan §8, "P8.6 recording thread" (e)-(i).
+  - P9.1 (2026-10-16): game fragment shaders without depth export and game compute shaders are
+    emitted without `NoContraction` (SPIRV-Cross had made every float op an `optnone` helper
+    call). GPU time a frame 24.7 → 16.5 ms at 540p, 37.3 → 24.6 ms at 720p; 540p uncapped 33.1 →
+    43.6 FPS; images unchanged within the plan's §6. With it, 720p (`BB_RENDER_RES=1280x720`)
+    held 30.0 FPS for 20 min on a warm Air (2.29% missed slots, the M3 rule allows 2%).
+    `BB_MTL_STRICT_FLOAT=1` restores the old rules, `BB_MTL_RELAXED_MATH=1` adds Relaxed math
+    (measured, no clear gain). Metal's pipeline cache for these rules is `<title>-metal-relaxed`
+    (the strict one stays `<title>-metal`).
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
@@ -36,21 +44,24 @@ reference and the Linux path).
 
 ## Next
 
-First the M3 battery run under the acceptance rule (when the user is ready). Then the options,
+First the M3 battery run under the acceptance rule (when the user is ready; the new default's
+bench cache needs a 540p fill run first). Then the user's call whether M3 goes back to 720p
+(P9.1 made it nearly pass on a warm Air). Then the options,
 in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
 kernel's command buffer submission: Metal 4 command model, P6.4 untracked resources, fewer
 command buffers a frame), small open checks. An ARM64 renderer is assessed in
 `docs/ARM64_PORT_ASSESSMENT_2026-10-13.md` (not planned). Levers the plan does not cover yet,
 ranked by estimated impact: `docs/PERFORMANCE_LEVERS_2026-10-16.md`; the first (shader float
-semantics) is designed as P9.1 in `docs/metal/float_semantics_design.md`.
+semantics) is done (P9.1, `docs/metal/float_semantics_design.md`); the rest need re-ranking
+against the faster frame.
 
 ## Debug aids
 
 - Metal: `BB_FRAME_STATS=1` (draw/drop, pipeline, geometry-shader and command buffer counters),
   `BB_GS_DEBUG=1` (geometry-shader primitives in magenta), `BB_PASS_LABELS=1` (encoder labels with
   pass size and shaders, for Instruments), `BB_MTL_GUEST_IN_SET=1` (guest memory back in the
-  residency set, the pre-P8.5 behaviour).
+  residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules).
 - Both backends: `BB_PRESENT_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>` (display buffer dumps),
   `BB_TOGGLE_FILE` (experiment bits at runtime, `gpu/shim/bbport_toggles.h`).
 - Validation: `MTL_DEBUG_LAYER=1 MTL_DEBUG_LAYER_ERROR_MODE=nslog NSZombieEnabled=YES`.

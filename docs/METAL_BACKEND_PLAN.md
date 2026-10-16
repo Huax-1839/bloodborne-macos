@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9 (GPU time: shader float semantics) in progress. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -585,6 +585,10 @@ Exit: V1/V2 kept as the default if GPU busy falls by more than the A/A spread (~
 for smaller effects) and the images pass §6, otherwise recorded as measured and reverted; the
 results in §8, the decision in §9; whether 720p at 30 FPS on a warm Air is in reach.
 
+Done 2026-10-16 (4da26e9, ea029d9): **V1 is the default** (GPU busy a typical frame 24.7 → 16.5 ms
+at 540p, 37.3 → 24.6 ms at 720p; FPS at 540p uncapped 33.1 → 43.6); V2 measured and left opt-in
+(`BB_MTL_RELAXED_MATH=1`, within the noise of V1); numbers in §8 "P9.1 results".
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -629,6 +633,12 @@ with macOS 15+:
   **the battery run is pending** (waiting for the user). The target moved from 720p, where the
   warm Air's GPU needs 42–45 ms a frame (§9).
 
+After P9.1 (2026-10-16) the GPU needs ~16.5 ms a frame at 540p and ~24.6 ms at 720p (cool):
+720p at 30 FPS held for 20 min on a warm Air (2.29% missed slots, the rule allows 2%). Whether M3
+moves back to 720p is the user's decision (§1, §9); the M3 battery run at 540p is still pending,
+and the bench cache of the new default (`CUSA03173-metal-relaxed`) was filled by the 720p walk
+and the clinic boots only, so a 540p fill run comes first (0 compiles in game).
+
 How it got there, in short: P6 found the kernel's command buffer submission and residency churn
 as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 closed the gaps
 (geometry-shader draws, frame interpolation, live resolution) and an autorelease leak; P8 showed
@@ -660,7 +670,42 @@ Open, not planned (pick with the user):
    measured in game): `docs/PERFORMANCE_LEVERS_2026-10-16.md`, ten levers ranked by estimated
    impact. First: the game's fragment/compute shaders are compiled with stricter float rules than
    the PS4's GPU (every float op `NoContraction`, which SPIRV-Cross emits as `optnone` helpers,
-   plus `MTLMathModeSafe`); planned as P9.1 (§5 P9, design `docs/metal/float_semantics_design.md`).
+   plus `MTLMathModeSafe`); done as P9.1 (§5 P9): GPU time −33%, V1 the default. The other nine levers
+   are unmeasured; their GPU estimates predate P9.1 and need re-ranking against the new frame.
+
+**P9.1 results** (2026-10-16, interleaved boots with traces `p9-540-*`, `p9-720-*` in
+`~/Games/Bloodborne/bench/traces`, `BB_PASS_LABELS=1 BB_FPS=uncap BB_PROFILE=m4air`, after a 15-min
+cool-down; 3 of 12 traces lost to xctrace hangs, every boot's own FPS reading valid):
+
+| GPU ms a typical frame | V0 (strict) | V1 (default) | V2 (+ Relaxed math) |
+|---|---|---|---|
+| 540p busy union | 24.7, 24.7 | 16.0, 17.0 | 16.2 |
+| 540p lighting C2 `8747a367/d92266b9` | 2.84 | 0.38 | 0.35 |
+| 540p all `8747a367` passes | 3.60 | 0.97 | 0.99 |
+| 540p C1 `637500e0` (both sizes) | 1.97 | 0.38 | 0.39 |
+| 540p G-buffer C6 `b10c4f55`, `3deaa573`, `6a833138`, `adf9e624` | 8.1 | 5.5 | 4.5 (labels follow each pass's first draw, so the C6 split varies between traces) |
+| 540p MetalFX (3 passes) | 1.74 | 1.80 | 1.80 |
+| 720p busy union | 36.0, 38.6 | 24.6 | 23.6 |
+| 720p lighting C2 `8747a367/d92266b9` | 5.01 | 0.74 | 0.62 |
+| 720p C1 `637500e0` (both sizes) | 3.81 | 0.66 | 0.66 |
+| 720p G-buffer C6 `b10c4f55/e21e283a` | 4.00 | 0.66 | 0.87 |
+| 720p MetalFX | 2.08 | 2.24 | 2.23 |
+| boot FPS (bench.sh, 2 windows) 540p / 720p | 38.2, 38.0 / 27.9, 27.9 | 54.3, 54.6 / 46.0, 37.6 | 54.7, 54.8 / 41.5, 45.9 |
+
+The fullscreen ALU passes (lighting, C1 post-processing) fall by 80–87%: the `optnone` helpers
+had blocked every fusion and folding there. Images (`imgdiff.py`): clinic V1 against V0 of the
+same series 45.8–48.4 dB at 540p, 37.5–37.9 dB at 720p (tiles over 64 only on the idle
+character, the arm pose differs); against the Vulkan reference 36.3 dB (V0: 37.3) at 540p, 39.7
+(V0: 40.7) at 720p; title 48.9/49.6 dB, only the animated tiles 45–47,34. Temporal residuals
+(`temporal_check.sh`, dpan/strafe): V1 39.20/28.35 dB within the three V0 runs' 39.21–39.60 /
+28.26–28.71. 5-min walk with `MTL_DEBUG_LAYER=1` on V1: no validation errors (30.0 FPS with the
+layer on; 14–15 before). No z-fighting, shimmering decals or edge holes seen. Vulkan: the old
+cache was kept (no clear after the `Profile` change), 33.2 FPS, clinic 49.3 dB against the
+reference; a fresh-cache Vulkan boot regenerated 248 modules, 247 byte-identical to the old cache,
+the one other (`42f2a521`, written at 03:01 by an earlier build) with the same 3282
+`NoContraction` on its 3319 float ops. MSL (scout): 186 relaxed fragment and 31 compute files,
+none with `spvF` helpers; vertex, tessellation and geometry files unchanged; the two
+depth-exporting fragment shaders keep their strict SPIR-V.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -867,10 +912,12 @@ commit (kept privately, not in this repository):
     m3-<name>-battery metal 20 BB_PROFILE=m4air`, then `m3stats.py --expect battery`): waiting
     for the user
 
-- [ ] P9 GPU time: shader float semantics (§5 P9)
-  - [ ] P9.1 looser float rules in game fragment/compute shaders on Metal: implementation (S),
-    review, build, unit test; first boots fill each variant's caches; A B B A traces at 540p and
-    720p; FPS; images vs Vulkan and V0; validation walk; Vulkan bench + screenshot; decision
+- [x] P9 GPU time: shader float semantics (§5 P9; 2026-10-16)
+  - [x] P9.1 looser float rules in game fragment/compute shaders on Metal: implementation
+    (4da26e9, porter; `spirv-float-rules-test`), V1 the default (ea029d9). GPU busy −33% at both
+    resolutions, images within §6, no z-fighting seen, validation walk clean, Vulkan SPIR-V
+    unchanged; 720p at 30 FPS for 20 min on a warm Air now misses the M3 rule only on 2.29%
+    missed slots (and the cool-down it skipped on purpose). Results below ("P9.1 results")
 
 Results (filled in as measured):
 
@@ -909,6 +956,8 @@ Results (filled in as measured):
 | 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
 | 2026-10-16 | Metal d9619bc (replay thread) | m4air, 30 cap, 20 min walk, power (`m3-replay-power`) | 30.0 | 100 ms | M3 rule **fail on one check**: 2.03% missed slots (<= 1%); 98.4% of windows (now passes), every other check passes; memory as before (footprint +265 MiB, earlier runs +229-273) |
 | 2026-10-16 | Metal b0a3d62 (replay thread + pipeline QoS) | m4air, 30 cap, 20 min walk, power (`m3-pipeqos-power`) | 30.0 | 66.7 ms | M3 rule **fail on one check**: 1.27% missed slots (<= 1%; the closest so far: 5.31, 1.60, 2.25, 2.03%); 98.8% of windows, every other check passes; **passes** with the limit at 2% (§9) |
+| 2026-10-16 | Metal 4da26e9, V0 / V1 (P9.1) | m4air uncapped (540p), 6 interleaved boots A V1 V1 A A V1, warm Air | 33.1 (33.7, 32.9, 32.6) / 43.6 (43.8, 45.3, 41.7) | 47–61 / 31–69 ms | float rules: V1 +32% FPS; GPU busy 24.7 → 16.5 ms a typical frame (traces) |
+| 2026-10-16 | Metal ea029d9 (V1 default) | m4air + `BB_RENDER_RES=1280x720`, 30 cap, 20 min walk, power, warm Air, no cool-down (`m3-p9v1-720-power`) | 30.0 | 83.3 ms | M3 rule at 720p: **fails only** 2.29% missed slots (≤ 2%) and the 10-min idle (skipped on purpose); 99.2% of 5-s windows, slowest 60 s 29.83, p99.9 50 ms, 0 compiles; before P9.1 720p ran 24.9 FPS (P7.4) |
 
 Missed 30-FPS slots (2026-10-16, db96663; `m3-gpums-power`, `pacing2-*`, `timeline-metal` with
 `tl_frames.py`): a missed slot is a flip one vblank late (50 ms, then 17 ms), not lost throughput
@@ -1072,3 +1121,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | M3 rule: missed 30-FPS slots ≤ 2% instead of ≤ 1% (user's decision) | the best run (b0a3d62, power) misses 1.27% and passes every other check; runs of one build vary by more than 1 point (1.36-3.34%), 60-s stretches 0.1-7%, so 1% vs 1.27% is noise; a miss is a 50-ms frame, not a hitch; Vulkan misses ~6% in the clinic bench; part of the misses is the game's own CPU time under Rosetta | §1, M3, `m3stats.py` |
 | 2026-10-16 | The P8.6 work on the recording thread stops here: the remaining misses are a known limit, not chased further | b0a3d62 passes the rule on power; below 1% would need deeper work on encoder creation (`ReleaseHeldPass`) for a difference a player hardly notices | P8.6, M3 |
 | 2026-10-16 | New phase P9 (GPU time: shader float semantics), task P9.1: no `NoContraction` in game fragment (no depth export) and compute shaders (V1), plus `MTLMathModeRelaxed` for them (V2), measured against today's rules by interleaved boots; no milestone change | code review: every float op `NoContraction` → SPIRV-Cross `optnone` helpers in 284 of 308 fragment shaders (median 107, p90 676, max 1258 calls; re-counted in the bench cache), Safe math everywhere; P8 step 2: scene passes 83% of GPU time and as costly as on MoltenVK. Corrections to the review: transcendentals are `precise::` by SPIRV-Cross (no `FPFastMathMode` flags), not by the math mode, and `mathFloatingPointFunctions` is Fast by default, so V2 changes division, sqrt and reassociation only; a new `Shader::Profile` field would wipe every pipeline cache (the shared check compares `profile.bin` byte for byte), so the check accepts the shorter old profile while the field is at its default, and the relaxed variant gets its own cache tag. Why `NoContraction` was added: not recorded (vendored shadPS4; `inst` is unused in `Decorate()`, the per-op flag of its yuzu origin was dropped) | P9, `docs/metal/float_semantics_design.md` |
+| 2026-10-16 | P9.1: V1 (no `NoContraction` in game fragment shaders without depth export and in game compute shaders) is the Metal default; V2 (Relaxed math) stays opt-in (`BB_MTL_RELAXED_MATH=1`); `BB_MTL_STRICT_FLOAT=1` restores V0 | interleaved boots with traces: GPU busy 24.7 → 16.5 ms at 540p, 37.3 → 24.6 at 720p (lighting −87%, C1 −80%); FPS 540p uncapped 33.1 → 43.6; images within §6, temporal residuals within V0's range, validation clean, Vulkan SPIR-V unchanged; V2 −0.3 to −0.9 ms more, inside the noise | P9, M3 (720p at 30 on a warm Air now misses the rule only on 2.29% missed slots), Vulkan untouched |

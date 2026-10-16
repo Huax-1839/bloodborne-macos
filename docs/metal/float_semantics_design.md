@@ -1,7 +1,8 @@
 # Float semantics of game shaders on Metal (proposed P9.1)
 
-Status: planned as P9.1 (plan §5 P9), 2026-10-16 (the first lever of
-`docs/PERFORMANCE_LEVERS_2026-10-16.md`); results in plan §8 and §9. Nothing below is measured in the game: the evidence is
+Status: done as P9.1 (plan §5 P9), 2026-10-16: V1 is the Metal default (GPU busy −33% at 540p
+and 720p), V2 measured and left opt-in; results in plan §8 ("P9.1 results") and §9. The text
+below is the design as built; "Session prompt" is historical. Nothing below is measured in the game: the evidence is
 the code and the bench user's shader cache. Owner of the design and the measurements: the
 orchestrator; the implementation: a porter task.
 
