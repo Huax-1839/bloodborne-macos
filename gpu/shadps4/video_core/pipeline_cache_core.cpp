@@ -369,13 +369,21 @@ void PipelineCacheCore::DestroyPipelines() {
 }
 
 namespace {
+// Compiles on the draw path stall the frame; the slow ones are named in the log so a hitch in
+// the frame stats can be traced to its shader or pipeline.
 struct CompileTimer {
+    static constexpr u64 SlowNs = 16'000'000;
+    std::string what;
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     ~CompileTimer() {
-        g_bb_compile_ns += u64(std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                   std::chrono::steady_clock::now() - start)
-                                   .count());
+        const u64 ns = u64(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                               std::chrono::steady_clock::now() - start)
+                               .count());
+        g_bb_compile_ns += ns;
         ++g_bb_compiles;
+        if (ns >= SlowNs) {
+            LOG_WARNING(Render, "Slow compile: {} took {:.1f} ms", what, double(ns) / 1e6);
+        }
     }
 };
 } // namespace
@@ -538,7 +546,7 @@ const PipelineBase* PipelineCacheCore::GetGraphicsPipeline(const DrawIndirectPar
     if (is_new) {
         const auto pipeline_hash = std::hash<GraphicsPipelineKey>{}(sel.graphics_key);
         LOG_INFO(Render_Vulkan, "Compiling graphics pipeline {:#x}", pipeline_hash);
-        CompileTimer timer;
+        CompileTimer timer{fmt::format("graphics pipeline {:#x}", pipeline_hash)};
 
         const auto sdata = NewGraphicsSerialization();
         it.value() = CreateGraphicsPipeline(sel.graphics_key, sel.infos, sel.runtime_infos,
@@ -637,7 +645,7 @@ const PipelineBase* PipelineCacheCore::GetComputePipeline() {
     if (is_new) {
         const auto pipeline_hash = std::hash<ComputePipelineKey>{}(compute_key);
         LOG_INFO(Render_Vulkan, "Compiling compute pipeline {:#x}", pipeline_hash);
-        CompileTimer timer;
+        CompileTimer timer{fmt::format("compute pipeline {:#x}", pipeline_hash)};
 
         const auto sdata = NewComputeSerialization();
         it.value() = CreateComputePipeline(compute_key, *sel.infos[0], sel.modules[0], *sdata,
@@ -985,7 +993,8 @@ ShaderModuleHandle PipelineCacheCore::CompileModule(Shader::Info& info, Shader::
     LOG_INFO(Render_Vulkan, "Compiling {} shader {:#x} {}", info.hw_stage, info.pgm_hash,
              perm_idx != 0 ? "(permutation)" : "");
     DumpShader(code, info.pgm_hash, info.hw_stage, perm_idx, "bin");
-    CompileTimer timer;
+    CompileTimer timer{fmt::format("{} shader {:#x} permutation {}", info.hw_stage, info.pgm_hash,
+                                   perm_idx)};
 
     const auto ir_program = Shader::TranslateProgram(code, pools, info, runtime_info, profile);
     auto spv = Shader::Backend::SPIRV::EmitSPIRV(profile, runtime_info, ir_program, binding);
