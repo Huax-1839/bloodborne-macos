@@ -851,6 +851,16 @@ Results (filled in as measured):
 | 2026-10-16 | Metal 1af7c98 | m4air, 30 cap, 20 min walk, power (`m3-rule-power`) | 29.6 | 549 ms | first run under the M3 rule: **fail** (mean 29.62, 77.8% of windows, 5.3% missed slots, 5 frames > 100 ms); the 549-ms frame was 2 compiles (537 ms): the bench cache mixed two generations (`fs_fbe7c4b6` permutation skipped at preload, 1 stale pipeline) |
 | 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
 
+Missed 30-FPS slots (2026-10-16, db96663; `m3-gpums-power`, `pacing2-*`, `timeline-metal` with
+`tl_frames.py`): a missed slot is a flip one vblank late (50 ms, then 17 ms), not lost throughput
+(`m3-gpums-power`: 29.99 FPS, 100% of windows, but 2.25% missed slots). The GPU is not the limit
+(busy 75% of a late flip). The end-of-pipe flip runs in order on the draw recording thread
+(`liverpool.cpp` `SignalFlip` via `RunInOrder`); in late frames the guest calls SubmitAndFlip later
+(24.1 vs 19.7 ms after the previous flip) and recording reaches the flip later (11.2 vs 5.3 ms after
+the call; the decoder idles 8.3 ms of it: the recording thread encodes the frame's draws, ~550
+draws, p90 1160). No VO-label or WAIT_REG_MEM waits, no guest waits on the previous frame. Vulkan
+shows the same pattern (5.9-6.3% missed in the clinic bench).
+
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
 
