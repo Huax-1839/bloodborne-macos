@@ -118,3 +118,96 @@ M4 Air, macOS 27.0.1, arm64 build (x86-64 under Rosetta shows the same pattern),
   32-bit reinterpretations are created anyway and **silently read 0xFFFFFFFF**, so the policy
   must never rely on the driver refusing them. Depth32Float → R32Float is refused even with
   `PixelFormatView`.
+
+### Step 2: inventory in game (2026-10-17, `BB_IMAGE_USAGE_LOG`, `macos/bench/image_usage.py`)
+
+m4air (540p), Metal, three runs: clinic bench, a 5-min walk, Central Yharnam:
+
+| | clinic | 5-min walk | Yharnam |
+|---|---|---|---|
+| cache images (incl. destroyed) | 1205, 404 MiB | 1327, 436 MiB | 1810, 528 MiB |
+| colour render targets (attached at least once) | 87, 81 MiB | 87, 81 MiB | 84, 79 MiB |
+| depth / stencil | 15, 80 MiB | 15, 80 MiB | 15, 80 MiB |
+| block compressed | 736, 178 MiB | 858, 209 MiB | 1347, 305 MiB |
+| written by a shader (storage binding the shader writes) | 331, 78 MiB | 331, 78 MiB | 330, 78 MiB |
+| … of them colour render targets too | 33, 19 MiB | 33, 19 MiB | 33, 19 MiB |
+| view in another format (needs `PixelFormatView`) | 5, 6.8 MiB | 5, 6.8 MiB | 4, 6.6 MiB |
+| needs neither usage | 871, 320 MiB (79%) | 993, 351 MiB (81%) | 1477, 443 MiB (84%) |
+| created with `ShaderWrite` / `PixelFormatView` today | 1190 / 1205 | 1312 / 1327 | 1795 / 1810 |
+
+- The busiest render targets are never written by a shader: 6× RGBA16F, 7× RGBA8 and 3× RG11B10F
+  at 960×540 (the G-buffer and lighting targets: 43k, 34k, 16k attachment binds in the clinic run)
+  and 4× RGBA8 at 480×270. Shader-written are compute-only images (298, 59 MiB), the bloom chain
+  (RG11B10F/RGBA16F mips from 157×132 down, render target *and* storage) and 4 RGBA16F 960×540
+  targets. The same format and size occur on both sides, so no rule by format and use (option a)
+  separates them at creation.
+- Format views: the three display buffers (RGBA8_sRGB → BGRA8_sRGB with an `rgb1` swizzle, the
+  presenter) and 1–2 small RGBA8Uint → RGBA8_sRGB images. Everything else is whole-texture views,
+  swizzles (`r001`, `rgb1`, `bgra`, `000r`: 225–359 images), sRGB twins (4) and sub-ranges (48),
+  none of which need `PixelFormatView` (step 1). No stencil views of depth images were made.
+- The set is stable: the images that need a usage (keyed by guest address and size) agree between
+  the three runs except a few 1×1 RG32Float images; the same ~330 shader-written images appear in
+  every scene.
+
+### Step 3: upper bound (2026-10-17)
+
+Experiment (`BB_P10_KEEP=<file>`, a temporary patch of `image.cpp`, not committed): images at
+least 64×64 whose guest address and size are not in the list of images that step 2 saw needing a
+usage are created without `eStorage` and `eMutableFormat` (depth keeps `eMutableFormat`). A sanity
+boot with the usage log: one violation (a 256×256 RGBA8Uint image at an address not seen before
+got an sRGB view; harmless), and the lean textures carry the compression metadata in game
+(`allocatedSize` RGBA16F 960×540 4,177,920 → 4,210,688 bytes, RGBA8 2,211,840 → 2,244,608),
+the full ones do not.
+
+Interleaved boots A B B A with traces (`tracesub.sh`, `BB_PASS_LABELS=1`, `p10ub-*` in
+`~/Games/Bloodborne/bench/traces`), A = today, B = the experiment; GPU ms a typical frame:
+
+| | A1 | B2 | B3 | A4 | B − A (means) |
+|---|---|---|---|---|---|
+| 540p (m4air uncapped) busy union | 15.90 | 14.60 | 15.11 | 16.84 | −1.5 (−9%) |
+| 540p C1 (all) / C2 (all) / unlabelled render | 2.43 / 0.63 / 1.08 | 2.12 / 0.43 / 0.65 | 2.08 / 0.43 / 0.67 | 2.47 / 0.65 / 1.04 | −0.35 / −0.21 / −0.40 |
+| 540p C6 G-buffer / MetalFX | 6.90 / 1.77 | 6.66 / 1.82 | 6.95 / 1.75 | 7.50 / 1.78 | −0.4 / 0 |
+| 720p busy union | 21.57 | 19.10 | 19.14 | 23.87 | −3.6 (−16%) |
+| 720p C1 / C2 / unlabelled render | 4.04 / 1.10 / 1.39 | 3.24 / 0.75 / 0.76 | 3.15 / 0.79 / 0.74 | 4.60 / 1.16 / 1.56 | −1.1 / −0.36 / −0.73 |
+| 720p C6 G-buffer / MetalFX | 8.28 / 2.13 | 7.97 / 2.15 | 8.06 / 2.21 | 9.50 / 2.22 | −0.9 / 0 |
+| 1080p native (`BB_FPS=30`) busy union | 47.05 | (xctrace hang) | 33.73* | 45.77 | * |
+| 1080p C1 / C2 / C6 | 12.13 / 2.83 / 12.54 | | 9.32 / 1.84 / 11.44 | 12.01 / 2.76 / 12.52 | −2.7 / −1.0 / −1.1 |
+| boot FPS (bench.sh) 540p / 720p / 1080p | 54.1 / 44.8 / 19.9 | 58.0 / 49.1 / — | 58.1 / 43.8 / 26.1* | 54.9 / 39.0 / 20.1 | |
+
+\* Native 1080p runs the live path's Native AA (the temporal upscaler at 1:1); in B its scene
+colour (1920×1080 RGBA16F, not in the 540p inventory) lacked `ShaderWrite`, so `RunLive` returned
+early (MetalFX 3.4 ms and its blit 3.6 ms missing): the busy union and FPS of B at 1080p are not
+comparable; the per-pass numbers are. This is the silent failure the policy must exclude: the
+upscaler has to promote the scene colour, not skip.
+
+Reading: the gain is beyond the A/A spread at 720p (−3.6 ms against an A/A spread of 2.3) and
+consistent per pass at 540p; it lands in the fullscreen passes that read and write whole targets
+(C1 post-processing −15–25%, C2 lighting −32%, the unlabelled render passes −40–50%), less in
+the G-buffer (−4 to −10%; the C6 split also varies between traces). Worth the real policy.
+
+### Step 4: policy (decision 2026-10-17)
+
+Option (a), rules by format and use at creation, cannot work: the same format and size occur as
+shader-written and as never-written targets (step 2). Option (c), a learned set, needs (b) as the
+fallback anyway (new scenes, new addresses). So **(b) promotion**:
+
+- **Creation** (shared `image.cpp`, gated by `BackendLimits::lean_image_usage`, set only by the
+  Metal runtime and cleared by `BB_MTL_FULL_USAGE=1`): colour and block images get no `eStorage`
+  and no `eMutableFormat`; depth keeps `eMutableFormat` (no compression cost, step 1; the
+  `X32_Stencil8` view needs it). Vulkan: the field is false, the flags are unchanged.
+- **Promotion** (`CacheBackend::PromoteImageUsage(Image*, usage)`, default no-op; Metal
+  implements): a new `BackingImage` with the same sample count and the extra usage, the contents
+  copied (skipped while the old backing was never written), `image->backing` switched, the old
+  backing retired: its views and texture destroyed through the deferred destroy (D6, after the
+  last command buffer that can see them), its view lists emptied, and it is never matched again
+  (the sample-count lookup of `SetBackingSamples` skips retired backings). Because the backing
+  pointer changes, the texture cache's view memo and the rasterizer's bind-set memo miss by
+  themselves, as they do for a sample-count switch.
+- **Triggers**: `Image::FindView` (every view of a cache image goes through it, also the
+  presenter's) asks the backend what the view needs: `ShaderWrite` for a storage view of a
+  colour image, `PixelFormatView` for a view in another format that is not the sRGB twin (and
+  that the Metal runtime would actually make); `TextureCache::FindTexture` for a storage binding
+  before its memo; the upscaler's `RunLive` for the scene colour before it checks `ShaderWrite`;
+  `CopyImage` for a source viewed in another format (`CopySource`).
+- **Safety nets** (Metal, logged once, never silent): a storage binding of a texture without
+  `ShaderWrite`, a view that needs `PixelFormatView` of a texture without it.
