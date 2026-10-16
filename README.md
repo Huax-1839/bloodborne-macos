@@ -19,11 +19,12 @@ areas.
 - **Direct Metal renderer** (the default on macOS 15 or newer). The game's shaders are translated
   from GCN to SPIR-V and then to MSL, and its memory is shared with the GPU without copies
   (no-copy Metal buffers on unified memory). It produces the same image as the Vulkan renderer and
-  is about 10% faster.
+  is faster (see [Performance](#performance)).
 - **MetalFX temporal upscaling** with live presets (Native AA to Ultra Performance), and optional
   **MetalFX frame interpolation** on macOS 26 or newer.
 - **30 FPS on a fanless MacBook Air M4** with the `m4air` profile (540p scene upscaled to 1080p),
-  on power and on battery.
+  on power and on battery, with headroom to spare (about 44 FPS uncapped); a 720p scene now averages
+  30 FPS over 20 minutes too (just short of the project's strict 30-FPS acceptance rule).
 - **Vulkan renderer through MoltenVK** as an alternative (`BB_RENDERER=vulkan`).
 - The game's own settings menu gains *Display* and *Effects* pages (output resolution, upscaler,
   preset, FPS counter, model detail, effects), plus an overlay menu with advanced settings
@@ -72,8 +73,29 @@ Useful switches:
 
 ## Performance
 
-The numbers below were measured on a MacBook Air M4 (10-core GPU, 16 GB) in Iosefka's clinic, with
-the same save and camera; each value is the mean of three interleaved runs:
+All numbers were measured on a MacBook Air M4 (10-core GPU, 16 GB, fanless) in Iosefka's clinic,
+with the same save. "Uncapped" is the frame rate without the 30 FPS cap; "20 min" is a 20-minute
+walk with the cap, the mean over the whole run.
+
+How the frame rate developed:
+
+| Date | Step | `m4air` uncapped (540p → 1080p) | 30 FPS cap, 20 min | 720p scene |
+|---|---|---|---|---|
+| 2026-10-14 | Starting point: Vulkan (MoltenVK) only | 31.2 FPS | — | 22.6 FPS uncapped |
+| 2026-10-14 | First Metal renderer, same image, unoptimised (P4/P5) | 24.7 FPS (Vulkan 31.8) | — | — |
+| 2026-10-15 | Metal optimised: kernel submission and residency (P6, milestone M2) | 32.2 FPS (Vulkan 29.2) | — | 24.9 FPS with the cap (P7) |
+| 2026-10-16 | Hitches fixed: guest memory out of the residency set (P8.5) | — | 30.0 FPS, on power and battery | — |
+| 2026-10-16 | Looser float rules in fragment and compute shaders (P9.1) | **43.6 FPS** (33.1 before, same session) | — | **30.0 FPS with the cap, 20 min** |
+
+Values from different days differ by up to ~15% with the Air's temperature (Vulkan's own uncapped
+rate ranged 29–33 FPS), so compare within a row.
+
+The last step removed a compile setting that made every floating-point operation of the game's
+shaders an unoptimisable function call: the GPU now needs 16.5 ms a frame at 540p (was 24.7) and
+24.6 ms at 720p (was 37.3), with the same image. Positions and depth keep the strict rules, and no
+flicker or z-fighting showed up in the checks. `BB_MTL_STRICT_FLOAT=1` restores the old behaviour.
+
+The Metal vs Vulkan comparison of milestone M2 (three interleaved runs each, before P9.1):
 
 | Profile | Metal | Vulkan (MoltenVK) |
 |---|---|---|
@@ -81,14 +103,15 @@ the same save and camera; each value is the mean of three interleaved runs:
 | `m4air`, 30 FPS cap | 29.4 FPS | 26.8 FPS |
 | native 1080p | 9.8 FPS | 8.9 FPS |
 
-After later fixes, the `m4air` profile held 30.0 FPS on average over 20 minutes, on power and on
-battery. A 720p scene averages 25–29 FPS and doesn't hold 30 on the fanless Air. Machines with more GPU
-cores or active cooling have more headroom.
+Since P9.1 Metal runs `m4air` uncapped at ~44 FPS against ~33 FPS for Vulkan on the same evening
+(single runs, not the interleaved M2 protocol). Machines with more GPU cores or active cooling
+have more headroom. The detailed measurements are in `docs/METAL_BACKEND_PLAN.md` §8.
 
 Known limitations:
-- **Hitches.** Metal's worst frames are longer than Vulkan's: in the 20-minute runs, 2–7% of
-  5-second windows had a frame over 50 ms (the longest 183 ms). They come from the kernel's
-  command-buffer submission, which slows down when the machine is hot.
+- **Hitches.** Metal's worst frames are longer than Vulkan's: in the latest 20-minute runs with
+  the cap, 1.3–2.3% of frames miss their 30-FPS slot and the longest frame is 67–83 ms. What is
+  left comes mostly from the kernel's command-buffer submission, which slows down when the
+  machine is hot.
 - **Measured in one place.** All numbers come from Iosefka's clinic; busier areas such as Central
   Yharnam haven't been benchmarked yet.
 - **No online play or PSN.** The game starts offline.
