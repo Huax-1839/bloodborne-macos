@@ -850,6 +850,7 @@ Results (filled in as measured):
 | 2026-10-16 | Metal 22396a0 / 3e1352c | m4air, 30 cap, 20 min walk (`m3-540-power-2`, `m3-540-battery-2`) | 30.0 power / 30.0 battery | 117 / 183 ms | P8.5; **M3 met**, 98% / 97% of 5-s windows at 30 |
 | 2026-10-16 | Metal 1af7c98 | m4air, 30 cap, 20 min walk, power (`m3-rule-power`) | 29.6 | 549 ms | first run under the M3 rule: **fail** (mean 29.62, 77.8% of windows, 5.3% missed slots, 5 frames > 100 ms); the 549-ms frame was 2 compiles (537 ms): the bench cache mixed two generations (`fs_fbe7c4b6` permutation skipped at preload, 1 stale pipeline) |
 | 2026-10-16 | Metal 1af7c98 + aeb81ac | as above, cache rebuilt by a 20-min fill run (`m3-freshcache-power`) | 30.0 | 167 ms | M3 rule **fail on two checks only**: 98.0% of windows at ≥ 29.5 (rounded; below the 98% line), 1.60% missed slots (≤ 1%); 0 compiles in game, 2 frames > 100 ms (133, 167 ms at 9.2 min), every other check passes |
+| 2026-10-16 | Metal d9619bc (replay thread) | m4air, 30 cap, 20 min walk, power (`m3-replay-power`) | 30.0 | 100 ms | M3 rule **fail on one check**: 2.03% missed slots (<= 1%); 98.4% of windows (now passes), every other check passes; memory as before (footprint +265 MiB, earlier runs +229-273) |
 
 Missed 30-FPS slots (2026-10-16, db96663; `m3-gpums-power`, `pacing2-*`, `timeline-metal` with
 `tl_frames.py`): a missed slot is a flip one vblank late (50 ms, then 17 ms), not lost throughput
@@ -907,6 +908,10 @@ call time + tail passes ~33 ms. So both halves count: the guest's call time (the
 under Rosetta: not ours to shorten) and the tail (recording: what (e) shortens). Missed slots are
 rare events whose rate depends on where the walk goes (a 60-s phase 0.1-7%): A/B by whole runs
 and by the tail, not by single pairs (the "wins in every pair" rule cannot be met this way).
+(h) The long tails (`m3-replay-power`, 37k flips): the slowest 5% (tail 15.8 vs median 4.4 ms)
+are frames with 806 vs 507 draws, 28.8 vs 21.7 ms GPU time and new images (0.47 vs 0.02 a
+frame): 3.5x the tail for 1.6x the draws, so the recording thread likely also waits there
+(open: what for).
 (g) QoS (guest threads, and the frame's host threads, at user-interactive by override,
 experiment, not kept): guest threads run at `QOS_CLASS_DEFAULT`. Across runs 2.97 vs 2.06%
 missed, but four runs of one setting ranged 1.36-3.34%; within run 2.91 vs 4.23% and 2.41 vs
