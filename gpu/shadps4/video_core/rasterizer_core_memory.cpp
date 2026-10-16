@@ -69,38 +69,10 @@ bool RasterizerCore::WriteDataOnGpu(VAddr address, const void* data, u32 size) {
     if (!target) {
         return false;
     }
-    const std::span<const u8> bytes{static_cast<const u8*>(data), size};
-    bool written = false;
-    if (queue.HoldingPass()) {
-        // bbport BB_HOIST_DISPATCH: a write inside a held render pass that nothing the pass's draws
-        // touched goes before the pass (ending the pass for a transfer is the expensive part).
-        // Hoistable: small, no binding of a draw in the making, and either the pass has no draw
-        // yet or its tracked ranges do not meet the write.
-        static constexpr u32 MaxHoistedWrite = 4096;
-        bool hoistable = size <= MaxHoistedWrite && pending_accesses.empty() && !pending_untracked;
-        if (hoistable && pass_serial == queue.HeldPassSerial()) {
-            const auto range = boost::icl::interval<VAddr>::right_open(address, address + size);
-            hoistable = !pass_untracked && !boost::icl::intersects(pass_reads, range) &&
-                        !boost::icl::intersects(pass_writes, range);
-        }
-        if (hoistable) {
-            queue.BeginHoist();
-            // The target first: a backend without the path returns false with nothing written.
-            written = backend.HoistedUpdateBuffer(target->first, target->second, bytes);
-            if (written && mirror) {
-                written = backend.HoistedUpdateBuffer(mirror->first, mirror->second, bytes);
-            }
-            queue.EndHoist();
-        }
-        (written ? BbStats::hoisted_writes : BbStats::unhoisted_pass_writes)
-            .fetch_add(1, std::memory_order_relaxed);
+    if (mirror) {
+        backend.UpdateBuffer(mirror->first, mirror->second, {static_cast<const u8*>(data), size});
     }
-    if (!written) {
-        if (mirror) {
-            backend.UpdateBuffer(mirror->first, mirror->second, bytes);
-        }
-        backend.UpdateBuffer(target->first, target->second, bytes);
-    }
+    backend.UpdateBuffer(target->first, target->second, {static_cast<const u8*>(data), size});
     if (size <= sizeof(u64) && HonestLabels()) {
         u64 value = 0;
         std::memcpy(&value, data, size);

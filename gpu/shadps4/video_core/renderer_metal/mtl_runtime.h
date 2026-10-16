@@ -143,11 +143,6 @@ public:
     void CopyFromGuestChunk(u64 chunk_phys, const VideoCore::Buffer* dst,
                             std::span<const vk::BufferCopy> copies) override;
     void UpdateBuffer(const VideoCore::Buffer* dst, u64 offset, std::span<const u8> data) override;
-    /// A small kernel in the hoisted compute encoder (before the held pass, after the earlier
-    /// hoisted work) writes the words; needs a held pass in a BeginHoist/EndHoist span, at most
-    /// 4096 bytes and 4 byte alignment, else false (see CacheBackend).
-    bool HoistedUpdateBuffer(const VideoCore::Buffer* dst, u64 offset,
-                             std::span<const u8> data) override;
     void UploadImage(VideoCore::Image* dst, const VideoCore::Buffer* src,
                      std::span<const vk::BufferImageCopy> upload_copies) override;
     void DownloadImage(VideoCore::Image* src, const VideoCore::Buffer* dst,
@@ -257,8 +252,6 @@ private:
     bool global_write = false;   ///< bbport: AccessGlobal wrote since the last FlushBarriers
     void (*image_access_hook)(void*) = nullptr;
     void* image_access_context = nullptr;
-    struct WriteKernel; ///< the pipeline of HoistedUpdateBuffer, built on first use
-    std::unique_ptr<WriteKernel> write_kernel;
 };
 
 } // namespace Metal

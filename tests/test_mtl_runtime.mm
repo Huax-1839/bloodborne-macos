@@ -233,12 +233,6 @@ static NSString* const kernel_source = @"#include <metal_stdlib>\n"
     "                         device float4* out [[buffer(0)]]) {\n"
     "    out[0] = tex.sample(smp, float2(0.5, 0.5), level(0));\n"
     "}\n"
-    "kernel void copy_words(device uint* src [[buffer(0)]], device uint* out [[buffer(1)]],\n"
-    "                       constant uint2& params [[buffer(2)]], uint id [[thread_position_in_grid]]) {\n"
-    "    if (id < params.y) {\n"
-    "        out[params.x + id] = src[id];\n"
-    "    }\n"
-    "}\n"
     "kernel void write_word(constant ulong& address [[buffer(0)]], constant uint& value [[buffer(1)]]) {\n"
     "    *reinterpret_cast<device uint*>(address) = value;\n"
     "}\n";
@@ -944,115 +938,6 @@ static void TestTicks(Fixture& f) {
     CHECK(ran);
 }
 
-static void TestHoistedUpdateBuffer(Fixture& f) {
-    std::printf("hoisted update buffer\n");
-    auto dst = MakeBuffer(f.runtime, 16384, MemoryType::DeviceLocal, "hoisted dst");
-    auto out = MakeBuffer(f.runtime, 16384, MemoryType::DeviceLocal, "hoisted out");
-    std::memset(dst->mapped_data.data(), 0xEE, 16384);
-    std::memset(out->mapped_data.data(), 0, 16384);
-    const auto small = Pattern(16, 7);
-    const auto full = Pattern(4096, 8);
-
-    // (b) without a held pass: not supported, nothing written
-    CHECK(!f.scheduler.HoldingPass());
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 0, small));
-    f.scheduler.BeginHoist(); // no pass: BeginHoist does not start hoisting
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 0, small));
-    f.scheduler.EndHoist();
-    Settle(f);
-    CHECK(static_cast<u8>(dst->mapped_data[0]) == 0xEE);
-
-    // A held pass with a render target, as the scheduler test makes it.
-    MTLTextureDescriptor* descriptor =
-        [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
-                                                           width:8
-                                                          height:8
-                                                       mipmapped:NO];
-    descriptor.usage = MTLTextureUsageRenderTarget;
-    descriptor.storageMode = MTLStorageModePrivate;
-    id<MTLTexture> target = [f.mtl newTextureWithDescriptor:descriptor];
-    const RenderState state{};
-    const auto begin_pass = [&] {
-        MTLRenderPassDescriptor* pass = [MTLRenderPassDescriptor renderPassDescriptor];
-        pass.colorAttachments[0].texture = target;
-        pass.colorAttachments[0].loadAction = MTLLoadActionClear;
-        pass.colorAttachments[0].storeAction = MTLStoreActionStore;
-        f.scheduler.RenderEncoder((__bridge const void*)pass, state);
-    };
-    id<MTLComputePipelineState> copy_words = Pipeline(f.mtl, @"copy_words");
-    // A hoisted dispatch that reads `words` words of `src` at `src_offset` into out[out_word...].
-    const auto hoisted_copy = [&](u64 src_offset, u32 words, u32 out_word) {
-        f.scheduler.BeginHoist();
-        f.scheduler.ComputeEncoder("Hoisted dispatches");
-        f.scheduler.MemoryBarrier();
-        auto& compute = f.scheduler.GetImpl().compute;
-        const u32 params[2] = {out_word, words};
-        [compute setComputePipelineState:copy_words];
-        [compute setBuffer:(__bridge id<MTLBuffer>)dst->buffer.native offset:src_offset atIndex:0];
-        [compute setBuffer:(__bridge id<MTLBuffer>)out->buffer.native offset:0 atIndex:1];
-        [compute setBytes:params length:sizeof(params) atIndex:2];
-        [compute dispatchThreads:MTLSizeMake(words, 1, 1)
-            threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-        f.scheduler.EndHoist();
-    };
-
-    // (a) written before the pass, read by a later hoisted dispatch, seen by the pass's end
-    begin_pass();
-    CHECK(f.scheduler.HoldingPass());
-    f.scheduler.BeginHoist();
-    CHECK(f.runtime.HoistedUpdateBuffer(dst.get(), 64, small));
-    f.scheduler.EndHoist();
-    CHECK(f.scheduler.HoldingPass()); // the pass was not released
-    hoisted_copy(64, 4, 0);
-    // (c) unaligned (offset 4 and 300: not a multiple of the binding alignment) and 4096 bytes
-    f.scheduler.BeginHoist();
-    CHECK(f.runtime.HoistedUpdateBuffer(dst.get(), 4, {small.data(), 4}));
-    CHECK(f.runtime.HoistedUpdateBuffer(dst.get(), 300, {small.data() + 4, 12}));
-    CHECK(f.runtime.HoistedUpdateBuffer(dst.get(), 4100, full));
-    f.scheduler.EndHoist();
-    CHECK(f.scheduler.HoldingPass());
-    hoisted_copy(4, 1, 8);
-    hoisted_copy(300, 3, 9);
-    hoisted_copy(4100, 1024, 16);
-    // refused: too big, unaligned, empty
-    f.scheduler.BeginHoist();
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 0, std::vector<u8>(4100)));
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 2, {small.data(), 4}));
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 0, {small.data(), 3}));
-    CHECK(!f.runtime.HoistedUpdateBuffer(dst.get(), 0, {small.data(), 0}));
-    f.scheduler.EndHoist();
-    CHECK(f.scheduler.HoldingPass());
-    // The pass then ends as ever.
-    f.scheduler.ReleaseHeldPass();
-    CHECK(!f.scheduler.HoldingPass());
-    Settle(f);
-    const u32* result = reinterpret_cast<const u32*>(out->mapped_data.data());
-    CHECK(std::memcmp(result, small.data(), 16) == 0);
-    CHECK(result[8] == *reinterpret_cast<const u32*>(small.data()));
-    CHECK(std::memcmp(result + 9, small.data() + 4, 12) == 0);
-    CHECK(std::memcmp(result + 16, full.data(), 4096) == 0);
-    // The words around the writes are untouched.
-    CHECK(static_cast<u8>(dst->mapped_data[0]) == 0xEE && static_cast<u8>(dst->mapped_data[8]) == 0xEE &&
-          static_cast<u8>(dst->mapped_data[296]) == 0xEE && static_cast<u8>(dst->mapped_data[312]) == 0xEE &&
-          static_cast<u8>(dst->mapped_data[4096]) == 0xEE && static_cast<u8>(dst->mapped_data[8196]) == 0xEE);
-    CHECK(std::memcmp(dst->mapped_data.data() + 4100, full.data(), 4096) == 0);
-
-    // The write waits for the work before the pass and the pass's later work follows it: a fill
-    // (blit) before, the hoisted write over it, a second held pass released by a transfer.
-    f.runtime.FillBuffer(dst.get(), 0, 1024, 0x11111111u);
-    begin_pass();
-    f.scheduler.BeginHoist();
-    CHECK(f.runtime.HoistedUpdateBuffer(dst.get(), 8, {small.data(), 8}));
-    f.scheduler.EndHoist();
-    f.runtime.FillBuffer(dst.get(), 512, 64, 0x22222222u); // releases the pass, after the write
-    Settle(f);
-    CHECK(std::memcmp(dst->mapped_data.data() + 8, small.data(), 8) == 0);
-    CHECK(*reinterpret_cast<const u32*>(dst->mapped_data.data() + 4) == 0x11111111u);
-    CHECK(*reinterpret_cast<const u32*>(dst->mapped_data.data() + 16) == 0x11111111u);
-    CHECK(*reinterpret_cast<const u32*>(dst->mapped_data.data() + 512) == 0x22222222u);
-    Settle(f);
-}
-
 int main() {
     g_backing = nullptr;
     @autoreleasepool {
@@ -1067,7 +952,6 @@ int main() {
         TestKernels(f);
         TestAccessAndStaging(f);
         TestTicks(f);
-        TestHoistedUpdateBuffer(f);
         Settle(f);
         CHECK(!f.scheduler.HasFailed());
     }
