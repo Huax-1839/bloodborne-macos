@@ -618,6 +618,11 @@ Open, not planned (pick with the user):
    rows of depth-style layouts collide with slice 1 (P8.4); one boot stopped on "Unimplemented
    PM4 type 0" (P7.5, not reproduced); the M1 walk is scripted stick input around the clinic, not
    the route to the first lamp.
+5. **Levers not in this plan** (evaluation 2026-10-16, code and shader cache only, nothing
+   measured in game): `docs/PERFORMANCE_LEVERS_2026-10-16.md`, ten levers ranked by estimated
+   impact. First: the game's fragment/compute shaders are compiled with stricter float rules than
+   the PS4's GPU (every float op `NoContraction`, which SPIRV-Cross emits as `optnone` helpers,
+   plus `MTLMathModeSafe`); proposed as P9.1 in `docs/metal/float_semantics_design.md`.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):

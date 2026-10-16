@@ -41,7 +41,9 @@ in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the str
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
 kernel's command buffer submission: Metal 4 command model, P6.4 untracked resources, fewer
 command buffers a frame), small open checks. An ARM64 renderer is assessed in
-`docs/ARM64_PORT_ASSESSMENT_2026-10-13.md` (not planned).
+`docs/ARM64_PORT_ASSESSMENT_2026-10-13.md` (not planned). Levers the plan does not cover yet,
+ranked by estimated impact: `docs/PERFORMANCE_LEVERS_2026-10-16.md`; the first (shader float
+semantics) is designed as P9.1 in `docs/metal/float_semantics_design.md`.
 
 ## Debug aids
 
