@@ -15,6 +15,9 @@
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <pthread/qos.h>
+#include <cstdlib>
+#include <cstring>
 #include <pthread.h>
 #elif defined(_WIN32)
 #include <windows.h>
@@ -189,6 +192,25 @@ void SetCurrentThreadName(const char* name) {
     // bbport: guest thread names are kept by the C runtime.
 #ifdef __APPLE__
     pthread_setname_np(name);
+    // bbport: the threads a frame passes through (GPU command processing, draw preparation and
+    // recording, Metal replay or Vulkan recorders, signals, present) at user-interactive QoS,
+    // which macOS keeps on the performance cores first. At the default class they lost cores to
+    // the game's threads in heavy frames: every part of recording ran 2.5-3x slower there (P8.6;
+    // within-run A/B: missed 30-FPS slots 1.24 vs 1.99%, tail p99 13.6-13.9 vs 17.8-19.3 ms).
+    // BB_PIPELINE_QOS=0: off.
+    static const bool pipeline_qos = [] {
+        const char* env = std::getenv("BB_PIPELINE_QOS");
+        return !(env && env[0] == '0');
+    }();
+    static constexpr const char* pipeline[] = {
+        "shadPS4:GpuCommandProcessor", "bb:DrawRec", "bb:MtlReplay", "bb:DrawScan", "bb:DrawPrep",
+        "bb:TexBind", "bb:GpuSignals", "bb:VkRecorder", "bb:Present", "shadPS4:PresentThread"};
+    for (const char* prefix : pipeline) {
+        if (pipeline_qos && std::strncmp(name, prefix, std::strlen(prefix)) == 0) {
+            pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+            break;
+        }
+    }
 #elif defined(__Bitrig__) || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
     pthread_set_name_np(pthread_self(), name);
 #elif defined(__NetBSD__)
