@@ -2159,7 +2159,9 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                     if (dcb_stats) {
                         ++g_dcb_stats.wait_outcome[0];
                     }
+                    BbTimeline::Note(BbTimeline::VoLabelWaitBegin);
                     vo_port->WaitVoLabel([&] { return wait_reg_mem->Test(regs.reg_array); });
+                    BbTimeline::Note(BbTimeline::VoLabelWaitEnd);
                     break;
                 }
                 // bbport: a fence handed to the draw recording thread counts as written: that
@@ -2178,6 +2180,9 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                 // catch up before yielding to other queues.
                 const bool met = wait_reg_mem->Test(regs.reg_array);
                 const auto wait_start = std::chrono::steady_clock::now();
+                if (!met) {
+                    BbTimeline::Note(BbTimeline::RegMemWaitBegin);
+                }
                 while (!wait_reg_mem->Test(regs.reg_array)) {
                     if (rasterizer && !rasterizer->DrawPipeIdle()) {
                         rasterizer->DrainDrawPipe(static_cast<u32>(opcode));
@@ -2190,6 +2195,9 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                         rasterizer->Flush();
                     }
                     YIELD_GFX();
+                }
+                if (!met) {
+                    BbTimeline::Note(BbTimeline::RegMemWaitEnd);
                 }
                 if (dcb_stats) {
                     ++g_dcb_stats.wait_outcome[met ? 2 : 3];

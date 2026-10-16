@@ -615,6 +615,7 @@ void Scheduler::Flush() {
             if (completed.status == MTLCommandBufferStatusError) {
                 ReportFailure(tick, label.UTF8String, DescribeError(completed.error));
             }
+            BbStats::NoteGpuInterval(completed.GPUStartTime, completed.GPUEndTime);
             AdvanceTo(retired_tick, tick);
             handlers_in_flight.fetch_sub(1, std::memory_order_acq_rel);
         }];

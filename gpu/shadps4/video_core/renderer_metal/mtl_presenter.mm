@@ -710,6 +710,7 @@ void Presenter::Present(VideoCore::PresentFrame* present_frame, bool is_reusing_
                     LOG_ERROR(Render, "Metal present command buffer failed: {}",
                               ErrorText(completed.error));
                 }
+                BbStats::NoteGpuInterval(completed.GPUStartTime, completed.GPUEndTime);
                 if (pending->fetch_sub(1, std::memory_order_acq_rel) == 1) {
                     release_frame();
                 }

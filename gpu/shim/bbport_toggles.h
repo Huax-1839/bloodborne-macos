@@ -1,6 +1,7 @@
 // bbport: optimizations that can be switched off while the game runs (BB_TOGGLE_FILE,
 // see runtime_memory.c), to find which one changes rendering without restarting.
 #pragma once
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <csetjmp>
@@ -228,6 +229,23 @@ inline std::atomic<std::uint32_t> frame_number{0};
 inline std::atomic<std::uint64_t> preupload_bytes{0};
 /// Device memory allocated (VMA blocks, arena residency) and freed, bytes.
 inline std::atomic<std::uint64_t> device_alloc_bytes{0}, device_free_bytes{0};
+/// Metal: GPU busy time, the union of the command buffers' GPU intervals (GPUStartTime to
+/// GPUEndTime) as their completion handlers report them; BB_FRAME_LOG's gpu_ms. Vulkan: 0.
+inline std::atomic<std::uint64_t> gpu_busy_ns{0};
+/// steady_clock ns of the guest's latest sceGnmSubmitAndFlipCommandBuffers call; BB_FRAME_LOG's
+/// guest_age_ms (how long before the flip the guest handed over the frame).
+inline std::atomic<std::int64_t> guest_flip_call_ns{0};
+inline void NoteGpuInterval(double start_s, double end_s) {
+    static std::atomic<std::uint64_t> busy_until_ns{0};
+    const auto start = static_cast<std::uint64_t>(start_s * 1e9);
+    const auto end = static_cast<std::uint64_t>(end_s * 1e9);
+    std::uint64_t until = busy_until_ns.load(std::memory_order_relaxed);
+    while (end > until && !busy_until_ns.compare_exchange_weak(until, end)) {
+    }
+    if (end > until) { // only the part past what earlier command buffers already covered
+        gpu_busy_ns.fetch_add(end - std::max(start, until), std::memory_order_relaxed);
+    }
+}
 /// Metal: MTLDevice.currentAllocatedSize, refreshed once a frame (Metal::Runtime::TickFrame).
 inline std::atomic<std::uint64_t> metal_allocated_bytes{0};
 /// Memory statistics: registered images (their guest size) and how many; the buffer cache's VRAM

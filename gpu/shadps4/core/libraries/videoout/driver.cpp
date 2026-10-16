@@ -15,6 +15,7 @@
 #include <mach/mach.h>
 #endif
 #include "common/assert.h"
+#include "bbport_timeline.h"
 #include "bbport_toggles.h"
 #include "bbport_flush_reason.h"
 #include "bbport_heap_sites.h"
@@ -387,6 +388,7 @@ static void PrintMemory() {
 }
 
 void VideoOutDriver::Flip(const Request& req) {
+    BbTimeline::Note(BbTimeline::Flip, main_port.vblank_status.count);
     // Update HDR status before presenting, then present the frame (bbport: on the swap thread).
     RunPresenter([this, frame = req.frame, hdr = req.port->is_hdr] {
         presenter->SetHDR(hdr);
@@ -403,6 +405,8 @@ void VideoOutDriver::Flip(const Request& req) {
         static u32 frames;
         static double worst_ms;
         const auto now = Clock::now();
+        const s64 flip_ns =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
         const double frame_ms = std::chrono::duration<double, std::milli>(now - last).count();
         worst_ms = std::max(worst_ms, frame_ms);
         static std::vector<double> intervals;
@@ -528,14 +532,14 @@ void VideoOutDriver::Flip(const Request& req) {
                                    "images,image_mb,buffer_mb,protect_ms,resident_ms,create_ms,"
                                    "refresh_ms,write_fault_ms,read_faults,guest_copy_mb,draws,"
                                    "dispatches,submissions,compiles,preupload_mb,kernel_ms,alloc_mb,"
-                                   "free_mb,cam_x,cam_y,cam_z\n");
+                                   "free_mb,cam_x,cam_y,cam_z,gpu_ms,submit_age_ms,ready_age_ms,vblank,guest_age_ms,gnm_wait_ms\n");
             }
             return file;
         }();
         if (frame_log) {
             static const auto log_start = now;
             static u64 log_twf, log_tick, log_present, log_compiles, log_rf, log_preupload;
-            static u64 log_alloc, log_free, log_camera_frames;
+            static u64 log_alloc, log_free, log_camera_frames, log_gpu_busy, log_gnm_wait;
             // The camera position of the newest committed camera when one was committed since the
             // previous row, else empty columns.
             char camera_columns[96] = ",,";
@@ -551,6 +555,7 @@ void VideoOutDriver::Flip(const Request& req) {
                               position[1], position[2]);
             }
             const u64 tick = BbStats::tick_wait_ns.load(), present = BbStats::present_wait_ns.load();
+            const s64 guest_ns = BbStats::guest_flip_call_ns.load(std::memory_order_relaxed);
             const u64 compiles_now = Vulkan::g_bb_compiles.load();
             // tick_wait_ns and the compile count are reset every stats window.
             const auto delta = [](u64 now_value, u64& last_value) {
@@ -560,7 +565,7 @@ void VideoOutDriver::Flip(const Request& req) {
             };
             std::fprintf(frame_log,
                          "%.4f,%.2f,%.2f,%.2f,%.2f,%llu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%llu,"
-                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f,%s\n",
+                         "%.2f,%llu,%llu,%llu,%llu,%.2f,%.2f,%.1f,%.1f,%s,%.2f,%.2f,%.2f,%llu,%.2f,%.2f\n",
                          std::chrono::duration<double>(now - log_start).count(), frame_ms,
                          delta(present, log_present) / 1e6, delta(tick, log_tick) / 1e6,
                          last_gpu_ns ? (gpu_ns - last_gpu_ns) / 1e6 : 0.0,
@@ -578,7 +583,13 @@ void VideoOutDriver::Flip(const Request& req) {
                          delta(BbStats::preupload_bytes.load(), log_preupload) / 1e6,
                          last_gpu_ns ? (sys_us - last_sys) / 1e3 : 0.0,
                          delta(BbStats::device_alloc_bytes.load(), log_alloc) / 1e6,
-                         delta(BbStats::device_free_bytes.load(), log_free) / 1e6, camera_columns);
+                         delta(BbStats::device_free_bytes.load(), log_free) / 1e6, camera_columns,
+                         delta(BbStats::gpu_busy_ns.load(), log_gpu_busy) / 1e6,
+                         req.submit_ns ? (flip_ns - req.submit_ns) / 1e6 : 0.0,
+                         req.ready_ns ? (flip_ns - req.ready_ns) / 1e6 : 0.0,
+                         static_cast<unsigned long long>(main_port.vblank_status.count),
+                         guest_ns ? (flip_ns - guest_ns) / 1e6 : 0.0,
+                         delta(BbStats::gnm_frame_wait_ns.load(), log_gnm_wait) / 1e6);
             static u32 unflushed = 0;
             if (++unflushed >= 120) {
                 std::fflush(frame_log);
@@ -872,8 +883,16 @@ void VideoOutDriver::DrawLastFrame() {
     }, true);
 }
 
+static s64 SteadyNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+
 bool VideoOutDriver::SubmitFlip(VideoOutPort* port, s32 index, s64 flip_arg,
                                 bool is_eop /*= false*/) {
+    const s64 submit_ns = SteadyNs();
+    BbTimeline::Note(BbTimeline::EopFlip, is_eop);
     {
         std::unique_lock lock{port->port_mutex};
         if (index != -1 && port->flip_status.flip_pending_num > 16) {
@@ -890,15 +909,17 @@ bool VideoOutDriver::SubmitFlip(VideoOutPort* port, s32 index, s64 flip_arg,
 
     if (!is_eop) {
         // Non EOP flips can arrive from any thread so ask GPU thread to perform them
-        liverpool->SendCommand([=, this]() { SubmitFlipInternal(port, index, flip_arg, is_eop); });
+        liverpool->SendCommand(
+            [=, this]() { SubmitFlipInternal(port, index, flip_arg, is_eop, submit_ns); });
     } else {
-        SubmitFlipInternal(port, index, flip_arg, is_eop);
+        SubmitFlipInternal(port, index, flip_arg, is_eop, submit_ns);
     }
 
     return true;
 }
 
-void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_arg, bool is_eop) {
+void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_arg, bool is_eop,
+                                        s64 submit_ns) {
     VideoCore::PresentFrame* frame;
     if (index == -1) {
         frame = presenter->PrepareBlankFrame(false);
@@ -917,6 +938,8 @@ void VideoOutDriver::SubmitFlipInternal(VideoOutPort* port, s32 index, s64 flip_
             .flip_arg = flip_arg,
             .index = index,
             .eop = is_eop,
+            .submit_ns = submit_ns,
+            .ready_ns = SteadyNs(),
         });
     }
     request_cv.notify_one();

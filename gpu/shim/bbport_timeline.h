@@ -27,6 +27,13 @@ enum Event : std::uint32_t {
     FrameRetired,      ///< arg: frame
     DecoderIdleBegin,  ///< the GPU command thread has nothing to decode
     DecoderIdleEnd,
+    VoLabelWaitBegin,  ///< the GPU command thread waits for a flip to write a VO label
+    VoLabelWaitEnd,
+    RegMemWaitBegin,   ///< it waits for another WAIT_REG_MEM (unmet at first)
+    RegMemWaitEnd,
+    GuestFlipCall,     ///< sceGnmSubmitAndFlipCommandBuffers entered
+    EopFlip,           ///< the flip reached the end of the pipe (SubmitFlip)
+    Flip,              ///< the present thread takes the flip, arg: vblank count
 };
 
 struct Entry {
