@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) in progress since 2026-10-17. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -618,6 +618,11 @@ Exit: kept as the default if GPU busy (or the targeted passes, per label) falls 
 the A/A spread and the images are unchanged; otherwise recorded as measured and reverted; the
 results in §8, the decision in §9.
 
+Done 2026-10-17: **lean usages with promotion on first need are the Metal default** (GPU busy a
+typical frame 16.6 → 14.9 ms at 540p, 21.5 → 18.2 ms at 720p, 43.4 → 38.1 ms at native 1080p;
+images within same-build noise); `BB_MTL_FULL_USAGE=1` restores the old usages; numbers in §8
+"P10.1 results".
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -650,7 +655,7 @@ results in §8, the decision in §9.
 
 ## 8. Status and results
 
-**Resume here (2026-10-16).** Every milestone is met, and Metal is the default on Apple silicon
+**Resume here (2026-10-17).** Every milestone is met, and Metal is the default on Apple silicon
 with macOS 15+:
 - M1 (same image as Vulkan): 2026-10-14, P4.
 - M2 (≥ Vulkan FPS): 2026-10-15, +10% in each profile of the M2 protocol (table below); the
@@ -667,6 +672,11 @@ After P9.1 (2026-10-16) the GPU needs ~16.5 ms a frame at 540p and ~24.6 ms at 7
 moves back to 720p is the user's decision (§1, §9); the M3 battery run at 540p is still pending,
 and the bench cache of the new default (`CUSA03173-metal-relaxed`) was filled by the 720p walk
 and the clinic boots only, so a 540p fill run comes first (0 compiles in game).
+(Filled since by the P10.1 runs at 540p: clinic, a 5-min walk, Yharnam; 0 compiles in game.)
+
+After P10.1 (2026-10-17: lossless compression kept on textures no shader writes) the GPU needs
+~14.9 ms a frame at 540p, ~18.2 ms at 720p and ~38 ms at native 1080p (busy union, typical
+frames, against 16.6 / 21.5 / 43.4 with the old usages in the same series).
 
 How it got there, in short: P6 found the kernel's command buffer submission and residency churn
 as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 closed the gaps
@@ -699,8 +709,10 @@ Open, not planned (pick with the user):
    measured in game): `docs/PERFORMANCE_LEVERS_2026-10-16.md`, ten levers ranked by estimated
    impact. First: the game's fragment/compute shaders are compiled with stricter float rules than
    the PS4's GPU (every float op `NoContraction`, which SPIRV-Cross emits as `optnone` helpers,
-   plus `MTLMathModeSafe`); done as P9.1 (§5 P9): GPU time −33%, V1 the default. The other nine levers
-   are unmeasured; their GPU estimates predate P9.1 and need re-ranking against the new frame.
+   plus `MTLMathModeSafe`); done as P9.1 (§5 P9): GPU time −33%, V1 the default. The second,
+   lossless compression of render targets, is done as P10.1 (§5 P10): GPU time −10% at 540p,
+   −15% at 720p. The other eight levers are unmeasured; their GPU estimates predate P9.1 and need
+   re-ranking against the new frame.
 
 **P9.1 results** (2026-10-16, interleaved boots with traces `p9-540-*`, `p9-720-*` in
 `~/Games/Bloodborne/bench/traces`, `BB_PASS_LABELS=1 BB_FPS=uncap BB_PROFILE=m4air`, after a 15-min
@@ -735,6 +747,35 @@ the one other (`42f2a521`, written at 03:01 by an earlier build) with the same 3
 `NoContraction` on its 3319 float ops. MSL (scout): 186 relaxed fragment and 31 compute files,
 none with `spvF` helpers; vertex, tessellation and geometry files unchanged; the two
 depth-exporting fragment shaders keep their strict SPIR-V.
+
+**P10.1 results** (2026-10-17; design and full tables in `docs/metal/texture_compression_design.md`):
+- Microbenchmark (4096², M4): on colour formats `ShaderWrite` **or** `PixelFormatView` costs the
+  lossless compression (RGBA16F write + read 1.09 → 2.35 ms, RGBA8/RGB10A2 ×1.12–1.18); depth
+  keeps it with either; `optimizeContentsForGPUAccess` does not restore it; sRGB-twin, swizzle and
+  sub-range views need no `PixelFormatView`, views in another format do (and silently read
+  0xFFFFFFFF without it when the validation layer is off).
+- Inventory (clinic, walk, Yharnam): 80–84% of the cache images need neither usage; ~330 images
+  (78 MiB) are written by shaders (compute-only images, the bloom chain, 4 RGBA16F targets), 4–5
+  need a format view (the display buffers). The G-buffer and lighting targets are never written by
+  shaders, but the same formats and sizes occur on both sides, so the policy promotes on first
+  need (336 promotions while loading the clinic) instead of rules at creation.
+- GPU ms a typical frame, interleaved boots A B B A with traces (A = `BB_MTL_FULL_USAGE=1`):
+
+| | A (full usages) | B (lean, default) |
+|---|---|---|
+| 540p busy union | 16.19, 17.02 | 14.42, 15.41 |
+| 540p C1 / C2 / unlabelled render passes | 2.52 / 0.66 / 1.04 | 2.07 / 0.44 / 0.67 |
+| 540p G-buffer C6 / MetalFX | 7.3 / 1.77 | 6.9 / 1.76 |
+| 720p busy union | 21.46, 21.53 | 18.27, 18.16 |
+| 720p C1 / C2 / unlabelled render passes | 4.02 / 1.07 / 1.40 | 3.08 / 0.71 / 0.70 |
+| 720p G-buffer C6 / MetalFX | 8.3 / 2.12 | 7.4 / 2.11 |
+| native 1080p busy union | 43.41, 49.25 (hot) | 37.74, 38.53 |
+| boot FPS 540p / 720p / 1080p | 54.8, 54.2 / 45.6, 44.9 / 20.2, 16.9 | 58.0, 51.6 / 51.9, 53.2 / 22.8, 22.4 |
+
+  Images: title A vs B 50.9–∞ dB (only the animated tile over 64), clinic 37.8–44.4 dB within
+  the same-build spreads (A/A 39.6–44.6, B/B 42.8–46.4). 5-min walk with `MTL_DEBUG_LAYER=1`:
+  no validation errors. Vulkan: 33.4 FPS, title 54.0 dB / clinic 42.3 dB (overlay corner
+  cropped). 20-min walk (`p10-mem`, 30.0 FPS, 0 compiles, no safety-net or device errors): Metal allocation flat from minute 3 (6705–6707 MiB), footprint +92 MiB from minute 3 to 21 (the two previous 20-min walks: +151, +159 MiB).
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -948,10 +989,13 @@ commit (kept privately, not in this repository):
     unchanged; 720p at 30 FPS for 20 min on a warm Air now misses the M3 rule only on 2.29%
     missed slots (and the cool-down it skipped on purpose). Results below ("P9.1 results")
 
-- [ ] P10 Memory bandwidth: lossless texture compression (§5 P10; 2026-10-17)
-  - [ ] P10.1 render targets, depth and sampled images without `ShaderWrite` /
-    `PixelFormatView` unless needed (`docs/metal/texture_compression_design.md`): step 1
-    microbenchmark, step 2 inventory, step 3 upper bound, step 4 policy, step 5 verification
+- [x] P10 Memory bandwidth: lossless texture compression (§5 P10; 2026-10-17)
+  - [x] P10.1 render targets, depth and sampled images without `ShaderWrite` /
+    `PixelFormatView` unless needed (`docs/metal/texture_compression_design.md`): microbenchmark
+    (`tools/metal_compress_probe.mm`, 60ebaf2), inventory (`BB_IMAGE_USAGE_LOG`, acdfdcb), upper
+    bound (temporary patch), promotion policy (porter at effort high; `vk-to-mtl-test`,
+    `mtl-runtime-test`), verification: GPU busy −10% at 540p, −15% at 720p, −12% at 1080p;
+    images, validation walk, 20-min memory walk and Vulkan clean. Results below ("P10.1 results")
 
 Results (filled in as measured):
 
@@ -1157,3 +1201,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | New phase P9 (GPU time: shader float semantics), task P9.1: no `NoContraction` in game fragment (no depth export) and compute shaders (V1), plus `MTLMathModeRelaxed` for them (V2), measured against today's rules by interleaved boots; no milestone change | code review: every float op `NoContraction` → SPIRV-Cross `optnone` helpers in 284 of 308 fragment shaders (median 107, p90 676, max 1258 calls; re-counted in the bench cache), Safe math everywhere; P8 step 2: scene passes 83% of GPU time and as costly as on MoltenVK. Corrections to the review: transcendentals are `precise::` by SPIRV-Cross (no `FPFastMathMode` flags), not by the math mode, and `mathFloatingPointFunctions` is Fast by default, so V2 changes division, sqrt and reassociation only; a new `Shader::Profile` field would wipe every pipeline cache (the shared check compares `profile.bin` byte for byte), so the check accepts the shorter old profile while the field is at its default, and the relaxed variant gets its own cache tag. Why `NoContraction` was added: not recorded (vendored shadPS4; `inst` is unused in `Decorate()`, the per-op flag of its yuzu origin was dropped) | P9, `docs/metal/float_semantics_design.md` |
 | 2026-10-16 | P9.1: V1 (no `NoContraction` in game fragment shaders without depth export and in game compute shaders) is the Metal default; V2 (Relaxed math) stays opt-in (`BB_MTL_RELAXED_MATH=1`); `BB_MTL_STRICT_FLOAT=1` restores V0 | interleaved boots with traces: GPU busy 24.7 → 16.5 ms at 540p, 37.3 → 24.6 at 720p (lighting −87%, C1 −80%); FPS 540p uncapped 33.1 → 43.6; images within §6, temporal residuals within V0's range, validation clean, Vulkan SPIR-V unchanged; V2 −0.3 to −0.9 ms more, inside the noise | P9, M3 (720p at 30 on a warm Air now misses the rule only on 2.29% missed slots), Vulkan untouched |
 | 2026-10-17 | New phase P10 (memory bandwidth: lossless texture compression), task P10.1: texture-cache images on Metal get `ShaderWrite` and `PixelFormatView` only when needed, gated by a `BackendLimits` field only Metal sets; ground truth by a microbenchmark and an in-game inventory before the upper bound and the policy; no milestone change | code review: every colour image `eStorage` → `ShaderWrite`, every image `eMutableFormat` → `PixelFormatView` (`image.cpp`, `mtl_runtime.mm` `CreateImage`), nothing sets compression options; Apple names both usages as preventing lossless compression; P9.1 left the G-buffer passes (~5.5 ms at 540p) as the largest item, likely bandwidth-bound | P10, `docs/metal/texture_compression_design.md`, Vulkan untouched |
+| 2026-10-17 | P10.1: texture-cache images on Metal are created without `ShaderWrite` and `PixelFormatView` (colour and block; depth keeps `PixelFormatView`, MSAA keeps both) and promoted on first need (a new backing, the contents copied in stream order, the old one retired through the deferred destroy); `BackendLimits::lean_image_usage`, set only by Metal; `BB_MTL_FULL_USAGE=1` restores the old usages | microbenchmark: either usage costs the compression of colour targets (RGBA16F ×2.2), depth unaffected, `optimizeContentsForGPUAccess` useless; inventory: 80–84% of images need neither, but shader-written and never-written targets share formats and sizes (no rule at creation), the set is stable across scenes; upper bound and the policy: GPU busy −1.7 ms at 540p, −3.3 ms at 720p, −5.3 ms at 1080p, images unchanged, validation and Vulkan clean | P10, `docs/metal/texture_compression_design.md`; the live path's proxies and the upscaler's own textures keep their usages (not measured) |

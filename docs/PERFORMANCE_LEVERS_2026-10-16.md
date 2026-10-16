@@ -26,7 +26,7 @@ listed at the end and not repeated.
 | # | Lever | Helps with | Estimated impact | Effort |
 |---|---|---|---|---|
 | 1 | Float semantics of game fragment/compute shaders | GPU time of every scene pass (both backends) | high: plausibly several ms a frame at 540p, more at 720p | small |
-| 2 | Lossless compression of render targets and depth | bandwidth, DRAM power | medium: ~0.5–2 ms at 540p, more at higher resolutions, plus power | medium |
+| 2 | Lossless compression of render targets and depth | bandwidth, DRAM power | **measured (P10.1): −1.7 ms at 540p, −3.3 ms at 720p, −5.3 ms at 1080p**; power not measured | medium |
 | 3 | CPU vs GPU power split, then less CPU power | sustained GPU clock on the fanless Air | potentially large (heat costs 20–25%); unknown until measured | small to measure |
 | 4 | Asynchronous / parallel pipeline compilation | 100–500 ms hitches on first visits | high for smoothness, none on mean FPS | medium |
 | 5 | Game settings the m4air profile leaves at full quality | GPU time | ~0.5–3 ms each; visible changes need the user's consent | small |
@@ -104,6 +104,14 @@ Impact: bandwidth estimate for 540p (G-buffer, lighting, post chain, 1080p outpu
 ~150–250 MB of render-target traffic a frame, of which compression typically saves a third to a
 half: ~0.5–2 ms, more at 720p/1080p, plus less DRAM power on unified memory (thermal headroom,
 see 3).
+
+**Measured: done as P10.1 (2026-10-17), kept as the Metal default.** Either usage costs the
+compression of a colour target on the M4 (RGBA16F write + read ×2.2 in a microbenchmark); depth
+keeps it. 80–84% of the cache images need neither usage; the rest is promoted on first need
+(`docs/metal/texture_compression_design.md`). GPU busy a typical frame: 16.6 → 14.9 ms at 540p
+(−10%), 21.5 → 18.2 ms at 720p (−15%), 43.4 → 38.1 ms at native 1080p (−12%), mostly in the
+fullscreen post and lighting passes; the G-buffer gains 5–10%. Images unchanged. GPU power not
+measured (needs `sudo powermetrics`).
 
 ## 3. Thermal budget: CPU vs GPU power never measured
 

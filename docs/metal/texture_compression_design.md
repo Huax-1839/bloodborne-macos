@@ -1,7 +1,8 @@
 # Lossless texture compression on Metal (P10.1)
 
-Status: design, 2026-10-17; steps 1–2 (ground truth, inventory) in progress, the policy (step 4)
-is chosen from their data. Lever 2 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`. Owner of the
+Status: done 2026-10-17 as P10.1 (plan §5 P10): lean creation with promotion on first need is
+the Metal default (`BB_MTL_FULL_USAGE=1` restores the old usages); GPU busy −10% at 540p, −15% at
+720p, −12% at native 1080p, images unchanged. Results below and in plan §8 ("P10.1 results"). Lever 2 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`. Owner of the
 design and the measurements: the orchestrator; the microbenchmark, the inventory switch and the
 policy's implementation: porter tasks.
 
@@ -211,3 +212,53 @@ fallback anyway (new scenes, new addresses). So **(b) promotion**:
   `CopyImage` for a source viewed in another format (`CopySource`).
 - **Safety nets** (Metal, logged once, never silent): a storage binding of a texture without
   `ShaderWrite`, a view that needs `PixelFormatView` of a texture without it.
+
+As built (porter, reviewed): `BackendLimits::lean_image_usage`; `Image::EnsureViewUsage` (called
+by `FindView` and, for storage bindings, by `TextureCache::FindTexture` before its memo);
+`CacheBackend::RequiredViewUsage` / `PromoteImageUsage` (no-op defaults, Metal implements);
+the Metal promotion copies the whole texture with a blit in stream order (the blit encoder ends an
+open or held pass), switches `image->backing`, and retires the old backing: its view slots erased
+by a deferred operation on the recording thread after the GPU retired the tick (as
+`TextureCache::DeleteImage` does), its texture through the deferred destroy (D6); a retired
+backing is never matched by the sample-count lookup. Multisampled images keep the full usage
+(nothing copies them). `CopyImage`, `CopyMip` and the non-MSAA `ResolveImage` promote a source
+they view in another format; `Upscaler::RunLive` promotes the scene colour before its
+`ShaderWrite` check. Safety nets log once, never silent: a storage binding of a texture without
+`ShaderWrite`, a view or copy view in another format without `PixelFormatView`. Unit tests:
+`TestViewUsage` (`vk-to-mtl-test`), `TestPromotion` (`mtl-runtime-test`).
+
+### Step 5: verification (2026-10-17)
+
+- **Policy in game** (clinic boot with the usage log): 336 promotions while loading, 857 of 1110
+  live textures (314 of 370 MiB) stay lean, no storage binding of a texture without
+  `ShaderWrite`, no safety-net message in the game log.
+- **GPU time**: interleaved boots A B B A with traces (`p10v-*`, `BB_PASS_LABELS=1`), A =
+  `BB_MTL_FULL_USAGE=1`, B = the new default; GPU ms a typical frame:
+
+| | A1 | B2 | B3 | A4 | B − A (means) |
+|---|---|---|---|---|---|
+| 540p (m4air uncapped) busy union | 16.19 | 14.42 | 15.41 | 17.02 | −1.7 (−10%) |
+| 540p C1 / C2 / unlabelled render | 2.47 / 0.67 / 1.03 | 2.14 / 0.42 / 0.65 | 1.99 / 0.45 / 0.69 | 2.57 / 0.65 / 1.04 | −0.45 / −0.23 / −0.37 |
+| 540p C6 G-buffer / MetalFX | 7.13 / 1.76 | 6.58 / 1.75 | 7.24 / 1.77 | 7.47 / 1.77 | −0.4 / 0 |
+| 720p busy union | 21.46 | 18.27 | 18.16 | 21.53 | −3.3 (−15%) |
+| 720p C1 / C2 / unlabelled render | 4.02 / 1.06 / 1.39 | 3.05 / 0.72 / 0.70 | 3.10 / 0.69 / 0.69 | 4.02 / 1.07 / 1.41 | −0.95 / −0.36 / −0.70 |
+| 720p C6 G-buffer / MetalFX | 8.21 / 2.13 | 7.50 / 2.12 | 7.34 / 2.09 | 8.36 / 2.11 | −0.9 / 0 |
+| 1080p native (`BB_FPS=30`, Native AA live path) busy union | 43.41 | 37.74 | 38.53 | 49.25 (hot) | −5.3 against A1 (−12%) |
+| 1080p C1 / C2 / C6 / MetalFX | 11.97 / 2.72 / 11.02 / 3.31 | 9.90 / 1.48 / 10.30 / 3.30 | 10.56 / 1.55 / 10.55 / 3.34 | 12.47 / 3.19 / 13.58 / 3.72 | |
+| boot FPS (bench.sh, 2 windows) 540p / 720p / 1080p | 54.8 / 45.6 / 20.2 | 58.0 / 51.9 / 22.8 | 51.6 / 53.2 / 22.4 | 54.2 / 44.9 / 16.9 | |
+
+  At 1080p the live path's MetalFX runs in B (the upscaler promotes the scene colour; in the
+  step-3 experiment it had silently skipped). As in step 3, the gain is in the passes that stream
+  whole targets (C1 −20–25%, C2 −35–45%, unlabelled render passes −35–50%), less in the G-buffer
+  (−5 to −10%) and none in MetalFX (its own textures, untouched).
+- **Images** (`imgdiff.py`, the trace boots' screenshots): title A vs B 50.9–∞ dB, the only tile
+  over 64 the known animated tile (45,34) (73; §6 allows up to 126); clinic A vs B 37.8–44.4 dB
+  against same-build spreads of A/A 39.6–44.6 and B/B 42.8–46.4 dB (tiles over 64 only on the
+  idle character).
+- **Validation**: a 5-min walk with `MTL_DEBUG_LAYER=1` (`p10-val`): no validation errors, 30.0
+  FPS, 0 compiles.
+- **Vulkan** (shared code): 33.4 FPS (33.1 before); title against the last Vulkan run 53.96 dB,
+  clinic against the reference 42.3 dB (46.2 for the build before), both with the overlay corner
+  (top 64 px, different text) cropped; tiles over 64 only on the idle character.
+- **Memory** (promotion allocates): 20-min walk (`p10-mem`, 30.0 FPS, 0 compiles, no safety-net or device errors): Metal allocation flat from minute 3 (6705–6707 MiB), footprint +92 MiB from minute 3 to 21 (the two previous 20-min walks: +151, +159 MiB).
+- GPU power A vs B (`sudo powermetrics --samplers gpu_power`) is not measured: it needs the user.

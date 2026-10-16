@@ -37,16 +37,23 @@ reference). The repository is macOS only: the Linux build (top-level `build.sh`/
     `BB_MTL_STRICT_FLOAT=1` restores the old rules, `BB_MTL_RELAXED_MATH=1` adds Relaxed math
     (measured, no clear gain). Metal's pipeline cache for these rules is `<title>-metal-relaxed`
     (the strict one stays `<title>-metal`).
+  - P10.1 (2026-10-17): texture-cache images are created without `ShaderWrite` and
+    `PixelFormatView` (either one costs the Apple GPU's lossless compression of a colour target)
+    and promoted on first need (a shader write, a view in another format): GPU time a frame 16.6
+    → 14.9 ms at 540p, 21.5 → 18.2 ms at 720p, 43.4 → 38.1 ms at native 1080p; images unchanged.
+    `BB_MTL_FULL_USAGE=1` restores the old usages; `BB_IMAGE_USAGE_LOG=<tsv>` (read with
+    `macos/bench/image_usage.py`) records which usages each texture needs.
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
   min with the validation layer clean.
-- Measured only in Iosefka's clinic. Central Yharnam has a bench save and no runs yet.
+- Measured mostly in Iosefka's clinic. Central Yharnam has a bench save; its only runs so far
+  are P10.1's inventory boot (30.0 FPS at the cap, 1168 draws a frame).
 
 ## Next
 
-First the M3 battery run under the acceptance rule (when the user is ready; the new default's
-bench cache needs a 540p fill run first). Then the user's call whether M3 goes back to 720p
+First the M3 battery run under the acceptance rule (when the user is ready; the bench cache was
+filled at 540p by the P10.1 runs). Then the user's call whether M3 goes back to 720p
 (P9.1 made it nearly pass on a warm Air). Then the options,
 in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
@@ -54,7 +61,8 @@ kernel's command buffer submission: Metal 4 command model, P6.4 untracked resour
 command buffers a frame), small open checks. An ARM64 renderer is assessed in
 `docs/ARM64_PORT_ASSESSMENT_2026-10-13.md` (not planned). Levers the plan does not cover yet,
 ranked by estimated impact: `docs/PERFORMANCE_LEVERS_2026-10-16.md`; the first (shader float
-semantics) is done (P9.1, `docs/metal/float_semantics_design.md`); the rest need re-ranking
+semantics) is done (P9.1, `docs/metal/float_semantics_design.md`), the second (lossless texture
+compression) too (P10.1, `docs/metal/texture_compression_design.md`); the rest need re-ranking
 against the faster frame.
 
 ## Debug aids
@@ -62,7 +70,8 @@ against the faster frame.
 - Metal: `BB_FRAME_STATS=1` (draw/drop, pipeline, geometry-shader and command buffer counters),
   `BB_GS_DEBUG=1` (geometry-shader primitives in magenta), `BB_PASS_LABELS=1` (encoder labels with
   pass size and shaders, for Instruments), `BB_MTL_GUEST_IN_SET=1` (guest memory back in the
-  residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules).
+  residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules), `BB_MTL_FULL_USAGE=1` (pre-P10.1 texture
+  usages), `BB_IMAGE_USAGE_LOG=<tsv>` (per-texture usage inventory, `macos/bench/image_usage.py`).
 - Both backends: `BB_PRESENT_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>` (display buffer dumps),
   `BB_TOGGLE_FILE` (experiment bits at runtime, `gpu/shim/bbport_toggles.h`).
 - Validation: `MTL_DEBUG_LAYER=1 MTL_DEBUG_LAYER_ERROR_MODE=nslog NSZombieEnabled=YES`.
