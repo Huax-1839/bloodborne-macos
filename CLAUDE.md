@@ -19,8 +19,11 @@ stands and what is open).
   files, savedata, shader caches, screenshots, logs. The game lives in
   `~/Games/Bloodborne/CUSA03173-1.09`, bench data in `~/Games/Bloodborne/bench/`.
 - New source files start with `// SPDX-License-Identifier: GPL-2.0-or-later`.
-- The Vulkan backend must keep working (it is the reference and the Linux path): changes to
-  shared code are verified on Vulkan too (bench + screenshot).
+- The Vulkan backend must keep working (it is the reference for the Metal backend and the
+  fallback renderer): changes to shared code are verified on Vulkan too (bench + screenshot).
+- macOS only: the Linux build, launcher and packaging were removed (2026-10-17); Linux users use
+  the upstream project. Linux branches in shared code (`#ifdef __linux__`) stay, to keep the
+  shared files close to upstream for hand-ported fixes.
 
 ## Commands
 

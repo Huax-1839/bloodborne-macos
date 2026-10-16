@@ -11,7 +11,8 @@ Build: `bash macos/build-deps.sh` (once), `bash macos/build.sh`; run: `bash maco
 `~/Games/Bloodborne/CUSA03173-1.09`). 30 FPS profile for the MacBook Air M4:
 `BB_PROFILE=m4air bash macos/run.sh` (960x540 scene, MetalFX to 1080p). Renderer: Metal by default
 on Apple silicon with macOS 15+, `BB_RENDERER=vulkan` for the Vulkan backend on MoltenVK (the
-reference and the Linux path).
+reference). The repository is macOS only: the Linux build (top-level `build.sh`/`run.sh`,
+`shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17.
 
 ## State
 
@@ -71,7 +72,7 @@ against the faster frame.
 
 ## Vulkan path (MoltenVK)
 
-The reference for image comparisons and the Linux path; the numbers in this section predate the
+The reference for image comparisons and the fallback renderer; the numbers in this section predate the
 Metal backend.
 
 Performance in the clinic (same save and camera; the Air throttles ±15% between runs):
