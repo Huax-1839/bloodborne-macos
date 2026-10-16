@@ -262,6 +262,14 @@ public:
     /// bbport: `data` written into `dst` by the GPU in stream order (vkCmdUpdateBuffer pieces).
     virtual void UpdateBuffer(const Buffer* dst, u64 offset, std::span<const u8> data) = 0;
 
+    /// bbport BB_HOIST_DISPATCH: like UpdateBuffer, but the write goes before the held render
+    /// pass, in stream order with other hoisted work (between GpuQueue::BeginHoist and EndHoist).
+    /// False: not supported (not holding a pass, or the backend has no such path), nothing was
+    /// written: use UpdateBuffer.
+    virtual bool HoistedUpdateBuffer(const Buffer* dst, u64 offset, std::span<const u8> data) {
+        return false;
+    }
+
     /// Copies buffer regions into the subresources of `dst`.
     virtual void UploadImage(Image* dst, const Buffer* src,
                              std::span<const vk::BufferImageCopy> upload_copies) = 0;

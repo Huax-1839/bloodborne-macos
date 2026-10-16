@@ -176,6 +176,10 @@ public:
     void EndHoist() noexcept override {
         hoisting = false;
     }
+    /// Between BeginHoist and EndHoist of a held pass.
+    [[nodiscard]] bool IsHoisting() const noexcept {
+        return hoisting;
+    }
     /// Makes the held pass's render encoder and replays its commands; it stays open, unheld.
     void ReleaseHeldPass() override;
     void WaitHostCopies() override {}

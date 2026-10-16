@@ -664,6 +664,13 @@ void StagingPool::TrimLarge(std::vector<LargeBuffer>& cache) {
 
 // ---- Runtime: construction, ticks, queries ------------------------------------------------------
 
+/// `kernel write_words(device uint* dst [[buffer(0)]], constant uint* data [[buffer(1)]],
+/// constant uint2& params [[buffer(2)]])`: one thread per word, `params` = (first word of `dst`
+/// to write, word count).
+struct Runtime::WriteKernel {
+    id<MTLComputePipelineState> pipeline = nil;
+};
+
 Runtime::Runtime(Device& device_, Scheduler& scheduler_)
     : CacheBackend{MakeLimits(device_)}, device{device_}, scheduler{scheduler_},
       impl{std::make_unique<Impl>(device_, scheduler_)}, staging_pool{*this} {
@@ -1421,6 +1428,70 @@ void Runtime::UpdateBuffer(const Buffer* dst, u64 offset, std::span<const u8> da
     std::memcpy(staging.mapped, data.data(), data.size());
     const vk::BufferCopy copy{.srcOffset = staging.offset, .dstOffset = offset, .size = data.size()};
     CopyBuffer(staging.buffer, dst, std::span{&copy, 1});
+}
+
+namespace {
+NSString* const WriteWordsSource = @"#include <metal_stdlib>\n"
+    "using namespace metal;\n"
+    "kernel void write_words(device uint* dst [[buffer(0)]], constant uint* data [[buffer(1)]],\n"
+    "                        constant uint2& params [[buffer(2)]],\n"
+    "                        uint id [[thread_position_in_grid]]) {\n"
+    "    if (id < params.y) {\n"
+    "        dst[params.x + id] = data[id];\n"
+    "    }\n"
+    "}\n";
+
+/// setBuffer offsets of the compute encoder: the base is rounded down to this, the rest goes to
+/// the kernel in words (the 256 bytes of a constant buffer on macOS, so any binding rule holds).
+constexpr u64 BindAlignment = 256;
+constexpr u64 MaxHoistedWriteBytes = 4096; ///< the limit of setBytes
+} // namespace
+
+bool Runtime::HoistedUpdateBuffer(const Buffer* dst, u64 offset, std::span<const u8> data) {
+    if (data.empty() || data.size() > MaxHoistedWriteBytes || (data.size() | offset) % 4 != 0 ||
+        !scheduler.HoldingPass() || !scheduler.IsHoisting()) {
+        return false;
+    }
+    @autoreleasepool {
+        if (!write_kernel) {
+            NSError* error = nil;
+            MTLCompileOptions* options = [MTLCompileOptions new];
+            options.languageVersion = MTLLanguageVersion3_1;
+            id<MTLLibrary> library = [impl->dev.device newLibraryWithSource:WriteWordsSource
+                                                                    options:options
+                                                                      error:&error];
+            ASSERT_MSG(library, "write_words did not compile: {}",
+                       error ? error.localizedDescription.UTF8String : "unknown");
+            auto kernel = std::make_unique<WriteKernel>();
+            kernel->pipeline = [impl->dev.device
+                newComputePipelineStateWithFunction:[library newFunctionWithName:@"write_words"]
+                                              error:&error];
+            ASSERT_MSG(kernel->pipeline, "write_words pipeline failed: {}",
+                       error ? error.localizedDescription.UTF8String : "unknown");
+            write_kernel = std::move(kernel);
+        }
+        id<MTLComputePipelineState> pipeline = write_kernel->pipeline;
+        // The hoisted encoder, as a hoisted dispatch gets it: after every encoder before it, and a
+        // barrier ahead of the write for what an earlier hoisted dispatch did to the range. The
+        // held pass waits for this encoder when it is released (Scheduler::ReleaseHeldPass), and
+        // the next hoisted dispatch puts its own barrier first, so no barrier follows the write.
+        scheduler.ComputeEncoder("Hoisted dispatches");
+        scheduler.MemoryBarrier();
+        const u64 base = offset & ~(BindAlignment - 1);
+        const u32 params[2] = {static_cast<u32>((offset - base) / 4),
+                               static_cast<u32>(data.size() / 4)};
+        id<MTLComputeCommandEncoder> compute = impl->sched.compute;
+        // The buffer is bound explicitly: resident for this encoder without useResource.
+        [compute setComputePipelineState:pipeline];
+        [compute setBuffer:NativeBuffer(*dst) offset:base atIndex:0];
+        [compute setBytes:data.data() length:data.size() atIndex:1];
+        [compute setBytes:params length:sizeof(params) atIndex:2];
+        [compute dispatchThreads:MTLSizeMake(params[1], 1, 1)
+            threadsPerThreadgroup:MTLSizeMake(std::min<NSUInteger>(
+                                                  256, pipeline.maxTotalThreadsPerThreadgroup),
+                                              1, 1)];
+    }
+    return true;
 }
 
 void Runtime::InlineData(Buffer* dst, u64 offset, u32 value) {

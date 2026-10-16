@@ -145,6 +145,9 @@ inline std::array<std::atomic<std::uint32_t>, 3> camera_position_bits{};
 inline std::atomic<std::uint64_t> camera_frames{0};
 /// Dispatches recorded before the render pass they arrived in (BB_HOIST_DISPATCH).
 inline std::atomic<std::uint64_t> hoisted_dispatches{0};
+/// WRITE_DATA packets inside a held render pass (Metal): written before the pass / not hoistable
+/// (the pass ends there).
+inline std::atomic<std::uint64_t> hoisted_writes{0}, unhoisted_pass_writes{0};
 /// Guest writes caught by page protection, and pages currently left unprotected as hot.
 inline std::atomic<std::uint64_t> tracker_faults{0};
 /// Writes the GPU side heard of from the writers (libc copies over watched pages, no write tracking).

@@ -676,7 +676,7 @@ void Rasterizer::MaybePrintStats() {
                 (unsigned long long)impl->no_pipeline_draws.load(std::memory_order_relaxed));
     std::printf("Metal pipelines: %llu created (%llu modules, %llu unusable); not created: %llu "
                 "geometry (unsupported shape), %llu stage combination, %llu tessellation "
-                "(isolines, point mode), %llu shader, %llu RectList rewrite, %llu PSO; shader compiles %llu, failures %llu, PerVertex failures %llu\n",
+                "(isolines, point mode), %llu shader, %llu RectList rewrite, %llu PSO; shader compiles %llu, failures %llu, PerVertex failures %llu; WRITE_DATA in passes: %llu hoisted, %llu not\n",
                 (unsigned long long)pc.pipelines.load(), (unsigned long long)pc.modules.load(),
                 (unsigned long long)pc.unusable_modules.load(),
                 (unsigned long long)pc.geometry_unsupported.load(),
@@ -686,7 +686,9 @@ void Rasterizer::MaybePrintStats() {
                 (unsigned long long)pc.rect_list_unrewritable.load(),
                 (unsigned long long)pc.pso_failures.load(), (unsigned long long)sc.compiled.load(),
                 (unsigned long long)sc.compile_failures.load(),
-                (unsigned long long)sc.pervertex_failures.load());
+                (unsigned long long)sc.pervertex_failures.load(),
+                (unsigned long long)BbStats::hoisted_writes.load(std::memory_order_relaxed),
+                (unsigned long long)BbStats::unhoisted_pass_writes.load(std::memory_order_relaxed));
     for (u32 i = 1; i < Impl::kNumDrops; ++i) {
         if (const u64 count = impl->drops[i].load(std::memory_order_relaxed)) {
             std::printf("  dropped %llu: %s\n", (unsigned long long)count, kDropNames[i]);
