@@ -28,6 +28,8 @@ struct Scheduler::Impl {
     id<MTLBlitCommandEncoder> blit;
     /// The held render pass's descriptor (nil when none is held, Scheduler::ReleaseHeldPass).
     MTLRenderPassDescriptor* held_pass;
+    /// The descriptors of the passes the replay thread encodes (Scheduler::replay_ring's slots).
+    std::array<MTLRenderPassDescriptor*, Scheduler::ReplayDepth> replay_passes;
     std::array<id<MTLFence>, FenceCount> fences;
     u32 outstanding_fences = 0; ///< bit i: fences[i] was updated and nobody waited for it
     u32 next_fence = 0;         ///< the slot the open (or next) encoder updates at its end

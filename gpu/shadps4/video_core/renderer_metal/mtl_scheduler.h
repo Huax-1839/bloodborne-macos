@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -45,9 +47,19 @@ namespace Metal {
 /// an encoder (another pass, a dispatch, a transfer, Flush) releases the held pass first: the
 /// hoisted encoder ends, the render encoder is made and the recorded commands replayed into it;
 /// the pass then goes on unheld (direct mode).
+///
+/// Replay thread (P8.6; BB_MTL_REPLAY_THREAD=0 turns it off, experiment bit MtlNoReplayThread
+/// while the game runs): a held pass released because the next held pass begins is encoded on
+/// the scheduler's own thread (hoisted encoder ended, render encoder made, commands replayed,
+/// encoder ended) while the recording thread records the next passes. Up to ReplayDepth jobs in
+/// flight, in order; they own Impl's encoders, fences and the command buffer's encoding until
+/// JoinReplay, which every member that touches them calls first (the held pass's own recorded
+/// calls do not).
 class Scheduler final : public VideoCore::GpuQueue {
 public:
     enum class EncoderKind : u8 { None, Render, Compute, Blit };
+    /// Held passes the replay thread may have in flight.
+    static constexpr u32 ReplayDepth = 4;
 
     /// `name` labels the command buffers ("<name> #<tick>", seen in Xcode and error reports).
     explicit Scheduler(Device& device, const char* name = "bbport");
@@ -216,10 +228,21 @@ private:
 
     void BeginEncoder(EncoderKind kind, const void* pass_descriptor);
     /// Creates the encoder of `kind` (none may be open): fence waits, guest chunk use, groups.
-    void OpenPhysical(EncoderKind kind, const void* pass_descriptor);
+    /// `wait_all`: wait for the fences of every earlier encoder still outstanding first.
+    void OpenPhysical(EncoderKind kind, const void* pass_descriptor, bool wait_all);
     /// Ends the physical encoder of `kind` (fence update, groups).
     void ClosePhysical(EncoderKind kind);
     void PriorityPendingOpsThread(std::stop_token stoken);
+    /// ClosePhysical without the rasterizer's RenderList (the replay thread's part).
+    void CloseNative(EncoderKind kind);
+    /// Gives the held pass to the replay thread (waits for a free slot).
+    void PostReplay();
+    /// Waits until the replay thread's jobs are done (never called on that thread).
+    void JoinReplay();
+    /// Waits until `target` jobs are done.
+    void WaitReplay(u32 target);
+    void RunReplayJob(u32 slot);
+    void ReplayThread(std::stop_token stoken);
 
     Device& device;
     std::unique_ptr<Impl> impl;
@@ -257,6 +280,22 @@ private:
     std::condition_variable_any priority_cv;
     std::queue<PendingOp> priority_pending_ops;
     std::jthread priority_thread;
+
+    // Replay thread (see the class comment).
+    struct ReplayJob {
+        RenderList list;            ///< the pass's commands
+        bool close_compute = false; ///< end the hoisted compute encoder first
+        bool wait_all = false;      ///< the render encoder waits for every earlier encoder
+        std::string label;          ///< BB_PASS_LABELS: the encoder label
+    };
+    bool replay_enabled = false; ///< BB_MTL_REPLAY_THREAD (default 1)
+    /// Jobs in flight, by number modulo ReplayDepth (the pass descriptors: Impl::replay_passes).
+    std::array<ReplayJob, ReplayDepth> replay_ring;
+    std::atomic<u32> replay_posted{0}; ///< jobs posted (by the thread that records)
+    std::atomic<u32> replay_done{0};   ///< jobs finished (by the replay thread)
+    u64 replay_jobs = 0, replay_joins = 0, replay_wait_ns = 0; ///< BB_FRAME_STATS
+    std::chrono::steady_clock::time_point replay_window{};
+    std::jthread replay_thread;
 
     std::mutex error_mutex;
     ErrorHandler error_handler;

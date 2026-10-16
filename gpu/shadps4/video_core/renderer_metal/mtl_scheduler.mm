@@ -170,11 +170,24 @@ Scheduler::Scheduler(Device& device_, const char* name_)
     const char* hold = std::getenv("BB_MTL_HOLD");
     hold_env = !(hold && hold[0] == '0');
     hold_passes = hold_env;
+    const char* replay = std::getenv("BB_MTL_REPLAY_THREAD");
+    replay_enabled = hold_env && !(replay && replay[0] == '0');
+    if (replay_enabled) {
+        replay_thread = std::jthread(std::bind_front(&Scheduler::ReplayThread, this));
+    }
 }
 
 Scheduler::~Scheduler() {
     // The callback belongs to the rasterizer, which is gone by now.
     on_submit = VideoCore::SubmitFunc{};
+    JoinReplay();
+    if (replay_thread.joinable()) {
+        replay_thread.request_stop();
+        replay_posted.fetch_add(1, std::memory_order_acq_rel); // wakes it (no job)
+        replay_posted.notify_all();
+        replay_thread.join();
+        replay_done.store(replay_posted.load(std::memory_order_acquire), std::memory_order_release);
+    }
     priority_thread.request_stop();
     priority_cv.notify_all();
     if (priority_thread.joinable()) {
@@ -211,11 +224,11 @@ void Scheduler::BeginEncoder(EncoderKind kind, const void* pass_descriptor) {
     if (kind == EncoderKind::None) {
         return;
     }
-    OpenPhysical(kind, pass_descriptor);
+    OpenPhysical(kind, pass_descriptor, std::exchange(need_fence_wait, false));
     open_encoder = kind;
 }
 
-void Scheduler::OpenPhysical(EncoderKind kind, const void* pass_descriptor) {
+void Scheduler::OpenPhysical(EncoderKind kind, const void* pass_descriptor, bool wait_all) {
     id<MTLCommandBuffer> cmdbuf = impl->EnsureCommandBuffer();
     // Encoders are autoreleased: the pool drains them once the scheduler holds its reference.
     @autoreleasepool {
@@ -242,9 +255,8 @@ void Scheduler::OpenPhysical(EncoderKind kind, const void* pass_descriptor) {
     if (impl->outstanding_fences & (1u << slot)) {
         WaitFence(*impl, kind, slot);
     }
-    if (need_fence_wait) {
+    if (wait_all) {
         WaitOutstandingFences(*impl, kind);
-        need_fence_wait = false;
     }
     if (labels_enabled) {
         for (const std::string& group : debug_groups) {
@@ -283,8 +295,13 @@ void Scheduler::RenderEncoder(const void* pass_descriptor, const VideoCore::Rend
         commands_active = true;
         return;
     }
-    EndEncoder();
-    impl->EnsureCommandBuffer();
+    if (holding && replay_enabled && open_encoder == EncoderKind::Render &&
+        !BbToggle::Experiment(BbToggle::MtlNoReplayThread)) {
+        PostReplay(); // the held pass is encoded on the replay thread while this one is recorded
+    } else {
+        EndEncoder();
+    }
+    impl->EnsureCommandBuffer(); // (open already after a PostReplay: no Metal call)
     // Held: the descriptor is kept (the caller's is autoreleased) until the pass is released.
     impl->held_pass = (__bridge MTLRenderPassDescriptor*)pass_descriptor;
     open_encoder = EncoderKind::Render;
@@ -299,6 +316,7 @@ void Scheduler::RenderEncoder(const void* pass_descriptor, const VideoCore::Rend
 }
 
 void Scheduler::ReleaseHeldPass() {
+    JoinReplay();
     if (!holding) {
         return;
     }
@@ -313,7 +331,8 @@ void Scheduler::ReleaseHeldPass() {
         need_fence_wait = true;
     }
     hoisted = false;
-    OpenPhysical(EncoderKind::Render, (__bridge const void*)impl->held_pass);
+    OpenPhysical(EncoderKind::Render, (__bridge const void*)impl->held_pass,
+                 std::exchange(need_fence_wait, false));
     impl->held_pass = nil;
     if (pass_labels && !held_label.empty()) {
         impl->render.label = @(held_label.c_str());
@@ -322,13 +341,121 @@ void Scheduler::ReleaseHeldPass() {
     commands.BeginDirect((__bridge void*)impl->render);
 }
 
+void Scheduler::PostReplay() {
+    const u32 posted = replay_posted.load(std::memory_order_relaxed); // (only this thread posts)
+    WaitReplay(posted + 1 - ReplayDepth); // a free slot
+    const u32 slot = posted % ReplayDepth;
+    ReplayJob& job = replay_ring[slot];
+    // What ReleaseHeldPass and EndEncoder do on this thread, but the encoding goes to the job.
+    // The hoisted compute encoder is the only one open while a pass is held.
+    job.close_compute = hoisted;
+    job.wait_all = std::exchange(need_fence_wait, false) || hoisted || commands.HasBarrier();
+    job.label = pass_labels ? held_label : std::string{};
+    holding = false;
+    hoisting = false;
+    hoisted = false;
+    impl->replay_passes[slot] = impl->held_pass;
+    impl->held_pass = nil;
+    commands.TakeRecording(job.list);
+    commands.End();
+    commands_active = false;
+    open_encoder = EncoderKind::None;
+    render_state.reset();
+    ++replay_jobs;
+    replay_posted.store(posted + 1, std::memory_order_release);
+    replay_posted.notify_one();
+}
+
+void Scheduler::JoinReplay() {
+    WaitReplay(replay_posted.load(std::memory_order_acquire));
+}
+
+void Scheduler::WaitReplay(u32 target) {
+    // Jobs done reaches `target` (wrapping counters).
+    const auto reached = [target](u32 done) { return static_cast<s32>(done - target) >= 0; };
+    u32 done = replay_done.load(std::memory_order_acquire);
+    if (reached(done)) {
+        return;
+    }
+    const auto start = BbStats::enabled ? std::chrono::steady_clock::now()
+                                        : std::chrono::steady_clock::time_point{};
+    for (int spin = 0; !reached(done) && spin < 4096; ++spin) {
+        __builtin_ia32_pause();
+        done = replay_done.load(std::memory_order_acquire);
+    }
+    while (!reached(done)) {
+        replay_done.wait(done, std::memory_order_acquire);
+        done = replay_done.load(std::memory_order_acquire);
+    }
+    if (BbStats::enabled) {
+        ++replay_joins;
+        const auto now = std::chrono::steady_clock::now();
+        replay_wait_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(now - start).count();
+        if (now - replay_window >= std::chrono::seconds(5)) {
+            if (replay_window != std::chrono::steady_clock::time_point{}) {
+                const double seconds = std::chrono::duration<double>(now - replay_window).count();
+                std::printf("Metal replay thread: %.0f passes/s, the recording thread waited for "
+                            "it %.0f/s (%.2f ms/s)\n",
+                            replay_jobs / seconds, replay_joins / seconds,
+                            replay_wait_ns / 1e6 / seconds);
+            }
+            replay_window = now;
+            replay_jobs = replay_joins = replay_wait_ns = 0;
+        }
+    }
+}
+
+void Scheduler::RunReplayJob(u32 slot) {
+    ReplayJob& job = replay_ring[slot];
+    @autoreleasepool {
+        if (job.close_compute) {
+            CloseNative(EncoderKind::Compute);
+        }
+        OpenPhysical(EncoderKind::Render, (__bridge const void*)impl->replay_passes[slot],
+                     job.wait_all);
+        impl->replay_passes[slot] = nil;
+        if (!job.label.empty()) {
+            impl->render.label = @(job.label.c_str());
+        }
+        job.list.Replay((__bridge void*)impl->render);
+        job.list.End();
+        CloseNative(EncoderKind::Render);
+    }
+}
+
+void Scheduler::ReplayThread(std::stop_token stoken) {
+    Common::SetCurrentThreadName("bb:MtlReplay");
+    u32 done = 0;
+    while (true) {
+        u32 posted = replay_posted.load(std::memory_order_acquire);
+        // Passes come every few hundred microseconds: a short spin before sleeping.
+        for (int spin = 0; posted == done && spin < 2048; ++spin) {
+            __builtin_ia32_pause();
+            posted = replay_posted.load(std::memory_order_acquire);
+        }
+        if (posted == done) {
+            replay_posted.wait(done, std::memory_order_acquire);
+            continue;
+        }
+        if (stoken.stop_requested()) {
+            return;
+        }
+        for (; done != posted; ++done) {
+            RunReplayJob(done % ReplayDepth);
+            replay_done.store(done + 1, std::memory_order_release);
+            replay_done.notify_one();
+        }
+    }
+}
+
 void Scheduler::ComputeEncoder(const char* label) {
+    JoinReplay();
     if (holding && hoisting) {
         // Before the held pass: one compute encoder for everything hoisted into this pass, after
         // every encoder before it (the barrier Vulkan records before a hoisted dispatch).
         if (!impl->compute) {
-            need_fence_wait = true;
-            OpenPhysical(EncoderKind::Compute, nullptr);
+            need_fence_wait = false; // (it waits for everything before it anyway)
+            OpenPhysical(EncoderKind::Compute, nullptr, true);
             hoisted = true;
             if (label) {
                 LabelEncoder(label);
@@ -345,6 +472,7 @@ void Scheduler::ComputeEncoder(const char* label) {
 }
 
 void Scheduler::BlitEncoder(const char* label) {
+    JoinReplay();
     if (open_encoder != EncoderKind::Blit) {
         BeginEncoder(EncoderKind::Blit, nullptr);
         if (label) {
@@ -354,6 +482,7 @@ void Scheduler::BlitEncoder(const char* label) {
 }
 
 void Scheduler::EndEncoder() {
+    JoinReplay();
     if (open_encoder == EncoderKind::None) {
         return;
     }
@@ -364,15 +493,19 @@ void Scheduler::EndEncoder() {
 }
 
 void Scheduler::ClosePhysical(EncoderKind kind) {
+    if (kind == EncoderKind::Render && commands_active) {
+        commands.End();
+        commands_active = false;
+    }
+    CloseNative(kind);
+}
+
+void Scheduler::CloseNative(EncoderKind kind) {
     // Every encoder updates the next fence of the ring at its end (see MemoryBarrier).
     const u32 slot = impl->next_fence;
     id<MTLFence> fence = impl->fences[slot];
     switch (kind) {
     case EncoderKind::Render:
-        if (commands_active) {
-            commands.End();
-            commands_active = false;
-        }
         for (size_t i = 0; labels_enabled && i < debug_groups.size(); ++i) {
             [impl->render popDebugGroup];
         }
@@ -418,6 +551,7 @@ void Scheduler::EndRendering() {
 void Scheduler::MemoryBarrier() {
     if (holding) {
         if (hoisting) {
+            JoinReplay(); // (the job may still end the previous pass's hoisted encoder)
             if (impl->compute) {
                 [impl->compute memoryBarrierWithScope:MTLBarrierScopeBuffers | MTLBarrierScopeTextures];
                 WaitOutstandingFences(*impl, EncoderKind::Compute);
@@ -430,6 +564,7 @@ void Scheduler::MemoryBarrier() {
         commands.MemoryBarrier();
         return;
     }
+    JoinReplay();
     switch (open_encoder) {
     case EncoderKind::Compute:
         [impl->compute memoryBarrierWithScope:MTLBarrierScopeBuffers | MTLBarrierScopeTextures];
@@ -503,6 +638,7 @@ void Scheduler::InsertDebugSignpost(const char* text) {
         commands.InsertDebugSignpost(text);
         return;
     }
+    JoinReplay();
     NSString* label = @(text);
     switch (open_encoder) {
     case EncoderKind::Render:
@@ -531,6 +667,7 @@ void Scheduler::LabelEncoder(const char* text) {
         held_label = text;
         return;
     }
+    JoinReplay();
     if (holding) {
         if (impl->compute) {
             impl->compute.label = @(text); // the hoisted encoder
@@ -582,6 +719,7 @@ void Scheduler::ReportStuck(const char* where) {
 }
 
 void Scheduler::Flush() {
+    JoinReplay();
     if (on_submit && !in_submit_callback) {
         // The rasterizer flushes its barriers and hands the queue operations that go out with the
         // submission (none on Metal, but the buffer cache's arena binds ride here on Vulkan).

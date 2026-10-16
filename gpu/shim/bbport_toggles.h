@@ -103,6 +103,8 @@ enum : std::uint64_t {
     MtlNoBytesRing = 1ull << 43,
     /// Geometry-shader draws dropped (P7.1: A/B of the emulated effects on one view).
     MtlNoGeometry = 1ull << 44,
+    /// Held passes encoded on the recording thread, not on the replay thread (P8.6, A/B).
+    MtlNoReplayThread = 1ull << 45,
 };
 inline bool Disabled(std::uint64_t bit) {
     return (__atomic_load_n(&runtime_disabled_optimizations, __ATOMIC_RELAXED) & bit) != 0;

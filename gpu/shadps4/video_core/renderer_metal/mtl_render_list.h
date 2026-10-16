@@ -24,7 +24,8 @@ namespace Metal {
 /// the command buffer of the tick they were used in has completed, and a held pass is replayed
 /// before its command buffer is committed. Labels and debug group names are copied.
 ///
-/// Plain C++ header (no Objective-C types); one thread at a time, the recording thread.
+/// Plain C++ header (no Objective-C types); one thread at a time (the recording thread, or the
+/// replay thread for a list given to it with TakeRecording).
 class RenderList {
 public:
     enum class Stage : u8 { Vertex, Fragment };
@@ -52,6 +53,10 @@ public:
     /// Replays what was recorded into `encoder`, in order, and empties the list. The mode stays
     /// recording until the next Begin*.
     void Replay(void* encoder);
+    /// Moves what was recorded into `into` (empty, in no mode), which is then in recording mode
+    /// and can be replayed on another thread (the scheduler's replay thread); this list stays
+    /// recording, empty. The two lists may then be used on different threads.
+    void TakeRecording(RenderList& into);
     /// Leaves either mode (the encoder is ended by the scheduler); recorded commands must have
     /// been replayed.
     void End();

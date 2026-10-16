@@ -596,6 +596,16 @@ void RenderList::Replay(void* encoder) {
     impl->Replay((__bridge id<MTLRenderCommandEncoder>)encoder);
 }
 
+void RenderList::TakeRecording(RenderList& into) {
+    assert(impl->mode == Impl::Mode::Recording);
+    assert(into.impl->mode == Impl::Mode::None && into.impl->arena.empty());
+    into.impl->mode = Impl::Mode::Recording;
+    into.impl->encoder = nil;
+    into.impl->arena.swap(impl->arena); // (this list gets the other's capacity back)
+    into.impl->has_barrier = impl->has_barrier;
+    impl->arena.clear();
+}
+
 void RenderList::End() {
     assert(impl->arena.empty());
     impl->mode = Impl::Mode::None;
