@@ -861,6 +861,19 @@ the call; the decoder idles 8.3 ms of it: the recording thread encodes the frame
 draws, p90 1160). No VO-label or WAIT_REG_MEM waits, no guest waits on the previous frame. Vulkan
 shows the same pattern (5.9-6.3% missed in the clinic bench).
 
+P8.6 recording thread (2026-10-16; user's choice: faster recording rather than a flip grace window
+or an earlier flip). `sample` of a 30-s walk (`sample-metal-walk.txt`): `bb:DrawRec` runs 99% of
+the time at 30 FPS. Its time: encoder creation ~25% (`ReleaseHeldPass` → `OpenPhysical` →
+`renderCommandEncoderWithDescriptor` 12%), `BindResources` ~25%, `RunWriteData` → `UpdateBuffer` →
+blit encoder 9% (each WRITE_DATA in a held pass ends it), `ResetBindings` 7% (linear searches of
+the pass's images). (a) WRITE_DATA written by a small kernel in the hoisted compute encoder when
+the pass had not touched the range (70e7fdf): every in-game write hoisted, but **slower** (toggle
+A/B in one run +4.4% with it off; interleaved 30.7 vs 33.5 FPS uncapped): reverted (63432a5); the
+compute encoder and fence wait in front of each pass cost more GPU time than the churn saves.
+(b) Pass image membership by stamps instead of searches (3ad06d5): uncapped 32.2 vs 31.5 FPS
+interleaved against 1bc281e (+2.1%, ahead in each of 3 pairs); kept. Vulkan boots and images
+unchanged (run-to-run differences of the animated clinic are larger than the change's).
+
 Reference screenshots: `~/Games/Bloodborne/bench/reference-vulkan-m4air-{540p,720p}-uncapped.png`
 (clinic); title-screen references come with the first runs of the updated `bench.sh`.
 
