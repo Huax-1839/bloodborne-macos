@@ -1406,11 +1406,11 @@ bool RasterizerCore::HoistDispatch(const PipelineBase* pipeline, const Shader::I
             writes_images |= desc.is_written;
         }
         for (const auto image_id : bound_images) {
-            if (std::ranges::find(pass_images, image_id.index) == pass_images.end()) {
+            if (!InPassImages(image_id.index)) {
                 continue;
             }
             if (writes_images || backend.HasPendingImageBarriers() ||
-                std::ranges::find(pass_read_images, image_id.index) == pass_read_images.end()) {
+                !InPassReadImages(image_id.index)) {
                 static std::atomic<int> logged{0};
                 if (diag && logged.fetch_add(1) < 200) {
                     const auto& image = texture_cache.GetImage(image_id);
@@ -1418,8 +1418,7 @@ bool RasterizerCore::HoistDispatch(const PipelineBase* pipeline, const Shader::I
                                 "image %u %ux%u fmt %s layout %s groups %ux%ux%u nimg %zu\n",
                                 (unsigned long long)cs.pgm_hash, writes_images,
                                 backend.HasPendingImageBarriers(),
-                                std::ranges::find(pass_read_images, image_id.index) !=
-                                    pass_read_images.end(),
+                                InPassReadImages(image_id.index),
                                 image_id.index, image.info.size.width, image.info.size.height,
                                 vk::to_string(image.info.pixel_format).c_str(),
                                 vk::to_string(image.backing ? image.backing->state.layout
@@ -1509,7 +1508,7 @@ bool RasterizerCore::CanHoistDrawWork() {
         return result(3);
     }
     for (const auto image_id : bound_images) {
-        if (std::ranges::find(pass_images, image_id.index) == pass_images.end()) {
+        if (!InPassImages(image_id.index)) {
             continue;
         }
         // The draw's own render targets are among its images: the work hoisted for it (vertex
@@ -1524,7 +1523,7 @@ bool RasterizerCore::CanHoistDrawWork() {
             continue;
         }
         if (backend.HasPendingImageBarriers() ||
-            std::ranges::find(pass_read_images, image_id.index) == pass_read_images.end()) {
+            !InPassReadImages(image_id.index)) {
             static std::atomic<int> logged{0};
             if (diag && logged.fetch_add(1) < 12) {
                 const auto& image = texture_cache.GetImage(image_id);

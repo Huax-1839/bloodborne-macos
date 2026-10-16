@@ -1572,6 +1572,7 @@ void RasterizerCore::ResetBindings(bool is_compute) {
             pass_writes.clear();
             pass_images.clear();
             pass_read_images.clear();
+            ++pass_generation;
             pass_untracked = false;
         }
         pass_untracked |= pending_untracked;
@@ -1580,15 +1581,16 @@ void RasterizerCore::ResetBindings(bool is_compute) {
             const auto layout = image.backing ? image.backing->state.layout : vk::ImageLayout::eUndefined;
             const bool read_only = layout == vk::ImageLayout::eShaderReadOnlyOptimal ||
                                    layout == vk::ImageLayout::eDepthStencilReadOnlyOptimal;
-            const bool known = std::ranges::find(pass_images, image_id.index) != pass_images.end();
-            const auto read_it = std::ranges::find(pass_read_images, image_id.index);
-            if (!known) {
+            if (!InPassImages(image_id.index)) {
                 pass_images.push_back(image_id.index);
+                SetStamp(pass_image_stamp, image_id.index, pass_generation);
                 if (read_only) {
                     pass_read_images.push_back(image_id.index);
+                    SetStamp(pass_read_stamp, image_id.index, pass_generation);
                 }
-            } else if (!read_only && read_it != pass_read_images.end()) {
-                pass_read_images.erase(read_it);
+            } else if (!read_only && InPassReadImages(image_id.index)) {
+                pass_read_images.erase(std::ranges::find(pass_read_images, image_id.index));
+                pass_read_stamp[image_id.index] = 0;
             }
         }
         for (const auto& access : pending_accesses) {

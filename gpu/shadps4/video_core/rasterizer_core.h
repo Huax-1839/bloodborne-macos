@@ -714,6 +714,22 @@ protected:
     boost::container::small_vector<u32, 32> pass_images;
     /// Of those, the ones only sampled (read-only layouts) so far.
     boost::container::small_vector<u32, 32> pass_read_images;
+    /// O(1) membership for the two vectors above: an image index is a member when its stamp equals
+    /// pass_generation (bumped whenever the vectors are cleared; stamps start at 0, generation at 1).
+    std::vector<u64> pass_image_stamp, pass_read_stamp;
+    u64 pass_generation = 1;
+    bool InPassImages(u32 index) const {
+        return index < pass_image_stamp.size() && pass_image_stamp[index] == pass_generation;
+    }
+    bool InPassReadImages(u32 index) const {
+        return index < pass_read_stamp.size() && pass_read_stamp[index] == pass_generation;
+    }
+    static void SetStamp(std::vector<u64>& stamps, u32 index, u64 value) {
+        if (index >= stamps.size()) {
+            stamps.resize(std::max<size_t>(index + 1, stamps.size() * 2), 0);
+        }
+        stamps[index] = value;
+    }
     u64 pass_serial = 0;
     bool pass_untracked = false;
     void NoteGuestAccess(VAddr address, u64 size, bool write) {
