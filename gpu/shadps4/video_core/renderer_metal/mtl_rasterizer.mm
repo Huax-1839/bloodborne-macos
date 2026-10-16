@@ -23,6 +23,7 @@
 #include "video_core/renderer_metal/mtl_device_impl.h"
 #include "video_core/renderer_metal/mtl_geometry.h"
 #include "video_core/renderer_metal/mtl_guest_memory.h"
+#include "video_core/renderer_metal/mtl_image_usage_log.h"
 #include "video_core/renderer_metal/mtl_index_expand.h"
 #include "video_core/renderer_metal/mtl_raster_util.h"
 #include "video_core/renderer_metal/mtl_rasterizer.h"
@@ -557,6 +558,11 @@ void Rasterizer::BindTextureSet(std::span<const TextureBinding> textures,
                                     "descriptor binds nil); counted in BB_FRAME_STATS");
             }
         }
+        if (ImageUsageLog::Enabled()) {
+            // A storage binding is one the shader writes (BindingType::Storage: is_written).
+            ImageUsageLog::Bound(native, texture.storage ? ImageUsageLog::Use::Storage
+                                                         : ImageUsageLog::Use::Sampled);
+        }
         impl->textures[index] = native;
         impl->num_textures = std::max(impl->num_textures, index + 1);
     }
@@ -708,6 +714,10 @@ RenderState Rasterizer::BuildRenderState(const RenderTargets& targets) {
             attachment.image_layout = source.layout;
         }
         attachment.clear_value = source.clear_value;
+        if (ImageUsageLog::Enabled() && attachment.image_view) {
+            ImageUsageLog::Bound(reinterpret_cast<void*>(attachment.image_view),
+                                 ImageUsageLog::Use::RenderTarget);
+        }
         return attachment;
     };
     RenderState state;

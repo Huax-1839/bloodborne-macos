@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "common/assert.h"
+#include "video_core/renderer_metal/mtl_image_usage_log.h"
 #include "video_core/renderer_metal/mtl_runtime_impl.h"
 #include "video_core/renderer_metal/mtl_scene_targets.h"
 #include "video_core/renderer_metal/vk_to_mtl.h"
@@ -398,6 +399,9 @@ void SceneTargets::CopyProxy(Entry& e, VideoCore::Image& original, bool to_nativ
                                                    levels:NSMakeRange(e.level, 1)
                                                    slices:NSMakeRange(0, 1)];
             ASSERT_MSG(level, "Failed to view level {} of a scene image", e.level);
+            if (ImageUsageLog::Enabled()) {
+                ImageUsageLog::ViewMade((__bridge const void*)native, (__bridge const void*)level);
+            }
         }
         id<MTLTexture> source = to_native ? proxy : level;
         id<MTLTexture> target = to_native ? level : proxy;
@@ -406,6 +410,9 @@ void SceneTargets::CopyProxy(Entry& e, VideoCore::Image& original, bool to_nativ
         if (cls == Class::DepthStencil) {
             stencil = [source newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8];
             ASSERT_MSG(stencil, "Failed to view the stencil of a scene image");
+            if (ImageUsageLog::Enabled()) {
+                ImageUsageLog::ViewMade((__bridge const void*)source, (__bridge const void*)stencil);
+            }
         }
         // What the command buffer uses but does not retain stays alive until it is done.
         if (level != native || stencil) {
@@ -486,6 +493,9 @@ VideoCore::NativeView SceneTargets::View(Entry& e, const VideoCore::Image&,
                                                           MTLTextureSwizzle(swizzle.a))];
         ASSERT_MSG(texture, "Failed to create a view (format {}) of a scene proxy",
                    vk::to_string(info.format));
+    }
+    if (ImageUsageLog::Enabled()) {
+        ImageUsageLog::ViewMade((__bridge const void*)base, (__bridge const void*)texture);
     }
     proxy.views.push_back({info.format, info.mapping, texture});
     return NativeViewOf(texture);

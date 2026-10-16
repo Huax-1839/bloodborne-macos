@@ -23,6 +23,7 @@
 #include "common/logging/log.h"
 #include "video_core/renderer_metal/mtl_format_convert_impl.h"
 #include "video_core/renderer_metal/mtl_guest_memory.h"
+#include "video_core/renderer_metal/mtl_image_usage_log.h"
 #include "video_core/renderer_metal/mtl_runtime_impl.h"
 #include "video_core/renderer_metal/mtl_scene_targets.h"
 #include "video_core/renderer_metal/vk_to_mtl.h"
@@ -673,10 +674,12 @@ Runtime::Runtime(Device& device_, Scheduler& scheduler_)
 Runtime::~Runtime() {
     // Pipelines and the objects the caches still hold may be in use by the last command buffers.
     scheduler.Finish();
+    ImageUsageLog::Flush();
 }
 
 void Runtime::TickFrame() {
     staging_pool.TickFrame();
+    ImageUsageLog::Tick();
     BbStats::metal_allocated_bytes.store(impl->dev.device.currentAllocatedSize,
                                          std::memory_order_relaxed);
 }
@@ -1033,6 +1036,9 @@ void Runtime::CreateImage(UniqueImage& out, const vk::ImageCreateInfo& info) {
             std::scoped_lock lock{impl->formats_mutex};
             impl->image_formats[out.native] = ci.format;
         }
+        if (ImageUsageLog::Enabled()) {
+            ImageUsageLog::Created(out.native, vk::to_string(ci.format), block);
+        }
     }
 }
 
@@ -1045,6 +1051,9 @@ void Runtime::DestroyImage(UniqueImage& image) {
     {
         std::scoped_lock lock{impl->formats_mutex};
         impl->image_formats.erase(native);
+    }
+    if (ImageUsageLog::Enabled()) {
+        ImageUsageLog::Destroyed(native);
     }
     scheduler.DeferOperation([dev = &impl->dev, native] {
         id<MTLTexture> texture = (__bridge_transfer id<MTLTexture>)native;
@@ -1190,6 +1199,9 @@ void Runtime::CreateImageView(ImageView& out, const vk::ImageViewCreateInfo& inf
             ASSERT_MSG(texture, "Failed to create a Metal texture view (format {}, type {})",
                        static_cast<u32>(pixel_format), static_cast<u32>(type));
         }
+        if (ImageUsageLog::Enabled()) {
+            ImageUsageLog::ViewMade(base_native, (__bridge const void*)texture);
+        }
         out.owner = this;
         out.native = (__bridge_retained void*)texture;
     }
@@ -1268,6 +1280,9 @@ void Runtime::SetBufferName(const UniqueBuffer& buffer, std::string_view name) {
 void Runtime::SetImageName(const UniqueImage& image, std::string_view name) {
     if (!image.native) {
         return;
+    }
+    if (ImageUsageLog::Enabled()) {
+        ImageUsageLog::Named(image.native, name);
     }
     id<MTLTexture> native = (__bridge id<MTLTexture>)image.native;
     native.label = [[NSString alloc] initWithBytes:name.data()
@@ -1508,6 +1523,9 @@ id<MTLTexture> CopySource(id<MTLTexture> src, vk::Format src_format, id<MTLTextu
         return nil;
     }
     keep_alive = [src newTextureViewWithPixelFormat:dst.pixelFormat];
+    if (ImageUsageLog::Enabled()) {
+        ImageUsageLog::ViewMade((__bridge const void*)src, (__bridge const void*)keep_alive);
+    }
     return keep_alive;
 }
 } // namespace

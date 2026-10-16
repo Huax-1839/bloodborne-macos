@@ -25,6 +25,7 @@
 #include "video_core/motion_history.h"
 #include "video_core/renderer_metal/mtl_camera_motion.h"
 #include "video_core/renderer_metal/mtl_device_impl.h"
+#include "video_core/renderer_metal/mtl_image_usage_log.h"
 #include "video_core/renderer_metal/mtl_runtime.h"
 #include "video_core/renderer_metal/mtl_runtime_impl.h"
 #include "video_core/renderer_metal/mtl_scene_targets.h"
@@ -1062,6 +1063,9 @@ void Upscaler::RunLive() {
     [compute setComputePipelineState:merge];
     [compute setTexture:impl->live_output atIndex:impl->merge_slots[0]];
     [compute setTexture:native_color atIndex:impl->merge_slots[1]];
+    if (ImageUsageLog::Enabled()) {
+        ImageUsageLog::Bound((__bridge const void*)native_color, ImageUsageLog::Use::UpscalerWrite);
+    }
     [compute setTexture:impl->live_output atIndex:impl->merge_slots[2]]; // (reactive: unused)
     [compute setTexture:impl->motion atIndex:impl->merge_slots[3]];
     [compute setTexture:impl->motion atIndex:impl->merge_slots[4]]; // (objects: no object motion)
