@@ -95,6 +95,7 @@ enum class FloatRules : u8 {
 };
 const char* FloatRulesName(FloatRules rules);
 /// BB_MTL_STRICT_FLOAT (1: V0, 0: V1 or V2) and BB_MTL_RELAXED_MATH (0: V1, 1: V2); read once.
+/// Default V1.
 FloatRules ReadFloatRules();
 
 /// How a stage is compiled. Plain is the direct pipeline (vertex function, fragment function,

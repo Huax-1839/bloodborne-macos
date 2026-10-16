@@ -913,9 +913,11 @@ const char* FloatRulesName(FloatRules rules) {
 }
 
 FloatRules ReadFloatRules() {
-    // The defaults of the two switches until the variants are measured (plan P9).
-    constexpr bool kRelaxedFloatDefault = false;
-    constexpr bool kRelaxedMathDefault = true;
+    // Default V1 (plan P9.1): GPU busy a frame 24.7 -> 16.5 ms at 540p, 37.3 -> 24.6 at 720p,
+    // images within §6. V2's further 0.3-0.9 ms were within the noise, so Relaxed math stays
+    // opt-in.
+    constexpr bool kRelaxedFloatDefault = true;
+    constexpr bool kRelaxedMathDefault = false;
     static const FloatRules rules = [] {
         const char* strict = std::getenv("BB_MTL_STRICT_FLOAT");
         const char* math = std::getenv("BB_MTL_RELAXED_MATH");
