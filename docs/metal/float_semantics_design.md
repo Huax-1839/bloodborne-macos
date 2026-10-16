@@ -1,7 +1,7 @@
 # Float semantics of game shaders on Metal (proposed P9.1)
 
-Status: proposal, 2026-10-16; not planned yet (the first lever of
-`docs/PERFORMANCE_LEVERS_2026-10-16.md`). Nothing below is measured in the game: the evidence is
+Status: planned as P9.1 (plan §5 P9), 2026-10-16 (the first lever of
+`docs/PERFORMANCE_LEVERS_2026-10-16.md`); results in plan §8 and §9. Nothing below is measured in the game: the evidence is
 the code and the bench user's shader cache. Owner of the design and the measurements: the
 orchestrator; the implementation: a porter task.
 
@@ -39,10 +39,14 @@ most likely route to 720p internal on a warm Air (needs ~25% less GPU time there
    median 57. Count again with `grep -o 'spvF[A-Za-z]*(' <file> | wc -l`.
 4. **Safe math everywhere.** `renderer_metal/mtl_shader.mm:817-821` (`BuildLibrary`) and
    `renderer_metal/mtl_geometry.mm:476-480`: `MTLCompileOptions.mathMode = MTLMathModeSafe` on
-   macOS 15+, else `fastMathEnabled = NO`. IEEE division and square root, precise transcendental
-   functions, no reassociation: more precise than GCN's own `v_rcp_f32`, `v_rsq_f32`,
-   `v_sqrt_f32`, `v_exp_f32`, `v_log_f32`, `v_sin_f32`, which are approximations. Not set:
-   `preserveInvariance`, `mathFloatingPointFunctions`, `optimizationLevel`.
+   macOS 15+, else `fastMathEnabled = NO`: IEEE division and square root, no reassociation. Not
+   set: `preserveInvariance`, `mathFloatingPointFunctions` (default Fast, `MTLLibrary.h`),
+   `optimizationLevel`. Correction (orchestrator, 2026-10-16): the transcendentals are precise
+   for another reason: SPIRV-Cross writes `precise::exp/log/rsqrt/sqrt/sin/cos/...` explicitly
+   unless the op's `FPFastMathMode` drops NaN and Inf (`spirv_msl.cpp:11739-11750`; 2814 such
+   calls in the bench cache's fragment shaders), so neither the math mode nor
+   `mathFloatingPointFunctions` changes them. Both are more precise than GCN's `v_rcp_f32`,
+   `v_rsq_f32`, `v_sqrt_f32`, `v_exp_f32`, `v_log_f32`, `v_sin_f32`, which are approximations.
 5. **Other float state** (unchanged by this task): no `Invariant` decoration on positions; float
    controls: `SignedZeroInfNanPreserve` for fp32 is emitted on Metal
    (`mtl_pipeline_cache.mm:85`, `emit_spirv.cpp:586-634`), no denorm or rounding modes
@@ -67,8 +71,8 @@ Stages and their rules:
 | vertex, tessellation control and evaluation | kept | Safe |
 | geometry-shader emulation kernels (ES, GS), the port's own kernels | kept | Safe |
 | fragment shaders that export depth (`DepthReplacing`) | kept | Safe |
-| other game fragment shaders | dropped (V1, V2) | Relaxed + fast functions (V2) |
-| game compute shaders | dropped (V1, V2) | Relaxed + fast functions (V2) |
+| other game fragment shaders | dropped (V1, V2) | Relaxed (V2) |
+| game compute shaders | dropped (V1, V2) | Relaxed (V2) |
 
 Why positions stay strict: two different vertex shaders that compute the same position (a depth
 pre-pass and the colour pass, decals) must produce identical bits, or depth-equal tests flicker
@@ -79,9 +83,9 @@ Variants:
 - **V0** (today, and the off switch): every op decorated, Safe math.
 - **V1**: no `NoContraction` in game fragment (without depth export) and compute shaders; Safe
   math stays.
-- **V2**: V1 plus `mathMode = MTLMathModeRelaxed` and
-  `mathFloatingPointFunctions = MTLMathFloatingPointFunctionsFast` for the same shaders. Read the
-  macOS SDK's `MTLLibrary.h` for the exact semantics before using them: Relaxed has to keep Inf
+- **V2**: V1 plus `mathMode = MTLMathModeRelaxed` for the same shaders
+  (`mathFloatingPointFunctions` is Fast already by default; the SDK's `MTLLibrary.h`: Relaxed
+  "allows aggressive, unsafe floating-point optimizations but preserves infs and nans"). Relaxed has to keep Inf
   and NaN, since the recompiler's emulation of GCN's legacy multiply and min/max may depend on
   them. `MTLMathModeFast` (assumes no NaN or Inf) is out of scope unless V2 is clean and it is
   measured as a separate step.

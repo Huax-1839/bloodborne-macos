@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9 (GPU time: shader float semantics) in progress. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -547,6 +547,44 @@ kernel ~0.5, MetalFX options ≤ 0.5) against the ~4.5 ms needed on a cool Air a
 warm one. **The candidates do not reach the target (§5 P8 step 5): the decision about M3 (540p
 m4air or 720p with a changed effect/quality) is the user's.**
 
+### P9: GPU time: shader float semantics (2026-10-16)
+
+The scene passes are ~83% of the GPU time and cost the same on Metal as on MoltenVK (P8 step 2),
+which both translate with SPIRV-Cross. The game's shaders are compiled with stricter float rules
+than the PS4's GPU applies: every float add/sub/mul/fma/div carries `NoContraction`
+(`emit_spirv_floating_point.cpp`, `Decorate()`, inherited from shadPS4 without a recorded reason),
+which SPIRV-Cross emits as `[[clang::optnone]]` `spvFAdd`/`spvFSub`/`spvFMul` helpers (no fusion,
+folding or CSE across them; 284 of 308 fragment shaders, median 107 calls), and every library is
+built with `MTLMathModeSafe`. Design and evidence: `docs/metal/float_semantics_design.md`. No
+milestone changes; the Vulkan backend's SPIR-V stays bit for bit the same.
+
+1. (O, S) P9.1 looser float rules in game fragment and compute shaders on Metal, in measured
+   variants (V0 = today, also the off switch `BB_MTL_STRICT_FLOAT=1`):
+   - V1: no `NoContraction` in game fragment shaders that do not export depth and in game
+     compute shaders (`Shader::Profile` field set only by the Metal pipeline cache). Vertex,
+     tessellation, the geometry-shader emulation (ES and GS kernels), depth-exporting fragment
+     shaders and the port's own kernels keep it, so positions recomputed by different shaders
+     match bit for bit (depth-equal passes, decals).
+   - V2: V1 plus `MTLMathModeRelaxed` for the same shaders (keeps Inf and NaN; the recompiler's
+     legacy-multiply and min/max emulation may depend on them). `mathFloatingPointFunctions` is
+     already Fast by default, and SPIRV-Cross writes `precise::exp/log/rsqrt/sqrt/sin/cos`
+     explicitly unless the SPIR-V carries `FPFastMathMode` NotNaN|NotInf, so V2 does not touch
+     transcendentals; fast ones (and `MTLMathModeFast`) are a separate step, only if V2 is clean.
+   - Caches: the variant's pipeline cache has its own tag (strict keeps `metal`, the relaxed rules
+     use `metal-relaxed`), the binary archive its own file per math mode; MSL files are keyed by
+     the SPIR-V hash already. `Shader::Profile` grows by the new trailing field, and the shared
+     cache check accepts a `profile.bin` written before it while the field holds its default, so
+     the Vulkan and the strict Metal caches stay warm.
+   - Measured by interleaved boots A B B A (A = V0) with traces (`BB_PASS_LABELS=1`,
+     `tracesub.sh`) at 540p and 720p, the busy union and the large passes (G-buffer `b10c4f55`,
+     lighting `8747a367`, C1 `637500e0`, MetalFX); FPS by `m2.sh`; images by §6 against Vulkan
+     and V0 (z-fighting, decals, edges); a 5-min walk with `MTL_DEBUG_LAYER=1`; Vulkan bench and
+     screenshot.
+
+Exit: V1/V2 kept as the default if GPU busy falls by more than the A/A spread (~±3 ms; per label
+for smaller effects) and the images pass §6, otherwise recorded as measured and reverted; the
+results in §8, the decision in §9; whether 720p at 30 FPS on a warm Air is in reach.
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -622,7 +660,7 @@ Open, not planned (pick with the user):
    measured in game): `docs/PERFORMANCE_LEVERS_2026-10-16.md`, ten levers ranked by estimated
    impact. First: the game's fragment/compute shaders are compiled with stricter float rules than
    the PS4's GPU (every float op `NoContraction`, which SPIRV-Cross emits as `optnone` helpers,
-   plus `MTLMathModeSafe`); proposed as P9.1 in `docs/metal/float_semantics_design.md`.
+   plus `MTLMathModeSafe`); planned as P9.1 (§5 P9, design `docs/metal/float_semantics_design.md`).
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -829,6 +867,11 @@ commit (kept privately, not in this repository):
     m3-<name>-battery metal 20 BB_PROFILE=m4air`, then `m3stats.py --expect battery`): waiting
     for the user
 
+- [ ] P9 GPU time: shader float semantics (§5 P9)
+  - [ ] P9.1 looser float rules in game fragment/compute shaders on Metal: implementation (S),
+    review, build, unit test; first boots fill each variant's caches; A B B A traces at 540p and
+    720p; FPS; images vs Vulkan and V0; validation walk; Vulkan bench + screenshot; decision
+
 Results (filled in as measured):
 
 | Date | Backend | Settings | FPS mean | Worst frame | Notes |
@@ -1028,3 +1071,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | The frame's host threads run at user-interactive QoS (b0a3d62) | per-flip sections: long tails are the recording thread running 2.5-3x slower in every part, not more work; within-run A/B of a QoS override on those threads only: 1.24 vs 1.99% missed slots, tail p99 13.6-13.9 vs 17.8-19.3 ms; raising the guest threads too showed nothing | P8.6, M3 |
 | 2026-10-16 | M3 rule: missed 30-FPS slots ≤ 2% instead of ≤ 1% (user's decision) | the best run (b0a3d62, power) misses 1.27% and passes every other check; runs of one build vary by more than 1 point (1.36-3.34%), 60-s stretches 0.1-7%, so 1% vs 1.27% is noise; a miss is a 50-ms frame, not a hitch; Vulkan misses ~6% in the clinic bench; part of the misses is the game's own CPU time under Rosetta | §1, M3, `m3stats.py` |
 | 2026-10-16 | The P8.6 work on the recording thread stops here: the remaining misses are a known limit, not chased further | b0a3d62 passes the rule on power; below 1% would need deeper work on encoder creation (`ReleaseHeldPass`) for a difference a player hardly notices | P8.6, M3 |
+| 2026-10-16 | New phase P9 (GPU time: shader float semantics), task P9.1: no `NoContraction` in game fragment (no depth export) and compute shaders (V1), plus `MTLMathModeRelaxed` for them (V2), measured against today's rules by interleaved boots; no milestone change | code review: every float op `NoContraction` → SPIRV-Cross `optnone` helpers in 284 of 308 fragment shaders (median 107, p90 676, max 1258 calls; re-counted in the bench cache), Safe math everywhere; P8 step 2: scene passes 83% of GPU time and as costly as on MoltenVK. Corrections to the review: transcendentals are `precise::` by SPIRV-Cross (no `FPFastMathMode` flags), not by the math mode, and `mathFloatingPointFunctions` is Fast by default, so V2 changes division, sqrt and reassociation only; a new `Shader::Profile` field would wipe every pipeline cache (the shared check compares `profile.bin` byte for byte), so the check accepts the shorter old profile while the field is at its default, and the relaxed variant gets its own cache tag. Why `NoContraction` was added: not recorded (vendored shadPS4; `inst` is unused in `Decorate()`, the per-op flag of its yuzu origin was dropped) | P9, `docs/metal/float_semantics_design.md` |
