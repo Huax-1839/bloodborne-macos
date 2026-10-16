@@ -58,6 +58,7 @@ export BB_RENDERER=${BB_RENDERER:-metal}
 # BB_PROFILE=m4air unless the arguments set a profile.
 profile=(BB_PROFILE=m4air)
 for a in "$@"; do [[ $a == BB_PROFILE=* ]] && profile=(); done
+args=("$@") # the ENV=VAL arguments, for every game run (start_game has its own "$@")
 
 want() { [[ " $SEQS " == *" $1 "* ]]; }
 now() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; }
@@ -74,7 +75,7 @@ start_game() {
     local suffix=$1 count=$2; shift 2
     rm -f "$trigger" "$dumpdir"/*.raw
     KEEP=1 BENCH_WAIT=${BENCH_WAIT:-30} BENCH_WINDOWS=2 "$here/bench.sh" "temporal-$name$suffix" \
-        ${profile[@]+"${profile[@]}"} "$@" BB_PRESENT_DUMP_TRIGGER="$trigger" BB_PRESENT_DUMP_COUNT="$count" \
+        ${profile[@]+"${profile[@]}"} ${args[@]+"${args[@]}"} "$@" BB_PRESENT_DUMP_TRIGGER="$trigger" BB_PRESENT_DUMP_COUNT="$count" \
         BB_DUMP_DIR="$dumpdir" | tail -1
     alive || fail "the game is not running ($suffix)"
 }
