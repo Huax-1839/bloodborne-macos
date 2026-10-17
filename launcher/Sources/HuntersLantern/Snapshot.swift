@@ -3,10 +3,20 @@ import AppKit
 
 /// LANTERN_SNAPSHOT=<folder> (development): renders each page of the window into
 /// <folder>/<page>.png in-process and quits, so the UI can be checked without screen capture.
+/// LANTERN_AUTOPLAY=1 (integration tests): presses Play at start; with LANTERN_SNAPSHOT the pages
+/// are rendered once the launch has ended (the outcome card).
 @MainActor
 enum Snapshot {
     static func runIfRequested(_ model: AppModel) async {
-        guard let folder = ProcessInfo.processInfo.environment["LANTERN_SNAPSHOT"], !folder.isEmpty else { return }
+        let environment = ProcessInfo.processInfo.environment
+        if environment["LANTERN_AUTOPLAY"] == "1" {
+            try? await Task.sleep(for: .seconds(1))
+            model.play()
+            while model.isBusy || (model.lastResult == nil && model.errorMessage == nil) {
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+        guard let folder = environment["LANTERN_SNAPSHOT"], !folder.isEmpty else { return }
         let pages = ProcessInfo.processInfo.environment["LANTERN_SNAPSHOT_PAGES"]?
             .split(separator: ",").compactMap { Page(rawValue: String($0)) } ?? Page.allCases
         try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)

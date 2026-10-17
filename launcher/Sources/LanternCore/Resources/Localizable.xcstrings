@@ -1,6 +1,259 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ could not be started: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ließ sich nicht starten: %@"
+          }
+        }
+      }
+    },
+    "%@ could not extract the PKG." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ konnte das PKG nicht entpacken."
+          }
+        }
+      }
+    },
+    "%@ could not extract the PKG: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ konnte das PKG nicht entpacken: %@"
+          }
+        }
+      }
+    },
+    "%@ does not exist." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ existiert nicht."
+          }
+        }
+      }
+    },
+    "%@ is not a PS4 game folder: it has no eboot.bin and sce_sys/param.sfo." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist kein PS4-Spieleordner: Er enthält weder eboot.bin noch sce_sys/param.sfo."
+          }
+        }
+      }
+    },
+    "%@ is not a known PKG tool. Supported: ps4-pkg-tools (recommended), pkgextract, orbis-pkg-util." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist kein bekanntes PKG-Werkzeug. Unterstützt werden ps4-pkg-tools (empfohlen), pkgextract und orbis-pkg-util."
+          }
+        }
+      }
+    },
+    "%@ is not an executable program." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ist kein ausführbares Programm."
+          }
+        }
+      }
+    },
+    "Bloodborne %@ with update 1.09: ready to play." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloodborne %@ mit Update 1.09: spielbereit."
+          }
+        }
+      }
+    },
+    "Copying %@ failed: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopieren von %@ fehlgeschlagen: %@"
+          }
+        }
+      }
+    },
+    "Found %@, version %@." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in Version %@ gefunden."
+          }
+        }
+      }
+    },
+    "LibOrbisPkg's PkgTool is not supported: on .NET 6 or newer it leaves parts of the files stale, and the game would hang while loading. Use ps4-pkg-tools instead." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PkgTool von LibOrbisPkg wird nicht unterstützt: Unter .NET 6 oder neuer lässt es Teile der Dateien veraltet zurück, und das Spiel würde beim Laden hängen bleiben. Verwende stattdessen ps4-pkg-tools."
+          }
+        }
+      }
+    },
+    "Not enough free disk space: %@ needed, %@ available. Free some space or move the launcher's games folder to a bigger disk." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht genug freier Speicherplatz: %@ nötig, %@ verfügbar. Gib Speicherplatz frei oder verschiebe den Spieleordner des Launchers auf eine größere Festplatte."
+          }
+        }
+      }
+    },
+    "The extracted PKG in %@ holds no PS4 game (no eboot.bin and sce_sys/param.sfo). Is it a game or update PKG?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das entpackte PKG in %@ enthält kein PS4-Spiel (weder eboot.bin noch sce_sys/param.sfo). Ist es ein Spiel- oder Update-PKG?"
+          }
+        }
+      }
+    },
+    "The folder %@ already exists." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner %@ existiert bereits."
+          }
+        }
+      }
+    },
+    "The game data says 1.09 but eboot.bin is from another version. Import the base game together with the full 1.09 update again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spieldaten sind Version 1.09, aber die eboot.bin stammt aus einer anderen Version. Importiere das Basisspiel noch einmal zusammen mit dem vollständigen Update 1.09."
+          }
+        }
+      }
+    },
+    "The game files are damaged: the shaders do not unpack and the game would hang while loading. The extraction tool left parts of the files stale; extract the game again with another tool." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spieldateien sind beschädigt: Die Shader lassen sich nicht entpacken, und das Spiel würde beim Laden hängen bleiben. Das Extraktionswerkzeug hat Teile der Dateien veraltet hinterlassen; extrahiere das Spiel erneut mit einem anderen Werkzeug."
+          }
+        }
+      }
+    },
+    "The game needs update 1.09. Import the base game together with the 1.09 update (folder or PKG): the launcher merges them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Spiel braucht das Update 1.09. Importiere das Basisspiel zusammen mit dem Update 1.09 (Ordner oder PKG): Der Launcher führt beide zusammen."
+          }
+        }
+      }
+    },
+    "The program could not be started: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Programm ließ sich nicht starten: %@"
+          }
+        }
+      }
+    },
+    "The program did not answer to --help within 5 seconds." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Programm hat auf --help nicht innerhalb von 5 Sekunden geantwortet."
+          }
+        }
+      }
+    },
+    "This eboot.bin has a 60 FPS patch baked in, which crashes the game in the gestures menu. Use a clean dump of the 1.09 update; the launcher has its own frame-rate settings." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In dieser eboot.bin ist ein 60-FPS-Patch fest eingebaut, der das Spiel im Gesten-Menü abstürzen lässt. Verwende einen unveränderten Dump des Updates 1.09; der Launcher hat eigene Einstellungen für die Bildrate."
+          }
+        }
+      }
+    },
+    "This folder is not a PS4 game: it has no eboot.bin and sce_sys/param.sfo. Choose the folder that contains them (for example CUSA03173)." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Ordner ist kein PS4-Spiel: Er enthält weder eboot.bin noch sce_sys/param.sfo. Wähle den Ordner, der beides enthält (zum Beispiel CUSA03173)."
+          }
+        }
+      }
+    },
+    "This is not a retail release of Bloodborne. Any region and The Old Hunters editions work, with update 1.09." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist keine Retail-Version von Bloodborne. Jede Region und die Editionen mit The Old Hunters funktionieren, mit Update 1.09."
+          }
+        }
+      }
+    },
+    "eboot.bin could not be read as a decrypted PS4 executable. Dump or extract the game and the 1.09 update again. A delta update PKG does not work: a full 1.09 update is needed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die eboot.bin ließ sich nicht als entschlüsselte PS4-Programmdatei lesen. Dumpe oder extrahiere das Spiel und das Update 1.09 erneut. Ein Delta-Update-PKG funktioniert nicht: Es wird ein vollständiges Update 1.09 gebraucht."
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }
