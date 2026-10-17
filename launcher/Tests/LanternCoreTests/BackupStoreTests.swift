@@ -58,4 +58,37 @@ final class BackupStoreTests: XCTestCase {
         try save(user, "later")
         XCTAssertEqual(try read(snapshot.url), "before the boss")
     }
+
+    func testRestoringTheOldestOfTenKeepsIt() throws {
+        // Dated in the past: the safety backup the restore takes is the newest.
+        let user = root.appendingPathComponent("user")
+        let store = BackupStore(dir: root.appendingPathComponent("backups"))
+        for i in 0..<10 {
+            try save(user, "state \(i)")
+            try store.backUpBeforeLaunch(userRoot: user, now: Date(timeIntervalSince1970: 1_700_000_000 + Double(i) * 60))
+        }
+        try save(user, "current")
+        let oldest = try XCTUnwrap(store.list().last)
+        XCTAssertEqual(try read(oldest.url), "state 0")
+        try store.restore(oldest, userRoot: user)
+        XCTAssertEqual(try read(user), "state 0")
+        XCTAssertEqual(try read(oldest.url), "state 0")
+        // The state before the restore was backed up too.
+        XCTAssertEqual(try read(store.list()[0].url), "current")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: user.appendingPathComponent(".savedata-restore").path))
+    }
+
+    func testUnchangedSaveIsNotBackedUpAgain() throws {
+        let user = root.appendingPathComponent("user")
+        let store = BackupStore(dir: root.appendingPathComponent("backups"))
+        try save(user, "state")
+        let first = try store.backUpBeforeLaunch(userRoot: user, now: Date(timeIntervalSince1970: 1_800_000_000))
+        let second = try store.backUpBeforeLaunch(userRoot: user, now: Date(timeIntervalSince1970: 1_800_000_060))
+        XCTAssertEqual(store.list().count, 1)
+        XCTAssertEqual(second?.url.lastPathComponent, first?.url.lastPathComponent)
+        // A changed save is backed up again.
+        try save(user, "state 2")
+        try store.backUpBeforeLaunch(userRoot: user, now: Date(timeIntervalSince1970: 1_800_000_120))
+        XCTAssertEqual(store.list().count, 2)
+    }
 }

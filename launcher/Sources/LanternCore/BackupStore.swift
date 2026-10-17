@@ -25,13 +25,24 @@ public struct BackupStore: Sendable {
     public static func savedata(_ userRoot: URL) -> URL { userRoot.appendingPathComponent("savedata", isDirectory: true) }
 
     /// Clones the save root's savedata into a new automatic backup and drops the oldest beyond
-    /// ten. Nothing to back up (no savedata yet) is not an error: returns nil.
+    /// ten. Nothing to back up (no savedata yet) is not an error: returns nil. When the save is
+    /// unchanged since the newest automatic backup (same paths, sizes and mtimes), no backup is
+    /// made and that one is returned: quick relaunches do not push the last good states out.
     @discardableResult
     public func backUpBeforeLaunch(userRoot: URL, now: Date = Date()) throws -> Backup? {
+        try backUp(userRoot: userRoot, now: now, keeping: nil)
+    }
+
+    @discardableResult
+    private func backUp(userRoot: URL, now: Date, keeping kept: URL?) throws -> Backup? {
         let source = Self.savedata(userRoot)
         guard FileManager.default.fileExists(atPath: source.path), try !Self.isEmpty(source) else { return nil }
+        if let newest = list().first(where: \.automatic),
+           Self.fingerprint(newest.url.appendingPathComponent("savedata", isDirectory: true)) == Self.fingerprint(source) {
+            return newest
+        }
         let backup = try copy(source, into: dir.appendingPathComponent("auto", isDirectory: true), now: now, label: nil)
-        try prune()
+        try prune(keeping: kept)
         return backup
     }
 
@@ -45,10 +56,17 @@ public struct BackupStore: Sendable {
     public func restore(_ backup: Backup, userRoot: URL) throws {
         let target = Self.savedata(userRoot)
         let fm = FileManager.default
-        try backUpBeforeLaunch(userRoot: userRoot)
+        // The backup is staged first and kept by the rotation: the safety backup must not drop
+        // the one being restored (it may be the oldest of ten).
         let staging = userRoot.appendingPathComponent(".savedata-restore", isDirectory: true)
         try? fm.removeItem(at: staging)
         try Self.cloneTree(backup.url.appendingPathComponent("savedata", isDirectory: true), to: staging)
+        do {
+            try backUp(userRoot: userRoot, now: Date(), keeping: backup.url)
+        } catch {
+            try? fm.removeItem(at: staging)
+            throw error
+        }
         if fm.fileExists(atPath: target.path) {
             _ = try fm.replaceItemAt(target, withItemAt: staging)
         } else {
@@ -77,8 +95,9 @@ public struct BackupStore: Sendable {
     /// Bytes used by all backups (logical: an upper bound, clones share blocks).
     public func totalSize() -> Int64 { list().reduce(0) { $0 + $1.size } }
 
-    private func prune() throws {
-        let automatic = list().filter(\.automatic)
+    /// Drops the automatic backups beyond the newest ten; `kept` is never dropped (nor counted).
+    private func prune(keeping kept: URL?) throws {
+        let automatic = list().filter { $0.automatic && $0.url.resolvingSymlinksInPath() != kept?.resolvingSymlinksInPath() }
         for backup in automatic.dropFirst(Self.keptAutomatic) { try FileManager.default.removeItem(at: backup.url) }
     }
 
@@ -117,6 +136,23 @@ public struct BackupStore: Sendable {
             if (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true { return false }
         }
         return true
+    }
+
+    /// What a save tree looks like without reading it: every entry's relative path, size and
+    /// modification time (clones keep the mtimes).
+    static func fingerprint(_ folder: URL) -> [String: [Double]] {
+        var result: [String: [Double]] = [:]
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey, .isDirectoryKey]
+        let root = folder.standardizedFileURL.resolvingSymlinksInPath().path
+        let enumerator = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: keys)
+        while let url = enumerator?.nextObject() as? URL {
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            let path = url.standardizedFileURL.resolvingSymlinksInPath().path
+            let relative = path.hasPrefix(root) ? String(path.dropFirst(root.count)) : path
+            result[relative] = values?.isDirectory == true ? [-1, 0]
+                : [Double(values?.fileSize ?? 0), values?.contentModificationDate?.timeIntervalSinceReferenceDate ?? 0]
+        }
+        return result
     }
 
     static func size(of folder: URL) -> Int64 {
