@@ -39,6 +39,7 @@ final class AppModel: ObservableObject {
         state = LauncherState.load(dirs.stateFile, setAside: &setAside)
         setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
         try? dirs.create()
+        dirs.removeLeftovers()
         if !setAside.isEmpty {
             let names = setAside.map(\.lastPathComponent).joined(separator: "\n")
             errorMessage = String(localized: "These launcher files could not be read and were kept aside in the data folder (readable games were taken from them):\n\(names)")
@@ -75,18 +76,11 @@ final class AppModel: ObservableObject {
     /// folder's games/ (D6).
     func importBaseAndUpdate(base: URL, update: URL) async {
         await runImport { runtime in
-            let pipeline = PythonPipeline(runtime: runtime)
-            guard let baseFolder = GameFolder.locate(base) else { throw ImportError.notAGameFolder(base) }
-            guard let updateFolder = GameFolder.locate(update) else { throw ImportError.notAGameFolder(update) }
-            let title = try await pipeline.quickCheck(game: baseFolder).title
-            try FileManager.default.createDirectory(at: self.dirs.gamesDir, withIntermediateDirectories: true)
-            let destination = Self.uniqueFolder(self.dirs.gamesDir.appendingPathComponent("\(title)-1.09"))
-            self.importStatus = (String(localized: "Merging the base game and the update…"), 0)
-            try await GameImporter.merge(base: baseFolder, update: updateFolder, into: destination) { done, total in
-                Task { @MainActor in self.importStatus = (String(localized: "Merging the base game and the update…"), total > 0 ? Double(done) / Double(total) : nil) }
+            let imported = try await GameImporter.importFolders(base: base, update: update, dirs: self.dirs,
+                                                                pipeline: PythonPipeline(runtime: runtime)) { phase, fraction in
+                Task { @MainActor in self.importStatus = (Self.text(for: phase), fraction) }
             }
-            self.importStatus = (String(localized: "Checking the game…"), nil)
-            return (destination, try await pipeline.quickCheck(game: destination))
+            return (imported.folder, imported.check)
         }
     }
 
@@ -176,20 +170,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private static func uniqueFolder(_ url: URL) -> URL {
-        var candidate = url
-        var counter = 2
-        while FileManager.default.fileExists(atPath: candidate.path) {
-            candidate = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent)-\(counter)")
-            counter += 1
-        }
-        return candidate
-    }
-
     /// Removes the game from the list; a folder the launcher made (merged or extracted) goes to
-    /// the Trash, a folder the user registered stays where it is.
+    /// the Trash, a folder the user registered stays where it is. Its prepared image (made from
+    /// the game, rebuilt on the next launch) is deleted when no other game uses it.
     func removeGame(_ game: Game) {
         if game.managed { try? FileManager.default.trashItem(at: game.path, resultingItemURL: nil) }
+        if let prepared = library.preparedFolderOnlyFor(game, dirs: dirs) { try? FileManager.default.removeItem(at: prepared) }
         try? library.remove(game.id)
         if state.activeGame == game.id { state.activeGame = library.games.first?.id }
     }

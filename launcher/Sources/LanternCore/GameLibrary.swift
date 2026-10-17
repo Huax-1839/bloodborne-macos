@@ -94,6 +94,14 @@ public struct GameLibrary: Sendable {
         try save()
     }
 
+    /// The game's prepared image folder (DataDirs.preparedFolder), unless another registered game
+    /// uses the same one (same title and eboot hash): what removing the game may delete.
+    public func preparedFolderOnlyFor(_ game: Game, dirs: DataDirs) -> URL? {
+        let folder = dirs.preparedFolder(for: game.check)
+        let shared = games.contains { $0.id != game.id && dirs.preparedFolder(for: $0.check) == folder }
+        return shared ? nil : folder
+    }
+
     func save() throws {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try JSONEncoder.lantern.encode(games).write(to: file, options: .atomic)

@@ -49,6 +49,35 @@ public struct DataDirs: Sendable, Equatable {
 
     private func dir(_ name: String) -> URL { root.appendingPathComponent(name, isDirectory: true) }
 
+    /// The save roots: the shared one and the per-profile ones that exist.
+    public var userRoots: [URL] {
+        let profiles = (try? FileManager.default.contentsOfDirectory(at: dir("profile-users"), includingPropertiesForKeys: nil)) ?? []
+        return [userDir] + profiles.filter { !$0.lastPathComponent.hasPrefix(".") }
+    }
+
+    /// Deletes the scratch folders an import, restore or migration that did not finish (a crash,
+    /// a force-quit) left behind: games/.import-* (a whole extracted game), mods/.import-*, and
+    /// .save-import-*, .savedata-restore and .savedata-migrate in every save root. Run at start,
+    /// before anything new is begun. Returns what was deleted.
+    @discardableResult
+    public func removeLeftovers() -> [URL] {
+        let fm = FileManager.default
+        func entries(_ folder: URL, _ matches: (String) -> Bool) -> [URL] {
+            ((try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []).filter { matches($0.lastPathComponent) }
+        }
+        var leftovers = entries(gamesDir) { $0.hasPrefix(".import-") } + entries(modsDir) { $0.hasPrefix(".import-") }
+            + entries(root) { $0 == ".bbport.ini.migrate" }
+        for userRoot in userRoots {
+            leftovers += entries(userRoot) { $0.hasPrefix(".save-import-") || $0 == ".savedata-restore" || $0 == ".savedata-migrate" }
+        }
+        return leftovers.filter { (try? fm.removeItem(at: $0)) != nil }
+    }
+
+    /// The prepared image folder of a game (D9): per title and eboot hash.
+    public func preparedFolder(for check: GameCheck) -> URL {
+        preparedDir.appendingPathComponent("\(check.title)-\((check.imageSHA256 ?? "unknown").prefix(12))", isDirectory: true)
+    }
+
     /// Creates the folders that must exist before a launch.
     public func create() throws {
         for url in [root, profilesDir, userDir, preparedDir, logsDir, backupsDir, modsDir, patchesDir, runDir] {

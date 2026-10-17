@@ -132,6 +132,36 @@ final class GameImporterTests: ImportTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: merged.path))
     }
 
+    // MARK: - importFolders (path b)
+
+    private func dirs() -> DataDirs { DataDirs(root: dir.appendingPathComponent("data")) }
+
+    func testImportFoldersMergesIntoTheGamesFolder() async throws {
+        let (base, update) = try makeBaseAndUpdate()
+        let outer = try folder("outer")
+        try FileManager.default.moveItem(at: update, to: outer.appendingPathComponent("CUSA00000"))
+        let phases = LockedBox<[GameImporter.Phase]>([])
+        let imported = try await GameImporter.importFolders(base: base, update: outer, dirs: dirs(), pipeline: FakePipeline()) { phase, _ in
+            phases.mutate { if $0.last != phase { $0.append(phase) } }
+        }
+        XCTAssertEqual(imported.folder.lastPathComponent, "CUSA00000-1.09")
+        XCTAssertEqual(read(imported.folder, "eboot.bin"), "upd-eboot")
+        XCTAssertEqual(phases.value, [.merging, .checking])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dirs().gamesDir.path), ["CUSA00000-1.09"])
+    }
+
+    func testImportFoldersRemovesTheMergeWhenTheCheckFails() async throws {
+        let (base, update) = try makeBaseAndUpdate()
+        var pipeline = FakePipeline()
+        pipeline.checkFails = { $0.path.contains("/games/") }
+        do {
+            _ = try await GameImporter.importFolders(base: base, update: update, dirs: dirs(), pipeline: pipeline) { _, _ in }
+            XCTFail("expected an error")
+        } catch is PipelineError {}
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dirs().gamesDir.path), [])
+        XCTAssertEqual(read(base, "eboot.bin"), "base-eboot")
+    }
+
     func testSpaceCheckErrorBeforeAnythingIsWritten() async throws {
         let (base, update) = try makeBaseAndUpdate()
         let merged = dir.appendingPathComponent("games/merged")

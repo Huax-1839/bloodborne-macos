@@ -84,7 +84,7 @@ public final class Launcher: @unchecked Sendable {
         let patchExtras = PatchStore.load(runtime: runtime, dirs: dirs).extraNames(for: profile)
         try PatchStore.patchesJSON(for: profile).write(to: dirs.patchesConfig, options: .atomic)
 
-        let prepared = dirs.preparedDir.appendingPathComponent(Self.preparedName(check), isDirectory: true)
+        let prepared = dirs.preparedFolder(for: check)
         let modGame = try await modOverlay(game: game, profile: profile, onPhase: onPhase)
         defer { if let modGame { try? FileManager.default.removeItem(at: modGame) } }
         var result: LaunchResult
@@ -175,10 +175,6 @@ public final class Launcher: @unchecked Sendable {
             }
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-
-    static func preparedName(_ check: GameCheck) -> String {
-        "\(check.title)-\((check.imageSHA256 ?? "unknown").prefix(12))"
     }
 
     /// The last lines of a log (the crash card).

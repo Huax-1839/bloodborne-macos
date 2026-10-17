@@ -282,7 +282,7 @@ extension GameImporter {
     public static let importMargin: Int64 = 2 << 30
 
     /// Path (c) of D6: extracts the base PKG and the update PKG (when given) into
-    /// dirs.gamesDir/.import-<uuid>/, merges them into dirs.gamesDir/<TITLE>-<version> (a unique
+    /// dirs.gamesDir/.import-<uuid>/ (left over after a crash: DataDirs.removeLeftovers), merges them into dirs.gamesDir/<TITLE>-<version> (a unique
     /// name), removes the scratch folder and runs the quick check. The caller registers the
     /// folder; a check problem (`ImportedGame.check`) is the caller's to show. Cancelling the
     /// task removes everything made. `progress` gets the phase and its fraction.
@@ -312,10 +312,15 @@ extension GameImporter {
             progress(.extractingBase, $0)
         }
         guard let update else {
-            let target = uniqueFolder(in: games, name: folderName(title: nil, version: nil, fallback: baseApp.lastPathComponent))
-            try fm.moveItem(at: baseApp, to: target)
+            // Checked before it leaves the scratch folder (a failed check leaves nothing) and
+            // named after its own version: a base game is no 1.09.
             progress(.checking, 0)
-            return ImportedGame(folder: target, check: try await pipeline.quickCheck(game: target))
+            let check = try await pipeline.quickCheck(game: baseApp)
+            try Task.checkCancellation()
+            let target = uniqueFolder(in: games, name: folderName(title: check.title, version: check.version,
+                                                                  fallback: baseApp.lastPathComponent))
+            try fm.moveItem(at: baseApp, to: target)
+            return ImportedGame(folder: target, check: check)
         }
         let updateApp = try await tool.extract(pkg: update, into: work.appendingPathComponent("update", isDirectory: true)) {
             progress(.extractingUpdate, $0)
@@ -331,7 +336,9 @@ extension GameImporter {
         try? fm.removeItem(at: work)
         progress(.checking, 0)
         do {
-            return ImportedGame(folder: target, check: try await pipeline.quickCheck(game: target))
+            let check = try await pipeline.quickCheck(game: target)
+            try Task.checkCancellation()
+            return ImportedGame(folder: target, check: check)
         } catch {
             try? fm.removeItem(at: target)
             throw error

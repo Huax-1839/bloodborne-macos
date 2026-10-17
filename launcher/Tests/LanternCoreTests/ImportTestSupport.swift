@@ -69,9 +69,14 @@ final class LockedBox<Value>: @unchecked Sendable {
 /// A pipeline that answers from a closure and a broken list.
 struct FakePipeline: Pipeline {
     var check: @Sendable (URL) -> GameCheck = { _ in GameCheck(problem: nil, title: "CUSA00000", version: "01.09", imageSHA256: nil) }
+    /// The quick check of these folders throws (a crashed script).
+    var checkFails: @Sendable (URL) -> Bool = { _ in false }
     var broken: [String] = []
 
-    func quickCheck(game: URL) async throws -> GameCheck { check(game) }
+    func quickCheck(game: URL) async throws -> GameCheck {
+        if checkFails(game) { throw PipelineError("game_check.py failed") }
+        return check(game)
+    }
     func thoroughCheck(game: URL, progress: @escaping @Sendable (Int, Int) -> Void) async throws -> [String] {
         progress(1, 1)
         return broken

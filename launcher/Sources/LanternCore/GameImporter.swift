@@ -221,3 +221,33 @@ private struct MergeJob {
         ImportError.copyFailed(path: path, reason: String(cString: strerror(errno)))
     }
 }
+
+extension GameImporter {
+    /// Path (b) of D6: merges a base game folder and an update folder (or the folders holding
+    /// them, GameFolder.locate) into dirs.gamesDir/<TITLE>-1.09 (a unique name) and runs the quick
+    /// check. The caller registers the folder; a check problem is the caller's to show. A failed
+    /// or cancelled merge or check removes the merged folder. `progress` gets the phase and its
+    /// fraction.
+    public static func importFolders(base: URL, update: URL, dirs: DataDirs, pipeline: Pipeline,
+                                     progress: @escaping @Sendable (Phase, Double?) -> Void) async throws -> ImportedGame {
+        guard let baseFolder = GameFolder.locate(base) else { throw ImportError.notAGameFolder(base) }
+        guard let updateFolder = GameFolder.locate(update) else { throw ImportError.notAGameFolder(update) }
+        let title = try await pipeline.quickCheck(game: baseFolder).title
+        try FileManager.default.createDirectory(at: dirs.gamesDir, withIntermediateDirectories: true)
+        let destination = uniqueFolder(in: dirs.gamesDir, name: folderName(title: title, version: nil,
+                                                                          fallback: baseFolder.lastPathComponent))
+        progress(.merging, 0)
+        try await merge(base: baseFolder, update: updateFolder, into: destination) { done, total in
+            progress(.merging, total > 0 ? Double(done) / Double(total) : nil)
+        }
+        do {
+            progress(.checking, nil)
+            let check = try await pipeline.quickCheck(game: destination)
+            try Task.checkCancellation()
+            return ImportedGame(folder: destination, check: check)
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
+            throw error
+        }
+    }
+}

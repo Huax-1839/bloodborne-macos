@@ -266,6 +266,31 @@ final class PkgToolTests: ImportTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dirs().gamesDir.path).count, 1)
     }
 
+    func testImportPKGsWithoutUpdateIsNamedAfterItsVersion() async throws {
+        let tool = PkgTool(kind: .ps4PkgTools, executable: try fakePS4Tool())
+        var pipeline = FakePipeline()
+        pipeline.check = { _ in GameCheck(problem: .missingUpdate, title: "CUSA00000", version: "01.00", imageSHA256: nil) }
+        let imported = try await GameImporter.importPKGs(base: try pkg("base.pkg"), update: nil, tool: tool, dirs: dirs(),
+                                                         pipeline: pipeline) { _, _ in }
+        XCTAssertEqual(imported.folder.lastPathComponent, "CUSA00000-1.00")
+        XCTAssertEqual(imported.check.problem, .missingUpdate)
+    }
+
+    func testImportPKGsLeavesNothingWhenTheCheckFails() async throws {
+        let tool = PkgTool(kind: .ps4PkgTools, executable: try fakePS4Tool())
+        let dirs = dirs()
+        var pipeline = FakePipeline()
+        pipeline.checkFails = { _ in true }
+        for update in [nil, try pkg("update.pkg")] {
+            do {
+                _ = try await GameImporter.importPKGs(base: try pkg("base.pkg"), update: update, tool: tool, dirs: dirs,
+                                                      pipeline: pipeline) { _, _ in }
+                XCTFail("expected an error")
+            } catch is PipelineError {}
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: dirs.gamesDir.path), [])
+        }
+    }
+
     func testImportPKGsChecksSpaceFirstAndCleansUpAfterAFailure() async throws {
         let tool = PkgTool(kind: .ps4PkgTools, executable: try fakePS4Tool())
         let dirs = dirs()
