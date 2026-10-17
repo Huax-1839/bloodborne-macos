@@ -1,0 +1,314 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Add XML file…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "XML-Datei hinzufügen …"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
+          }
+        }
+      }
+    },
+    "Built-in extras": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingebaute Extras"
+          }
+        }
+      }
+    },
+    "Choose a patch file (XML)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patch-Datei (XML) auswählen"
+          }
+        }
+      }
+    },
+    "Duplicate to edit": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Bearbeiten duplizieren"
+          }
+        }
+      }
+    },
+    "External patches": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Externe Patches"
+          }
+        }
+      }
+    },
+    "Frame rate": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
+          }
+        }
+      }
+    },
+    "Game patches that come with the launcher. Hover over a patch for its note. Some say in their note that they have side effects.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielpatches, die mit dem Launcher kommen. Halte den Mauszeiger über einen Patch, um seine Notiz zu sehen. Manche weisen dort auf Nebenwirkungen hin."
+          }
+        }
+      }
+    },
+    "Managed elsewhere": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderswo eingestellt"
+          }
+        }
+      }
+    },
+    "Move to Trash": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In den Papierkorb legen"
+          }
+        }
+      }
+    },
+    "No patch files yet. Add a GoldHEN or shadPS4 XML file for Bloodborne 1.09.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Patch-Dateien. Füge eine GoldHEN- oder shadPS4-XML-Datei für Bloodborne 1.09 hinzu."
+          }
+        }
+      }
+    },
+    "Off": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
+          }
+        }
+      }
+    },
+    "On": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An"
+          }
+        }
+      }
+    },
+    "Patches other people made, applied after the built-in ones. The patch files stay in the patches folder; your choices are saved in the profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patches von anderen, die nach den eingebauten angewendet werden. Die Dateien bleiben im Patch-Ordner; deine Auswahl wird im Profil gespeichert."
+          }
+        }
+      }
+    },
+    "Resolution patches (%lld)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auflösungspatches (%lld)"
+          }
+        }
+      }
+    },
+    "Set on the Advanced page": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Seite „Erweitert“ einstellen"
+          }
+        }
+      }
+    },
+    "Set on the Graphics page": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf der Seite „Grafik“ einstellen"
+          }
+        }
+      }
+    },
+    "Show patches folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patch-Ordner zeigen"
+          }
+        }
+      }
+    },
+    "The launcher switches these itself from your settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Launcher schaltet diese selbst anhand deiner Einstellungen."
+          }
+        }
+      }
+    },
+    "These follow the profile's frame rate (%@). Change the frame rate on the Graphics page.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese folgen der Bildrate des Profils (%@). Die Bildrate änderst du auf der Seite „Grafik“."
+          }
+        }
+      }
+    },
+    "This file cannot be read as a patch file and is skipped.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei lässt sich nicht als Patch-Datei lesen und wird übersprungen."
+          }
+        }
+      }
+    },
+    "This file has no patches for Bloodborne 1.09 and is skipped.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei enthält keine Patches für Bloodborne 1.09 und wird übersprungen."
+          }
+        }
+      }
+    },
+    "This file is for another game and is skipped.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei gehört zu einem anderen Spiel und wird übersprungen."
+          }
+        }
+      }
+    },
+    "This is a built-in profile and cannot be changed. Duplicate it to make your own.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist ein eingebautes Profil und lässt sich nicht ändern. Dupliziere es, um ein eigenes zu erstellen."
+          }
+        }
+      }
+    },
+    "Your choices are saved in this profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Auswahl wird in diesem Profil gespeichert."
+          }
+        }
+      }
+    },
+    "by %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "von %@"
+          }
+        }
+      }
+    },
+    "uncapped": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unbegrenzt"
+          }
+        }
+      }
+    },
+    "“%@” and “%@” cannot be used together: the game would not start. Switch one off.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ und „%@“ lassen sich nicht zusammen verwenden: Das Spiel würde nicht starten. Schalte eines aus."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

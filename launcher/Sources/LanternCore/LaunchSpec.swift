@@ -62,12 +62,15 @@ public struct LaunchInputs: Sendable {
     public var scaled: ScaledSizes?
     /// The mod overlay (mods.py's linked tree over the game) the game runs from; nil without mods.
     public var modGame: URL?
+    /// BB_PATCHES: the profile's chosen built-in patches, ";" separated (PatchStore.extraNames).
+    public var patchExtras: String
     /// The host: Apple silicon and the macOS major version (the automatic renderer).
     public var appleSilicon: Bool
     public var macOSMajor: Int
 
     public init(profile: Profile, gameDir: URL, preparedDir: URL, dirs: DataDirs, runtime: Runtime,
-                settings: LauncherSettings, scaled: ScaledSizes?, modGame: URL? = nil, appleSilicon: Bool, macOSMajor: Int) {
+                settings: LauncherSettings, scaled: ScaledSizes?, modGame: URL? = nil, patchExtras: String = "",
+                appleSilicon: Bool, macOSMajor: Int) {
         self.profile = profile
         self.gameDir = gameDir
         self.preparedDir = preparedDir
@@ -76,6 +79,7 @@ public struct LaunchInputs: Sendable {
         self.settings = settings
         self.scaled = scaled
         self.modGame = modGame
+        self.patchExtras = patchExtras
         self.appleSilicon = appleSilicon
         self.macOSMajor = macOSMajor
     }

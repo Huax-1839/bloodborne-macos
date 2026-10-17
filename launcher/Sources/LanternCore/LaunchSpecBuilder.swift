@@ -26,6 +26,8 @@ extension LaunchSpec {
         if !settings.skipNetworkChoice { env["BB_SKIP_NETWORK_CHOICE"] = "0" }
 
         env["BB_FPS"] = profile.frameRate.rawValue
+        // The chosen built-in patches (BB_PATCHES); an expert BB_PATCHES below wins.
+        if !inputs.patchExtras.isEmpty { env["BB_PATCHES"] = inputs.patchExtras }
         if let size = profile.renderResolution { env["BB_RENDER_RES"] = size }
         switch profile.renderer {
         case .automatic: break

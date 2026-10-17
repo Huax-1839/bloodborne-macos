@@ -49,7 +49,9 @@ public struct Profile: Codable, Identifiable, Equatable, Sendable {
     /// Starting values for bbport.ini keys the game menu also changes live (upscaler, preset,
     /// sharpness, output_res, show_fps, ...): written before each launch.
     public var iniValues: [String: String] = [:]
-    /// External patches switched against their XML default (patches.json semantics, L3.5): name → on.
+    /// The patch choices (PatchStore, L3.5), keyed by `Patch.id`: an external patch's
+    /// "<file>.xml/<name>" → on/off, stored only when it differs from the XML's isEnabled (the
+    /// patches.json semantics); a built-in extra's "builtin/<name>" → true (BB_PATCHES).
     public var patches: [String: Bool] = [:]
     /// The mod set: mod folder names in load order (later wins); nil keeps mods off.
     public var mods: [String]?

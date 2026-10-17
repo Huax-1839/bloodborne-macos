@@ -1,0 +1,39 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "The file has no patches for Bloodborne 1.09 (eboot.bin, version 01.09).": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei enthält keine Patches für Bloodborne 1.09 (eboot.bin, Version 01.09)."
+          }
+        }
+      }
+    },
+    "These patches are for another game.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Patches gehören zu einem anderen Spiel."
+          }
+        }
+      }
+    },
+    "This file is not a readable patch file: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist keine lesbare Patch-Datei: %@"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -80,6 +80,10 @@ public final class Launcher: @unchecked Sendable {
         ini.set(written)
         try ini.write(to: dirs.iniFile)
 
+        // The profile's patch choices (L3.5): external ones as patches.json, built-in ones as BB_PATCHES.
+        let patchExtras = PatchStore.load(runtime: runtime, dirs: dirs).extraNames(for: profile)
+        try PatchStore.patchesJSON(for: profile).write(to: dirs.patchesConfig, options: .atomic)
+
         let prepared = dirs.preparedDir.appendingPathComponent(Self.preparedName(check), isDirectory: true)
         let modGame = try await modOverlay(game: game, profile: profile, onPhase: onPhase)
         defer { if let modGame { try? FileManager.default.removeItem(at: modGame) } }
@@ -88,6 +92,7 @@ public final class Launcher: @unchecked Sendable {
             let scaled = profile.renderResolution == nil ? try await pipeline.scaledSizes(settings: dirs.iniFile) : nil
             let inputs = LaunchInputs(profile: profile, gameDir: game.path, preparedDir: prepared, dirs: dirs,
                                       runtime: runtime, settings: settings, scaled: scaled, modGame: modGame,
+                                      patchExtras: patchExtras,
                                       appleSilicon: MacHost.appleSilicon, macOSMajor: MacHost.macOSMajor)
             let spec = LaunchSpec.make(inputs)
             try await prepare(spec, prepared: prepared, game: game, onPhase: onPhase)
@@ -121,7 +126,9 @@ public final class Launcher: @unchecked Sendable {
         }
         guard let mods = profile.mods, !mods.isEmpty else { return nil }
         onPhase(.preparing("mods.py"))
-        let installed = ((try? fm.contentsOfDirectory(atPath: dirs.modsDir.path)) ?? []).filter { !$0.hasPrefix(".") }
+        // Every folder not in the set is disabled, hidden ones too (a half-finished import must not
+        // be enabled by mods.py's "new folders are on" rule).
+        let installed = (try? fm.contentsOfDirectory(atPath: dirs.modsDir.path)) ?? []
         let config = dirs.runDir.appendingPathComponent("mods.json")
         let object: [String: [String]] = ["order": mods, "disabled": installed.filter { !mods.contains($0) }]
         try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: config, options: .atomic)
