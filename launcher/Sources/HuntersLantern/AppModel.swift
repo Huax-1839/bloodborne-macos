@@ -61,6 +61,30 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Import path (b): base game and update folders merged with APFS clones (D6). Filled in
+    /// with GameImporter (L2.2).
+    func importBaseAndUpdate(base: URL, update: URL) async {
+        errorMessage = "Not implemented yet (L2.2)"
+    }
+
+    /// Import path (c): base and update PKG through the external PKG tool, then (b) (L2.3).
+    func importPKGs(base: URL, update: URL) async {
+        errorMessage = "Not implemented yet (L2.3)"
+    }
+
+    /// The PKG tool found on this Mac (nil: none; the Game page explains how to get one).
+    var pkgToolDescription: String? { nil }
+
+    /// Lets the user pick the PKG tool's executable (L2.3).
+    func choosePKGTool(_ url: URL) {}
+
+    /// The thorough check (every .dcx) in the background; the result goes into the game's entry
+    /// (L2.4). `thoroughProgress` while it runs.
+    func runThoroughCheck(_ game: Game) async {}
+    @Published private(set) var thoroughProgress: Double?
+
+    func cancelImport() {}
+
     func removeGame(_ game: Game) {
         try? library.remove(game.id)
         if state.activeGame == game.id { state.activeGame = library.games.first?.id }
