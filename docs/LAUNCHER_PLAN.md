@@ -427,6 +427,42 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D13 updated, decisions logged in
 
 ## 8. Status and results
 
+**Start here (next session).** The plan was made on 2026-10-17; no launcher code exists yet.
+1. Read §0, §1, §3 and §5 L0. The decisions in §9 are the user's and are fixed (§0).
+2. Start L0 in this order:
+   - L0.1 (shared groundwork the others build on, O);
+   - then L0.2, L0.3, L0.4, L0.6 as porter spikes. Their file sets are disjoint, so they can run
+     in parallel with worktrees as `CLAUDE.md` describes.
+3. L0.5 (PKG) needs a Bloodborne base PKG and update PKG from the user. Ask for them first; if
+   there are none, defer L0.5 and go on.
+4. Spikes write their result into this section (numbers, what broke) and update the decision
+   they concern; then L1.
+
+Sources from the 2026-10-17 research (checked that day, recheck before relying on them):
+- PKG tools:
+  - ps4-pkg-tools: https://github.com/xXJSONDeruloXx/ps4-pkg-tools
+  - pkgextract: https://github.com/paulomanrique/ps4-pkg-extractor
+  - orbis-pkg-util: https://github.com/videobitva/orbis
+  - LibOrbisPkg stale-sector fixes, open PRs #89 and #91: https://github.com/maxton/LibOrbisPkg
+  - why shadPS4 dropped its PKG installer: https://github.com/shadps4-emu/shadPS4/issues/2734
+- How shadPS4 overlays an update per file (no deletions): `src/core/file_sys/fs.cpp` in
+  shadPS4.
+- Sparkle: https://sparkle-project.org/documentation/
+  - ad-hoc signed apps and App Translocation:
+    https://github.com/sparkle-project/Sparkle/discussions/2688
+  - since macOS 15, "Open Anyway" is the only way past Gatekeeper:
+    https://developer.apple.com/news/?id=saqachfa
+- Python: https://github.com/astral-sh/python-build-standalone/releases (MPL-2.0, aarch64
+  `install_only_stripped` ~26 MB compressed).
+- Rosetta's end:
+  https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment
+  - https://developer.apple.com/news/?id=w5ngl9k2
+  - macOS 27 release notes, Gaming (`game-test-tool`):
+    https://developer.apple.com/documentation/macos-release-notes/macos-27-release-notes
+- CI images: https://github.com/actions/runner-images
+  - `macos-14` retires on 2026-11-02;
+  - the cache limit is 10 GB per repository.
+
 - [ ] L0.1–L0.6 spikes and groundwork
 - [ ] L1 skeleton and dev launcher → L-M1
 - [ ] L2 game import

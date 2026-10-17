@@ -4,7 +4,8 @@ macOS port of bbport (Bloodborne's x86-64 eboot run natively, PS4 libraries repl
 translated): one x86-64 process under Rosetta 2, renderer on Metal (default on Apple silicon with
 macOS 15+) or Vulkan via MoltenVK. State, measured numbers and history: `macos/HANDOFF.md`. The
 Metal backend's plan, decisions and results: `docs/METAL_BACKEND_PLAN.md` (its §8 says where it
-stands and what is open).
+stands and what is open). The native launcher "Hunter's Lantern" (SwiftUI app, DMG, `launcher/`):
+`docs/LAUNCHER_PLAN.md`, same working model (its §8 "Start here" says where to begin).
 
 ## Repository rules (hard)
 
