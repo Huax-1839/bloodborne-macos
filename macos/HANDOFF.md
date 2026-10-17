@@ -53,6 +53,16 @@ native macOS launcher ("Hunter's Lantern", SwiftUI, DMG) is planned in `docs/LAU
     (`BB_FPS=uncap`), 540p holds ~53 FPS (720p ~51) for 20 min with the Air at heavy thermal
     pressure and the P cores parked; milestone M4 (uncapped play as an option, the user's,
     mean ≥ 45, every minute ≥ 40) passes on AC, its gameplay check and battery run are open.
+  - P12 (2026-10-17, asynchronous and parallel pipeline compiles): shader modules, the
+    warm-up's cached pipelines and new pipeline states compile on a pool of threads
+    (`BB_MTL_COMPILE_THREADS`, default cores − 2, 2–8); the recording thread waits for a
+    pipeline in draw order while the GPU thread goes on to the next compiles, and new pipelines
+    of passes drawn every frame go without their draws for a frame or two (the core's
+    `BB_ASYNC_PIPELINES`, now on Metal too). First visit of Central Yharnam with empty caches:
+    compile hitches of a 4-min walk 10.5–12.1 s → 4.1–4.3 s, worst frame 3.1 s → 0.6–0.9 s.
+    Off switches: `BB_MTL_ASYNC_COMPILE=0` (no pool), `BB_MTL_DEFER_PSO=0` (no deferred
+    builds), `BB_ASYNC_PIPELINES=0` (no skipped draws). Frame stats count the recording's waits
+    as compile time; the periodic Metal stats print the deferred builds and the PSO time.
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
@@ -75,8 +85,8 @@ command buffers a frame), small open checks. An ARM64 renderer is assessed in
 `docs/ARM64_PORT_ASSESSMENT_2026-10-13.md` (not planned). Levers the plan does not cover yet,
 ranked by estimated impact: `docs/PERFORMANCE_LEVERS_2026-10-16.md`; the first (shader float
 semantics) is done (P9.1, `docs/metal/float_semantics_design.md`), the second (lossless texture
-compression) too (P10.1, `docs/metal/texture_compression_design.md`); the rest need re-ranking
-against the faster frame.
+compression) too (P10.1, `docs/metal/texture_compression_design.md`), and the fourth
+(pipeline compiles, P12); the rest need re-ranking against the faster frame.
 
 ## Debug aids
 

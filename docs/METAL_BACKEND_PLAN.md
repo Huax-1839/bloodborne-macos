@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. P11 (power and heat on the Air) started 2026-10-17; milestone M4 (uncapped play as an option) added the same day (user), open. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. P11 (power and heat on the Air) started 2026-10-17; milestone M4 (uncapped play as an option) added the same day (user), open. P12 (asynchronous and parallel pipeline compiles) done 2026-10-17: on a first visit with empty caches the compile hitches of a 4-min walk fall from 10.5–12.1 s to 4.1–4.3 s, the worst frame from 3.1 s to 0.6–0.9 s. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -684,6 +684,43 @@ Exit: the five P11.1 questions answered with numbers (§8 "P11 results"), each P
 reverted on its A/B numbers (or recorded as not needed), the advice written, M4's rule set and
 checked.
 
+### P12: Asynchronous and parallel pipeline compiles (2026-10-17)
+
+Lever 4 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`, started at the user's request. Every Metal
+compile ran on the thread that asked for it: the warm-up of the disk cache on one thread, a new
+shader's MSL library and a new pipeline state on the GPU thread, one after another, and the core's
+background path (`BB_ASYNC_PIPELINES`) never ran on Metal (`AsyncSkippable` needs pipelines that
+do not depend on the vertex formats). With empty caches (a new area, a new driver, a fresh
+install) that is a frozen game for seconds. No milestone changes; the visible effect of (b) (a
+draw missing for a frame or two the first time its pipeline appears) is the user's call, taken
+with the request (§9).
+
+1. (O) P12.1 a compile pool in `Metal::PipelineCache` (`BB_MTL_COMPILE_THREADS`, default the
+   cores less two, 2–8; `BB_MTL_ASYNC_COMPILE=0` off): jobs start in submission order and a job
+   waits only for earlier ones, which have started, or does their work itself, so no job can wait
+   for one that cannot run.
+   - (a) shader modules compile on the pool from the moment the core creates them
+     (`ShaderModule::compile_state`; `PipelineCache::FinishModule` compiles a module no thread
+     has started on the caller's thread);
+   - (b) the warm-up's cached pipelines build on the pool; the core waits for them before it uses
+     them (`AwaitPreloadedPipelines`) and keeps a null entry for the ones that failed
+     (`PreloadFailed`);
+   - (c) Metal takes the core's background path: `PipelineCapabilities::async_graphics_pipelines`
+     replaces the vertex-input-dynamic-state test (Vulkan sets it to that test, unchanged), and
+     Metal derives the vertex attributes from the fetch shader's step rates without reading V#s;
+   - (d) deferred builds (`BB_MTL_DEFER_PSO=0` off): every other new pipeline's states build on
+     the pool too, the pipeline object goes to the draw at once, and the recording hooks wait for
+     it (`BuildLatch`, `PipelineCache::AwaitBuild`; a failed build drops the draw,
+     `Drop::PipelineFailed`). The GPU thread goes on to the next draws and their compiles while the
+     recording thread waits in order, so the compiles of one frame overlap. The core's compile
+     threads still build at once (`PipelineCacheCore::OnCompileThread`): their draws go without
+     the pipeline until it is built.
+2. (O) P12.2 measured with empty caches (the scratch user's caches and macOS's Metal cache moved
+   aside) on a 4-min scripted walk in Central Yharnam, interleaved, plus the warm boot; images
+   (title dumps), the warm Metal and Vulkan benches and the unit tests.
+
+Exit: met (§8 "P12 results").
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -936,6 +973,40 @@ battery full (not charging), 30 cap; `powerstats.py`, in-game span means and min
   frame), not the GPU (14–17 ms): 720p runs almost as fast as 540p. Uncapped play is ~50 FPS
   sustained, with the Air at its thermal limit throughout.
 
+**P12 results** (2026-10-17, asynchronous and parallel pipeline compiles). Every shader and
+pipeline cache empty before each run: the scratch user's (`<user>/cache`) and macOS's Metal cache
+of this user (`$(getconf DARWIN_USER_CACHE_DIR)com.apple.metal`, moved aside and restored
+afterwards; `com.apple.metalfe` was left warm). Central Yharnam save, m4air, 30 cap, bench boot
+then the 4-min scripted walk of `m1_run.sh`; in-game flips (≥ 300 draws), from the per-flip log:
+
+| | old: `BB_MTL_ASYNC_COMPILE=0 BB_ASYNC_PIPELINES=0` (3 runs) | P12.1 a–c, `BB_MTL_DEFER_PSO=0` (3) | P12 default (2) |
+|---|---|---|---|
+| flips > 50 ms with compiles, their sum | 31–38, 10.5–12.1 s | 23–27, 7.3–9.8 s | 18–22, 4.1–4.3 s |
+| flips > 100 ms / > 250 ms | 24–29 / 7–11 | 18–22 / 6–11 | 16–17 / 4–5 |
+| worst flip | 3.1 s | 2.85 s | 0.63–0.88 s |
+| frame time p99.9 | 250–383 ms | 233–317 ms | 150 ms |
+| compile time on the GPU thread (whole run, incl. boot) | 13.7–15.4 s | 10.5–12.9 s | 5.2–5.3 s (incl. recording waits) |
+| pipelines built in the background (draws without them) | 0 | 27–63 (63–434) | 49–58 (342–1247) |
+| deferred builds, recording waited for | | | 187–229, 82–103 (4.7 s) |
+
+- (a) alone moved the time rather than removing it: every new shader is needed by the next draw,
+  so the GPU thread waited in the pipeline build instead of the module compile. (c) takes 27–63
+  pipelines a walk off the GPU thread; the rest are full-screen passes, indirect draws, new
+  targets, compute pipelines and the frames right after a load (fewer than 300 draws in the frame
+  before), which `AsyncSkippable` keeps synchronous on purpose. The worst flip (137 compiles) is
+  the first frame after the load.
+- (d) overlaps those: the GPU thread hands each draw on and starts the next compiles while the
+  recording thread waits in order. The worst flip falls to 0.6–0.9 s, the compile hitches to
+  about a third.
+- Warm cache (the bench's, boot to the title): warm-up 165–386 ms → 61–198 ms; the boot to the
+  title takes 8–10 s either way. The binary archive is written only at a clean exit, which the
+  game never has (bench runs end with `pkill`): it is always new, and its additions cost little
+  (50–135 ms over a run), so they stay.
+- No regressions: the warm Metal bench 29.9 FPS at the cap (p11-default 29.9), Vulkan 32.6 FPS
+  uncapped (p11-vk2 32.7); title dumps Metal new vs old 68.8 dB (animated tiles only), Metal vs
+  Vulkan 48.3 dB (old 47.6); no failed deferred build, no new drops; unit tests as before
+  (`translation-memory-test` crashes on `main` too: two MoltenVK dylibs).
+
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
 
@@ -1179,6 +1250,14 @@ commit (kept privately, not in this repository):
       replayed uncapped (`route_check.py`); sprint, a cutscene, falling objects by eye (the user)
     - [ ] battery run (`m3stats.py --milestone m4 --expect battery`)
 
+- [x] P12 Asynchronous and parallel pipeline compiles (§5 P12; 2026-10-17; lever 4 of
+  `docs/PERFORMANCE_LEVERS_2026-10-16.md`)
+  - [x] P12.1 compile pool, modules on the pool, parallel warm-up, Metal on the core's background
+    path, deferred pipeline builds waited for by the recording hooks
+  - [x] P12.2 cold-cache Yharnam walks (A ×3, without deferral ×3, full ×2): compile hitches
+    10.5–12.1 s → 4.1–4.3 s, worst frame 3.1 s → 0.6–0.9 s; warm boot, images, Metal and Vulkan
+    benches, unit tests unchanged (results below, "P12 results")
+
 Results (filled in as measured):
 
 | Date | Backend | Settings | FPS mean | Worst frame | Notes |
@@ -1389,3 +1468,5 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-17 | New milestone M4: uncapped play (`BB_PROFILE=m4air BB_FPS=uncap`, 540p) as a supported option, clearly faster than the 30 cap for 20 min by an automated rule like M3's, its FPS thresholds set from the first 20-min uncapped measurements and confirmed by the user, plus a gameplay check at high FPS; task P11.4 (user's decision, the recommended option) | at the 30 cap the game's limiter busy-waits on the clock (P11.2), and the user asked for uncapped play as an option with a milestone; the uncap and sprint-fix patches exist (`scripts/patches.py` `FPS_PRESETS`), but no 20-min uncapped run, power measurement or gameplay check was ever made | §1, P11, `m3stats.py` |
 | 2026-10-17 | P11.2: `BB_CLOCK_SPIN_US` is the default (quantum 100 µs; `=0` off): a guest thread that reads the clock from one call site 16 times in a row, each read less than 20 µs after the previous one, sleeps a quantum before each further read. Kept although mean FPS at the cap falls from 30.00 to 29.94 (the overshoot adds up) | guest-PC sampler: the game's 30-FPS limiter busy-waits on `gettimeofday` (~85% of the main thread); A B B A on the 720p walk: CPU 5.02/4.26 → 3.02/3.13 W (A/A spread 0.76), package 6.96/6.11 → 4.99/5.02 W, missed slots 1.20/0.94 → 0.89/1.07%, P-cluster and GPU clocks held in minutes 15–20; all four runs pass the M3 rule | P11.2, M3, kernel emulation (both backends) |
 | 2026-10-17 | M4 thresholds: mean ≥ 45 FPS and every 60-s stretch ≥ 40 FPS over 20 min at 540p uncapped, plus M3's duration, error, hitch and condition rules; no 30-FPS slot rules (p99/p99.9 reported) (user's decision, the recommended option) | first 20-min uncapped runs on AC: 540p 53.1 FPS mean, slowest minute 47.5; 720p 50.8 / 46.5; about 15% margin for warmer rooms, battery and run-to-run spread | §1 M4, `m3stats.py` |
+| 2026-10-17 | P12 added (lever 4 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`) and Metal takes the core's background pipeline path by default: a draw of a pass drawn every frame goes without its new pipeline for a frame or two (`BB_ASYNC_PIPELINES=0` off) | the user asked for asynchronous and parallel pipeline compiles; cold-cache walks: compile hitches 10.5–12.1 s → 7.3–9.8 s with it | P12, Metal draw path |
+| 2026-10-17 | P12: deferred pipeline builds (the recording hooks wait for a pipeline built on the compile pool) added beyond the lever's proposal, the default (`BB_MTL_DEFER_PSO=0` off) | (a)–(c) left the first frame after a load at 2.85 s (its compiles synchronous by design); with deferral 0.6–0.9 s, hitches 4.1–4.3 s | P12, Metal recording hooks |

@@ -154,6 +154,12 @@ CPU's share of the power.
 
 ## 4. Pipeline compiles block the game
 
+**Done as P12 (2026-10-17)**, all three proposals plus deferred pipeline builds (the recording
+hooks wait for a pipeline built on the compile threads, so the compiles of one frame overlap).
+On a first visit of Central Yharnam with empty caches the compile hitches of a 4-min walk fall
+from 10.5–12.1 s to 4.1–4.3 s, the worst frame from 3.1 s to 0.6–0.9 s; with a warm cache nothing
+changes (plan §5 P12, §8 "P12 results").
+
 Evidence:
 - `renderer_metal/mtl_pso_cache.mm:549` (render), `:635`, `:700` (compute): synchronous
   `newRenderPipelineStateWithDescriptor:options:reflection:error:` on the calling (GPU) thread.
