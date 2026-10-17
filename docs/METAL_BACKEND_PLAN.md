@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. P11 (power and heat on the Air) started 2026-10-17. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. P11 (power and heat on the Air) started 2026-10-17; milestone M4 (uncapped play as an option) added the same day (user), open. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -46,6 +46,7 @@ Targets (MacBook Air M4, 10-core GPU, Iosefka's clinic, the bench save):
 | M1 parity | Same image as Vulkan (within the diff threshold, §6) at the same settings |
 | M2 faster | ≥ Vulkan FPS at the same settings in the M2 protocol (`macos/bench/m2.sh`: m4air uncapped and capped, native 1080p at 30 FPS) — met 2026-10-15 (+10% in each); the original 36 FPS at 540p uncapped was dropped (§9) |
 | M3 goal | 540p internal (`BB_PROFILE=m4air`, MetalFX to 1080p) at a stable 30 FPS for 20 min on the Air, on power and battery; first 720p, changed 2026-10-15 (§9: at 720p the warm Air's GPU needs 42–45 ms a frame) |
+| M4 uncapped | Uncapped play as a supported option (added 2026-10-17 by the user, §9): `BB_PROFILE=m4air BB_FPS=uncap` (540p) clearly faster than the 30 cap for 20 min on the Air, by an automated rule like M3's (§5 P11.4); the mean-FPS and minute thresholds are set from the first 20-min uncapped measurements and confirmed by the user; plus a gameplay check that high FPS breaks nothing |
 | Stretch | 1080p internal at 30 FPS, or 60 FPS presented with MetalFX frame interpolation |
 
 **M3 acceptance rule** (set 2026-10-16 after review finding 7, by the user's choice of the
@@ -664,8 +665,24 @@ port never works around `sudo` (fallback if they decline: a bench-only IOReport 
    (GPU MHz and W over 20 minutes); short advice in `macos/HANDOFF.md` and the README's macOS
    section.
 
+4. (O, S for the rule's script; added 2026-10-17 by the user's decision, §1 M4) P11.4 uncapped
+   play as an option (M4):
+   - measure: 20-min walks `IDLE_MIN=10 POWERMETRICS=1 THREADCPU=10 m1_run.sh … BB_PROFILE=m4air
+     BB_FPS=uncap` on AC (battery full) at 540p, and 720p for comparison: FPS per minute, the
+     watts and clocks against the capped baseline, what heat takes off over 20 minutes;
+   - the rule: an M4 mode for `m3stats.py` (or a sibling script) with the shared checks of M3
+     (duration, in game, errors, hitches, conditions) and FPS thresholds for the mean and every
+     60-s stretch, set from those measurements with the user; pacing measured (p99, p99.9), not
+     a slot rule (there is no slot uncapped);
+   - gameplay check at high FPS (the uncap and sprint-fix patches): the recorded route
+     (`ROUTE=`, `route_check.py` checkpoints) reaches its checkpoints; sprinting, a cutscene and
+     falling objects look right by eye;
+   - M4 met when one AC run passes the rule and the gameplay check holds; a battery run as the
+     second run, as for M3.
+
 Exit: the five P11.1 questions answered with numbers (§8 "P11 results"), each P11.2 cut kept or
-reverted on its A/B numbers (or recorded as not needed), the advice written.
+reverted on its A/B numbers (or recorded as not needed), the advice written, M4's rule set and
+checked.
 
 ## 6. Verification
 
@@ -1095,6 +1112,8 @@ commit (kept privately, not in this repository):
     - [ ] 720p while charging and on battery (the user)
   - [ ] P11.2 CPU power cuts where the baseline points (A B B A on the 720p walk)
   - [ ] P11.3 advice for players (Low Power Mode, charging), in HANDOFF and README
+  - [ ] P11.4 M4 uncapped option (added 2026-10-17, §1): 20-min uncapped walks at 540p/720p with
+    powermetrics; thresholds with the user; the rule in a script; gameplay check; AC run passes
 
 Results (filled in as measured):
 
@@ -1303,3 +1322,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-17 | P10.1: texture-cache images on Metal are created without `ShaderWrite` and `PixelFormatView` (colour and block; depth keeps `PixelFormatView`, MSAA keeps both) and promoted on first need (a new backing, the contents copied in stream order, the old one retired through the deferred destroy); `BackendLimits::lean_image_usage`, set only by Metal; `BB_MTL_FULL_USAGE=1` restores the old usages | microbenchmark: either usage costs the compression of colour targets (RGBA16F ×2.2), depth unaffected, `optimizeContentsForGPUAccess` useless; inventory: 80–84% of images need neither, but shader-written and never-written targets share formats and sizes (no rule at creation), the set is stable across scenes; upper bound and the policy: GPU busy −1.7 ms at 540p, −3.3 ms at 720p, −5.3 ms at 1080p, images unchanged, validation and Vulkan clean | P10, `docs/metal/texture_compression_design.md`; the live path's proxies and the upscaler's own textures keep their usages (not measured) |
 | 2026-10-17 | New phase P11 (power and heat on the fanless Air): P11.1 measurement tooling (`powermetrics` next to a run, per-thread CPU time and thermal pressure in the game) and a baseline at 540p/720p/1080p at the 30 cap, P11.2 CPU power cuts only where the baseline points, P11.3 measured advice for players; no milestone change. The game logs the thermal pressure level through `notify_get_state` (`kOSThermalNotificationPressureLevelName`, public C API) instead of `ProcessInfo.thermalState`: C, both backends, no Objective-C outside `renderer_metal/`, the same levels as `powermetrics` | lever 3 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`: heat cost the GPU 20–25% before P9.1/P10.1, charging 3.5 FPS by minute 14; the power log holds `pmset` data only; candidates re-verified in the code (`SpinLock` on macOS in the page and region managers, small-timer yield loop, `pthread_once` and copy yields) | P11, `docs/metal/power_budget_design.md` |
 | 2026-10-17 | P11.2: the review's CPU cuts C1–C4 (`SpinLock` in the page and region managers, the small-timer yield loop, `pthread_once` and copy yields) are not built; P11.2 turns to the game's `main` thread, which holds a P core at ~98% at the 30 cap, starting with a guest-PC sampler (`BB_GUEST_PROFILE`) to tell spinning from compute | P11.1 AC baseline: CPU 78–81% of the package at 540p/720p; the counters on every candidate read 0 in every 10-s interval of play in all three 20-min runs; per-thread CPU: guest 132% of a core, `main` 98%, the port's threads 38–40% | P11.2, `docs/metal/power_budget_design.md` |
+| 2026-10-17 | New milestone M4: uncapped play (`BB_PROFILE=m4air BB_FPS=uncap`, 540p) as a supported option, clearly faster than the 30 cap for 20 min by an automated rule like M3's, its FPS thresholds set from the first 20-min uncapped measurements and confirmed by the user, plus a gameplay check at high FPS; task P11.4 (user's decision, the recommended option) | at the 30 cap the game's limiter busy-waits on the clock (P11.2), and the user asked for uncapped play as an option with a milestone; the uncap and sprint-fix patches exist (`scripts/patches.py` `FPS_PRESETS`), but no 20-min uncapped run, power measurement or gameplay check was ever made | §1, P11, `m3stats.py` |

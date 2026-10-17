@@ -168,6 +168,18 @@ The result goes as short advice into `macos/HANDOFF.md` and the README's macOS s
 "play at 540p on battery with Low Power Mode if …", "charging costs N FPS at 720p: pause
 charging or …").
 
+## P11.4 Uncapped play as an option (milestone M4, added 2026-10-17 by the user)
+
+Uncapped (`BB_FPS=uncap`: the community patches `Uncap FPS++` and `Sprint Fix (High FPS)`,
+vblank emulated at 480 Hz) removes the game's limiter, so there is no spin; instead the CPU and
+GPU fill the time with more frames, and heat decides more than at the cap. Steps: 20-min walks
+at 540p (m4air) and 720p with `POWERMETRICS=1 THREADCPU=10` on AC with the battery full; from
+them the user and the orchestrator set M4's FPS thresholds (mean, every 60-s stretch); the rule
+goes into `m3stats.py` (an M4 mode: M3's checks except the 30-FPS rate and slot rules, plus the
+thresholds and p99/p99.9 frame times reported); a gameplay check of the high-FPS patches on the
+recorded route and by eye (sprint, a cutscene, falling objects). M4 is met when an AC run passes
+and the gameplay check holds; a battery run follows, as for M3.
+
 ## Risks
 
 - `powermetrics`' plist keys differ between macOS versions and chips (per-cluster power is not
