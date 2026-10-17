@@ -906,6 +906,27 @@ battery full (not charging), 30 cap; `powerstats.py`, in-game span means and min
   wait, so the overshoot adds up (~67 µs a frame). Option, not built: wake at a learned
   deadline instead of by quanta.
 
+- Uncapped (P11.4, M4; `BB_FPS=uncap`, before the clock-spin default, which does not act there:
+  no limiter, 0 episodes), 20-min walks on AC with the battery full, against the capped baseline:
+
+| | 540p uncapped | 720p uncapped | 540p at 30 (baseline) |
+|---|---|---|---|
+| FPS mean (per minute) | 53.1 (59 → 48–54) | 50.8 (55–59 → 47–52) | 30.00 |
+| slowest 60-s stretch | 47.5 | 46.5 | 29.98 |
+| frame time p99 / p99.9 / max | 28.0 / 33.6 / 122.6 ms | 28.4 / 33.9 / 98.6 ms | |
+| CPU / GPU / package W, minutes 0–5 → 15–20 | 3.5 → 0.8 / 4.4 → 3.2 / 8.0 → 4.1 | 2.9 → 0.8 / 5.9 → 3.8 / 9.0 → 4.7 | 5.7 / 1.2 / 7.1 |
+| P cluster active, MHz | 48% → 0.7%, 3000 → 990 | 34% → 0%, 3070 → parked | 100%, 4000 |
+| E cluster active | 72% → 99.9% | 83% → 99.9% | 38% |
+| GPU MHz, active | 1382 → 1313, 95% | 1310 → 1131, 98% | 871 → 693, 74% |
+| `gpu_ms` / `rec_busy_ms` mean | 13.9 / 17.6 | 16.9 / 18.3 | 19.3 / 4.7 |
+| thermal pressure | heavy from minute ~2 | heavy | nominal |
+
+  Uncapped, the Air reaches heavy pressure within two minutes and stays there. macOS parks the P
+  cluster (0–1% active from minute ~8) and caps the package at ~4–5 W, so all CPU work runs on the
+  E cluster at 100%. The limit is then recording on the E cores (`rec_busy_ms` 18–20 ms a
+  frame), not the GPU (14–17 ms): 720p runs almost as fast as 540p. Uncapped play is ~50 FPS
+  sustained, with the Air at its thermal limit throughout.
+
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
 
