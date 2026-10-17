@@ -39,7 +39,6 @@ fi
 [[ -n $print_env ]] || echo "Renderer: $BB_RENDERER"
 
 step "$PYTHON" scripts/prepare.py "$game" --out "$out"
-step "$PYTHON" scripts/link_libc.py "$game" --out "$out"
 step "$PYTHON" scripts/link_modules.py "$game" --out "$out"
 step "$PYTHON" scripts/content_profile.py "$game" --out "$out" --sku "${BB_CONTENT_SKU:-full}"
 

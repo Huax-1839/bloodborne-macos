@@ -75,7 +75,6 @@ extension LaunchSpec {
         // Pipeline steps.
         var steps = [
             Step(script: "prepare.py", arguments: [game, "--out", out]),
-            Step(script: "link_libc.py", arguments: [game, "--out", out]),
             Step(script: "link_modules.py", arguments: [game, "--out", out]),
             Step(script: "content_profile.py", arguments: [game, "--out", out, "--sku", value("BB_CONTENT_SKU", "full")]),
         ]
