@@ -15,6 +15,14 @@
 #include "video_core/renderer_metal/mtl_frame_interpolator.h"
 #include "video_core/renderer_metal/mtl_scheduler_impl.h"
 
+// The interpolator's content rectangle (contentWidth/Height) exists from the macOS 27 SDK on;
+// older SDKs (CI's Xcode 26) build without it and interpolate the padding too.
+#if defined(__MAC_27_0) && __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_27_0
+#define BB_MTLFX_CONTENT_RECT 1
+#else
+#define BB_MTLFX_CONTENT_RECT 0
+#endif
+
 namespace Metal {
 namespace {
 
@@ -250,10 +258,12 @@ const void* FrameInterpolator::Run(const void* color, const InterpolationInputs&
                         state.failed = true;
                         return nullptr;
                     }
-                    bool content_rect = false; // contentWidth/Height: macOS 27
+                    bool content_rect = false; // contentWidth/Height: macOS 27 (and its SDK)
+#if BB_MTLFX_CONTENT_RECT
                     if (@available(macOS 27.0, *)) {
                         content_rect = true;
                     }
+#endif
                     if (!content_rect && (in.content_width != in.input_width ||
                                           in.content_height != in.input_height)) {
                         {
@@ -286,10 +296,12 @@ const void* FrameInterpolator::Run(const void* color, const InterpolationInputs&
                 interpolator.depthReversed = NO;
                 interpolator.shouldResetHistory = reset || in.reset || state.needs_reset;
                 state.needs_reset = false;
+#if BB_MTLFX_CONTENT_RECT
                 if (@available(macOS 27.0, *)) {
                     interpolator.contentWidth = in.content_width;
                     interpolator.contentHeight = in.content_height;
                 }
+#endif
                 // Both read tracked textures: no encoder may be open when MetalFX encodes its own.
                 scheduler.EndRendering();
                 scheduler.EndEncoder();
