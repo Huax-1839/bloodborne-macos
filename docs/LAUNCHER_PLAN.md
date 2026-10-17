@@ -1,6 +1,7 @@
 # Launcher "Hunter's Lantern": plan
 
-Status: planned 2026-10-17 together with the user (decisions in §9); no code yet. Progress is
+Status: planned 2026-10-17 together with the user (decisions in §9); L0 done and L1 under way
+(2026-10-17, see §8). Progress is
 tracked in the checklist in §8; the orchestrating session updates it after every step (see
 `CLAUDE.md`, the same working model as `docs/METAL_BACKEND_PLAN.md`).
 
@@ -120,8 +121,10 @@ v1 feature set (decided with the user):
 **D2 Technology and targets.**
 - SwiftUI, macOS 14+, the launcher arm64 only; the game runtime stays x86-64 under Rosetta 2.
 - Logic lives in a Swift package `LanternCore` (no UI, unit-tested with `swift test`).
-- The app target (Xcode project, built with `xcodebuild` from `launcher/build.sh`) is a thin UI
-  over it.
+- The app is an executable target of the same package (`launcher/Package.swift`), a thin UI over
+  it; `launcher/build.sh` builds it with `swift build` and assembles the `.app` (Info.plist, icon,
+  resource bundles, signing). No Xcode project (decided 2026-10-17, §9: reviewable files only,
+  and `swift build` compiles String Catalogs into `.lproj`).
 - Localisation: String Catalogs; German and English.
 
 **D3 Bundle layout** (confirmed or changed by spike L0.2).
@@ -135,6 +138,12 @@ v1 feature set (decided with the user):
   `Contents/Resources/python/` (D4).
 - Every cwd-relative default is replaced by an explicit env var or argument. The launcher sets
   the cwd to a data-dir folder.
+- Confirmed by L0.2 (`launcher/packaging/make-game-app.sh`): the game runs from the nested app
+  outside the repository on Metal and Vulkan. `Contents/Frameworks` needs no `libvulkan*`
+  symlinks (vulkan.hpp's loader falls back to the already loaded `libMoltenVK.dylib`). Category
+  `public.app-category.games`, `GCSupportsGameMode`. Remaining cwd-relative defaults are only
+  for features that are off by default (`out/dump`: `BB_DUMP_DIR`; Vulkan FSR 4 assets:
+  `BB_FSR4_DIR`, `BB_FSR411_DIR`).
 
 **D4 Pipeline: Python embedded in v1, Swift afterwards.**
 - `LanternCore` defines a `Pipeline` protocol: check game, prepare image, compile patches, build
@@ -143,6 +152,12 @@ v1 feature set (decided with the user):
   (aarch64, `install_only_stripped`; the scripts are pure Python, so no x86-64 Python is needed).
 - The launcher never calls `/usr/bin/python3`: on a Mac without Command Line Tools that is a stub
   that opens an install dialog.
+- L0.3 (measured): CPython 3.13.16 (python-build-standalone 20261013, pinned with its SHA-256 in
+  `launcher/packaging/fetch-python.sh`), pruned to 27 MB (9.8 MB as tar.gz); outputs
+  byte-identical to Homebrew's Python; the pipeline takes ~1.6 s warm. Flags `-E -s -B`, **not
+  `-I`** (it drops the script folder from `sys.path`, and the scripts import each other). A
+  quarantined, unapproved bundle gets the interpreter killed by Gatekeeper (SIGKILL): the
+  launcher says so in plain words.
 - After v1 (L7), `SwiftPipeline` replaces the scripts one by one, each with golden tests
   (byte-identical `content.bin`, `patches.bin`, `boot-linked.bin`; equal overlay trees). The same
   Swift code also builds a CLI `lantern` that `run.sh` then calls, so there is again one
@@ -162,7 +177,13 @@ v1 feature set (decided with the user):
   clones (`clonefile`), which costs no space on the same volume; on another volume it copies.
   The free space is checked first.
 - (c) **PKG**: an external tool the user installs; the launcher never downloads or bundles one.
-  - Recommended: `ps4-pkg-tools` (GPL-2.0, macOS releases, actively maintained).
+  - Recommended: `ps4-pkg-tools` (GPL-2.0, macOS releases, actively maintained). L0.5 with the
+    user's PKGs (commit `45baeda`, built from source): base 31 GB in 157 s, update in 1 s; the
+    merged folder equals the known-good one byte for byte (except a padded `npbind.dat` the port
+    does not read) and passes the check. It has no `--version`: identified by name and usage
+    text. It writes into `<out>/<TITLE_ID>/`, prints `Progress: N / M files` (block-buffered when
+    piped: the launcher polls the output folder), exits 1 on errors and leaves an empty folder
+    behind, and does not detect corrupted content (the game check does).
   - Also detected: `pkgextract`/`orbis-pkg-util`.
   - LibOrbisPkg PkgTool on .NET 6+ is detected and refused or warned about (the stale-sector
     bug; fixes are open PRs #89/#91).
@@ -227,6 +248,14 @@ v1 feature set (decided with the user):
     app version).
   - Single characters only if spike L0.6 shows the slots can be separated safely; otherwise v1
     exports whole saves, and the profile/save view makes clear which characters a save holds.
+  - L0.6: no encryption and no checksums. `userdata0000`–`0009` are the ten character slots
+    (1.25 MB each, zero-filled when empty), `userdata0010` the global file: options plus ten
+    402-byte summary records at `0x108c + 402·n` (u32 occupied flag, UTF-16LE name at +10, u32
+    level +44, playtime s +48, echoes +52). Per-character export is the slot file plus its
+    record; import into slot m replaces both and removes `backup<m>`. Seen with one occupied
+    slot only: it must be confirmed in the game before it ships (L5.2), else whole saves. The
+    save view lists name, level, playtime and echoes per slot. `param.bin` holds no account or
+    title id (the binding is the path `savedata/1/<title>/SPRJ0005`).
 - **Own saves per profile**:
   - a separate `--user` root for savedata, with the GPU cache shared through `BB_GPU_USER_DIR`;
   - checked in L4.4.
@@ -252,10 +281,20 @@ v1 feature set (decided with the user):
 - Each update replaces the whole bundle (runtime + launcher); Sparkle deltas keep downloads small.
 - The launcher detects App Translocation or a read-only location and offers to move itself to
   `/Applications` first; Sparkle cannot update otherwise.
+- L0.4 (measured): Sparkle 2.10.0 through SwiftPM (`.package(url: …Sparkle, exact: "2.10.0")`,
+  a binary target) updated an ad-hoc signed test app 0.0.1 → 0.0.2 without clicks
+  (`SUAutomaticallyUpdate`, installed on quit). Ad hoc to ad hoc is accepted: Sparkle logs a
+  cdhash mismatch as "Error" but goes on when the old app has no signing identity; the EdDSA
+  signature is the real gate (a flipped signature is refused, 4005/3002). The key is made with
+  OpenSSL as a base64 Ed25519 seed and read with `--ed-key-file` (`generate_keys` only works
+  through the Keychain, so it is not used): a CI secret, backed up by the maintainer. The XPC
+  services can be dropped (non-sandboxed app). The 2.10 archive has no `sparkle-cli`.
+  Translocation is detected by the path (`/AppTranslocation/`).
 
 **D14 Signing.**
 - v1 is signed ad hoc, inside-out, **without** the hardened runtime. Then no JIT entitlements are
-  needed and Sparkle.framework loads without disabling library validation.
+  needed and Sparkle.framework loads without disabling library validation (confirmed in L0.4;
+  Sparkle's framework is re-signed with `--options=0`, the app after its Info.plist is final).
 - First start: since macOS 15 the user has to use System Settings › Privacy & Security › Open
   Anyway. The DMG has a short illustrated note, and the README explains it.
 - Developer ID and notarization come later and are the user's decision. The certificate shows
