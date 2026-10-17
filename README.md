@@ -43,6 +43,70 @@ areas.
   same 1.09 executable. Use an unmodified `eboot.bin`: an executable with a 60 FPS patch baked in
   crashes later.
 
+## Hunter's Lantern: the app
+
+**Hunter's Lantern** is a native launcher that needs no Terminal, Xcode, Homebrew or Python: it
+carries the game runtime and everything the game preparation needs. Its source is in
+[`launcher/`](launcher) and its plan in [`docs/LAUNCHER_PLAN.md`](docs/LAUNCHER_PLAN.md).
+
+1. **Install.** Download `HuntersLantern-<version>.dmg` from the
+   [Releases](https://github.com/Huax-1839/bloodborne-macos/releases) page, open it and drag the app
+   onto *Applications*. The app is signed ad hoc, not notarized: the first time, macOS refuses to
+   open it. Click *Done*, open *System Settings › Privacy & Security*, click **Open Anyway** next to
+   Hunter's Lantern and confirm. The first-run assistant then checks Rosetta 2, the macOS version
+   and free space.
+2. **Bring your game.** On the *Game* page, either
+   - add a ready game folder (Bloodborne with update 1.09 applied; it stays where it is),
+   - merge the base game and the 1.09 update from two folders (APFS clones: almost no extra space
+     on the same disk), or
+   - import the base game and update **PKG files**. The app has no PKG code of its own: install an
+     external tool, [ps4-pkg-tools](https://github.com/xXJSONDeruloXx/ps4-pkg-tools) recommended
+     (`pkgextract` and `orbis-pkg-util` are detected too; LibOrbisPkg PkgTool is refused because it
+     damages files). Hunter's Lantern finds it in `PATH`, Homebrew or `~/Applications`, or you
+     choose it. A delta update PKG does not work: use the full 1.09 update.
+
+   Every import is checked (title, version 1.09, the executable, the shaders); a thorough check of
+   all files can run in the background.
+3. **Pick a profile.** Built-in presets: *MacBook Air* (measured: 540p scene, MetalFX to 1080p,
+   30 FPS), *Pro* and *Max* (estimates, marked as unmeasured) and *Vanilla*. The launcher suggests
+   one for your Mac. Duplicate a preset to change frame rate, renderer, scene size, effects, patches
+   and mods; settings you change in the game's menu are taken back into the profile.
+4. **Mods.** On the *Mods* page add mod folders or ZIP files (loose files for `dvdroot_ps4`), put
+   them in order and switch them on per profile; files several mods replace are listed. The game's
+   own files are never changed: mods are linked over them for each start.
+5. **Saves.** Before every start the save is backed up (the last 10 are kept, APFS clones); you can
+   take named snapshots, restore one, and export or import a save as a `.lanternsave` file.
+6. **Play.** The launcher steps aside while the game runs and shows how it ended; the *Diagnostics*
+   page has the logs and system information for bug reports. Updates arrive through the app itself
+   (Sparkle).
+
+Settings, saves, logs and prepared files live in `~/Library/Application Support/HuntersLantern/`.
+
+### Deutsch
+
+**Hunter's Lantern** ist ein eigenständiger Launcher ohne Terminal, Xcode, Homebrew oder Python.
+
+1. **Installieren.** Lade `HuntersLantern-<Version>.dmg` von der
+   [Releases](https://github.com/Huax-1839/bloodborne-macos/releases)-Seite, öffne es und ziehe die
+   App in *Programme*. Die App ist nur ad hoc signiert (nicht notarisiert): Beim ersten Mal lehnt
+   macOS das Öffnen ab. Klicke auf *Fertig*, öffne *Systemeinstellungen › Datenschutz & Sicherheit*,
+   klicke neben Hunter's Lantern auf **Trotzdem öffnen** und bestätige. Danach prüft der
+   Einrichtungsassistent Rosetta 2, die macOS-Version und den freien Speicher.
+2. **Spiel hinzufügen** (Seite *Spiel*): ein fertiger Spielordner (Bloodborne mit Update 1.09),
+   Basisspiel und 1.09-Update aus zwei Ordnern (werden mit APFS-Klonen zusammengeführt) oder die
+   beiden **PKG-Dateien**. Für PKGs brauchst du ein externes Werkzeug, empfohlen
+   [ps4-pkg-tools](https://github.com/xXJSONDeruloXx/ps4-pkg-tools); die App selbst enthält keinen
+   PKG-Code. Ein Delta-Update-PKG funktioniert nicht, nötig ist das vollständige 1.09-Update.
+3. **Profil wählen:** *MacBook Air* (gemessen: 540p, MetalFX auf 1080p, 30 FPS), *Pro* und *Max*
+   (geschätzt, als ungemessen markiert) oder *Vanilla*. Zum Ändern ein Profil duplizieren.
+4. **Mods** (Seite *Mods*): Ordner oder ZIP-Dateien hinzufügen, sortieren, pro Profil einschalten.
+   Die Spieldateien bleiben unverändert.
+5. **Spielstände:** Vor jedem Start wird gesichert (die letzten 10 bleiben); Schnappschüsse,
+   Wiederherstellen sowie Export und Import als `.lanternsave`.
+6. **Spielen.** Während das Spiel läuft, tritt der Launcher zur Seite und zeigt danach das Ergebnis;
+   die Seite *Diagnose* enthält Protokolle und Systeminformationen für Fehlerberichte. Updates
+   kommen über die App selbst (Sparkle).
+
 ## Build and run
 
 ```bash
