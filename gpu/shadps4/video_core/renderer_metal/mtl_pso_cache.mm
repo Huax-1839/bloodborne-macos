@@ -168,6 +168,7 @@ struct PsoCache::Impl {
     id<MTLBinaryArchive> archive; ///< nil: none (yet / any more)
     bool archive_dirty{};
     bool archive_error_logged{};
+    std::atomic<u64> archive_add_us{}; ///< PsoCache::Counters::archive_add_us
 };
 
 RenderPipeline::~RenderPipeline() {
@@ -242,6 +243,10 @@ PsoCache::~PsoCache() {
     Flush();
 }
 
+u64 PsoCache::ArchiveAddUs() const {
+    return impl->archive_add_us.load(std::memory_order_relaxed);
+}
+
 bool PsoCache::Flush() {
     std::scoped_lock lock{impl->archive_mutex};
     if (!impl->archive || !impl->archive_dirty) {
@@ -300,6 +305,7 @@ id CreateWithArchive(PsoCache::Impl& impl, bool archive_loaded, Descriptor* desc
         return nil;
     }
     if (archive) {
+        const auto add_start = Clock::now();
         std::scoped_lock lock{impl.archive_mutex};
         NSError* add_error = nil;
         if (add(archive, descriptor, &add_error)) {
@@ -310,6 +316,7 @@ id CreateWithArchive(PsoCache::Impl& impl, bool archive_loaded, Descriptor* desc
                                 "without further additions",
                         FirstLine(add_error));
         }
+        impl.archive_add_us += UsSince(add_start);
     }
     return state;
 }

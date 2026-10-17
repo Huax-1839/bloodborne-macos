@@ -4,6 +4,7 @@
 
 #include <array>
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -39,10 +40,20 @@ VideoCore::PipelineCapabilities MakePipelineCapabilities();
 /// that need it are not created. Tessellation control and evaluation modules have no plain
 /// shader (`shader` null, not counted as unusable): they only exist as the variants of a
 /// tessellated pipeline (VariantShader); a geometry module likewise (the geometry kernel).
+///
+/// The plain shader compiles on the compile threads (CompilePool) from the moment the module is
+/// created; `shader` and `status` are read only after PipelineCache::FinishModule, which compiles
+/// the module on the calling thread when no compile thread has started it yet.
 struct ShaderModule {
-    std::unique_ptr<CompiledShader> shader; ///< null: not usable
+    std::unique_ptr<CompiledShader> shader; ///< null: not usable (after FinishModule)
     CompileStatus status{CompileStatus::Failed};
-    ShaderStage stage{ShaderStage::Unknown};
+    ShaderStage stage{ShaderStage::Unknown}; ///< from the SPIR-V's entry point, at creation
+
+    enum class CompileState : u8 { Queued, Running, Done };
+    std::mutex compile_mutex;
+    std::condition_variable compile_cv;
+    CompileState compile_state{CompileState::Done};
+    std::vector<u32> pending_spirv; ///< the plain shader's input until it is compiled
 
     // Vertex, tessellation control and evaluation modules: what the pipelines that compile the
     // module another way need. The RectList rewrite (PipelineCache::RectListShader) and the
@@ -82,6 +93,41 @@ struct ComputeSerialization final : VideoCore::PipelineSerialization {
     }
 };
 
+/// The build of a pipeline's Metal states on the compile threads (plan P12): the pipeline object
+/// exists from the draw that asked for it, its states only once the build is done. The draw path
+/// hands the pipeline on; the recording hooks wait (PipelineCache::AwaitBuild) before they read
+/// a state, so the GPU thread can go on to later draws and their compiles meanwhile.
+class BuildLatch {
+public:
+    enum class State : u8 { Pending, Built, Failed };
+    explicit BuildLatch(State initial = State::Built) : state{initial} {}
+    /// Until the build is done; false: it failed (the states are null).
+    bool Wait() const {
+        State current;
+        while ((current = state.load(std::memory_order_acquire)) == State::Pending) {
+            state.wait(State::Pending, std::memory_order_acquire);
+        }
+        return current == State::Built;
+    }
+    bool Done() const {
+        return state.load(std::memory_order_acquire) != State::Pending;
+    }
+    bool Failed() const {
+        return state.load(std::memory_order_acquire) == State::Failed;
+    }
+    /// Before the pipeline is handed to the build job.
+    void Begin() {
+        state.store(State::Pending, std::memory_order_relaxed);
+    }
+    void Finish(bool built) {
+        state.store(built ? State::Built : State::Failed, std::memory_order_release);
+        state.notify_all();
+    }
+
+private:
+    std::atomic<State> state;
+};
+
 /// What the rasterizer binds for a draw: the MTLRenderPipelineState (with the encoder state of
 /// the key and the shaders' binding maps, RenderPipeline) and the vertex attributes it was built
 /// with (they name the vertex buffer slots, in the fetch shader's attribute order). A tessellated
@@ -93,9 +139,12 @@ public:
                      std::span<const Shader::Info*, VideoCore::MaxShaderStages> infos,
                      std::optional<const Shader::Gcn::FetchShaderData> fetch_shader);
 
-    /// Never null for a pipeline the cache returns.
+    /// Never null for a pipeline the cache returns, once Latch().Wait() returned true.
     [[nodiscard]] const RenderPipeline& Render() const noexcept {
         return *render;
+    }
+    [[nodiscard]] const BuildLatch& Latch() const noexcept {
+        return latch;
     }
     [[nodiscard]] std::span<const VertexAttribute> VertexAttributes() const noexcept {
         return vertex_attributes;
@@ -115,19 +164,28 @@ private:
     const TessellationPipeline* tessellation{};
     const GeometryPipeline* geometry{};
     std::vector<VertexAttribute> vertex_attributes;
+    BuildLatch latch;
 };
 
 class ComputeShaderPipeline final : public VideoCore::PipelineBase {
 public:
     ComputeShaderPipeline(const Shader::Info& info, const ComputePipeline* compute);
 
+    /// Never null for a pipeline the cache returns, once Latch().Wait() returned true.
     [[nodiscard]] const ComputePipeline& Compute() const noexcept {
         return *compute;
     }
+    [[nodiscard]] const BuildLatch& Latch() const noexcept {
+        return latch;
+    }
 
 private:
-    const ComputePipeline* compute;
+    friend class PipelineCache;
+    const ComputePipeline* compute; ///< set by a compile thread for a deferred build
+    BuildLatch latch;
 };
+
+class CompilePool;
 
 /// The Metal half of the pipeline cache (plan P4.3a): shader modules (SPIRV-Cross -> MSL ->
 /// MTLFunction through ShaderCompiler) and pipelines (MTLRenderPipelineState / compute state
@@ -142,22 +200,29 @@ public:
                   std::filesystem::path msl_cache_dir = {});
     ~PipelineCache() override;
 
-    /// Null: the draw is dropped (no pipeline can be made for it; see Counters).
+    /// Null: the draw is dropped (no pipeline can be made for it; see Counters). A pipeline
+    /// whose states may still be building: the recording hooks call AwaitBuild first.
     const GraphicsPipeline* GetGraphicsPipeline(const VideoCore::DrawIndirectParams params = {},
                                                 const Vulkan::PreparedDraw* prepared = nullptr,
                                                 bool indirect = false) {
-        return static_cast<const GraphicsPipeline*>(
-            PipelineCacheCore::GetGraphicsPipeline(params, prepared, indirect));
+        return Usable(static_cast<const GraphicsPipeline*>(
+            PipelineCacheCore::GetGraphicsPipeline(params, prepared, indirect)));
     }
 
     const GraphicsPipeline* TryPreparedPipeline(const Vulkan::PreparedDraw& prepared) {
-        return static_cast<const GraphicsPipeline*>(
-            PipelineCacheCore::TryPreparedPipeline(prepared));
+        return Usable(static_cast<const GraphicsPipeline*>(
+            PipelineCacheCore::TryPreparedPipeline(prepared)));
     }
 
     const ComputeShaderPipeline* GetComputePipeline() {
-        return static_cast<const ComputeShaderPipeline*>(PipelineCacheCore::GetComputePipeline());
+        return Usable(
+            static_cast<const ComputeShaderPipeline*>(PipelineCacheCore::GetComputePipeline()));
     }
+
+    /// Before a recording hook reads the pipeline's Metal states: waits for a deferred build
+    /// (counted, and as compile time in the frame stats). False: the build failed, the draw or
+    /// dispatch is dropped.
+    bool AwaitBuild(const VideoCore::PipelineBase& pipeline);
 
     PsoCache& GetPsoCache() {
         return pso_cache;
@@ -177,6 +242,11 @@ public:
         std::atomic<u64> unusable_shader{};     ///< a stage's shader did not compile
         std::atomic<u64> rect_list_unrewritable{}; ///< RectList with a vertex shader the rewrite refuses
         std::atomic<u64> pso_failures{};        ///< the Metal pipeline state failed
+        /// Deferred builds (P12): pipelines whose states were built on the compile threads after
+        /// the draw that asked for them went on; recording hooks that had to wait for one.
+        std::atomic<u64> deferred_builds{};
+        std::atomic<u64> build_waits{};
+        std::atomic<u64> build_wait_us{};
     };
     const Counters& GetCounters() const {
         return counters;
@@ -226,6 +296,25 @@ private:
     const CompiledShader* VariantShader(ShaderModule& module, const CompileVariant& variant,
                                         std::string& error);
 
+    void AwaitPreloadedPipelines() override;
+    bool PreloadFailed(const VideoCore::PipelineBase& pipeline) const override;
+
+    /// Compiles the module's plain shader (on a compile thread, or on the caller's when none
+    /// has taken it yet) or waits for the compile thread that has; afterwards `shader` and
+    /// `status` are final.
+    void FinishModule(ShaderModule& module);
+    void CompileModule(ShaderModule& module);
+    /// The module of a stage when its shader is usable and of the stage's kind (FinishModule
+    /// first), else null.
+    const CompiledShader* UsableShader(VideoCore::ShaderModuleHandle handle, ShaderStage stage);
+
+    /// The part of a graphics pipeline that needs the compiled shaders: the stage variants and
+    /// the Metal pipeline states. False: the pipeline cannot be made (counted and logged).
+    bool BuildGraphicsPipeline(GraphicsPipeline& pipeline, const VideoCore::GraphicsPipelineKey& key,
+                               std::span<const VideoCore::ShaderModuleHandle,
+                                         VideoCore::MaxShaderStages> modules,
+                               bool has_fs);
+
     /// Counts and logs (once per key) a graphics pipeline that cannot be made.
     void NoteSkipped(const VideoCore::GraphicsPipelineKey& key, std::atomic<u64>& counter,
                      const char* reason);
@@ -237,7 +326,8 @@ private:
     Counters counters;
 
     std::mutex modules_mutex;
-    std::unordered_map<ShaderModule*, std::unique_ptr<ShaderModule>> modules_;
+    /// Shared with the compile job of a module not compiled yet.
+    std::unordered_map<ShaderModule*, std::shared_ptr<ShaderModule>> modules_;
     /// Shaders of destroyed modules. Pipeline states and the PSO cache's entries keep raw
     /// pointers to the CompiledShader (binding maps), so they live as long as the cache; modules
     /// are destroyed only when a damaged disk cache is dropped and for ReplaceShader.
@@ -245,6 +335,22 @@ private:
 
     std::mutex skipped_mutex;
     std::unordered_set<size_t> skipped_keys; ///< hashes of the keys already logged
+
+    /// Shader modules and the cached pipelines of WarmUp compile here (null:
+    /// BB_MTL_ASYNC_COMPILE=0, everything on the calling thread). Destroyed first (joined).
+    std::unique_ptr<CompilePool> pool;
+    bool preloading_async{}; ///< inside WarmUp with a pool: cached pipelines build on the pool
+    bool defer_builds{};     ///< BB_MTL_DEFER_PSO (default on with a pool): new ones as well
+
+    /// Whether this pipeline's states build on the pool (CreateGraphicsPipeline,
+    /// CreateComputePipeline).
+    bool DeferBuild(bool preloading) const;
+
+    /// A pipeline whose deferred build already failed is null (its draws are dropped early).
+    template <typename P>
+    static const P* Usable(const P* pipeline) {
+        return pipeline && pipeline->Latch().Failed() ? nullptr : pipeline;
+    }
 };
 
 } // namespace Metal

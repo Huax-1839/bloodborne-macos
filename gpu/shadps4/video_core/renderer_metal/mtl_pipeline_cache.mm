@@ -4,10 +4,16 @@
 // else (keys, programs, permutations, SPIR-V, the disk cache) is the core's.
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <concepts>
+#include <deque>
+#include <functional>
+#include <thread>
+
+#include <pthread.h>
 
 #include "common/assert.h"
 #include "common/logging/log.h"
@@ -16,6 +22,10 @@
 #include "video_core/renderer_metal/mtl_pipeline_cache.h"
 #include "video_core/renderer_metal/mtl_spirv_geometry.h"
 #include "video_core/renderer_metal/mtl_spirv_rectlist.h"
+
+namespace Vulkan {
+extern std::atomic<u64> g_bb_compile_ns; // pipeline_cache_core.cpp
+}
 
 namespace Metal {
 namespace {
@@ -37,11 +47,131 @@ ShaderModule* ToModule(ShaderModuleHandle handle) {
     return reinterpret_cast<ShaderModule*>(handle.value);
 }
 
-/// The module of a stage when its shader is usable and of the stage's kind, else null.
-const CompiledShader* UsableShader(ShaderModuleHandle handle, ShaderStage stage) {
-    const ShaderModule* module = handle ? ToModule(handle) : nullptr;
-    return module && module->shader && module->shader->stage == stage ? module->shader.get()
-                                                                      : nullptr;
+/// The vertex attributes of a pipeline (in the fetch shader's order), as
+/// PipelineBase::GetVertexInputs derives them: location and step rate only, which need no V#, so
+/// a compile thread can do it (GetVertexInputs reads the V#s from the user data the GPU thread
+/// rewrites every draw).
+std::vector<VertexAttribute> VertexAttributesOf(
+    const std::optional<const Shader::Gcn::FetchShaderData>& fetch_shader, u32 step_rate_0,
+    u32 step_rate_1) {
+    using InstanceIdType = Shader::Gcn::VertexAttribute::InstanceIdType;
+    std::vector<VertexAttribute> attributes;
+    if (!fetch_shader) {
+        return attributes;
+    }
+    for (const auto& attrib : fetch_shader->attributes) {
+        const InstanceIdType step_rate = attrib.GetStepRate();
+        VertexAttribute attribute;
+        attribute.location = attrib.semantic;
+        attribute.per_instance = step_rate != InstanceIdType::None;
+        if (attribute.per_instance) {
+            attribute.divisor = step_rate == InstanceIdType::OverStepRate0   ? step_rate_0
+                                : step_rate == InstanceIdType::OverStepRate1 ? step_rate_1
+                                                                             : 1;
+        }
+        attributes.push_back(attribute);
+    }
+    return attributes;
+}
+} // namespace
+
+/// Threads for shader modules and preloaded pipelines (plan P12). Jobs start in submission order,
+/// and a job waits only for jobs submitted before it (a preloaded pipeline for its modules), which
+/// have started by then, or compiles them itself (FinishModule): no job waits for one that cannot
+/// run. Metal's compiles are thread-safe and run in the compiler service; these threads mostly
+/// wait for it.
+class CompilePool {
+public:
+    explicit CompilePool(u32 threads) {
+        for (u32 i = 0; i < threads; ++i) {
+            workers.emplace_back([this] { Run(); });
+        }
+    }
+    /// Jobs not started are dropped (a module's job holds only a reference to it).
+    ~CompilePool() {
+        {
+            std::scoped_lock lock{mutex};
+            stop = true;
+            jobs.clear();
+        }
+        cv.notify_all();
+        for (std::thread& worker : workers) {
+            worker.join();
+        }
+    }
+    void Submit(std::function<void()> job) {
+        {
+            std::scoped_lock lock{mutex};
+            jobs.push_back(std::move(job));
+            ++unfinished;
+        }
+        cv.notify_one();
+    }
+    /// Until every job submitted so far has finished.
+    void WaitIdle() {
+        std::unique_lock lock{mutex};
+        idle_cv.wait(lock, [&] { return unfinished == 0; });
+    }
+    u32 Threads() const {
+        return static_cast<u32>(workers.size());
+    }
+
+private:
+    void Run() {
+        pthread_setname_np("bb-mtl-compile");
+        for (;;) {
+            std::function<void()> job;
+            {
+                std::unique_lock lock{mutex};
+                cv.wait(lock, [&] { return stop || !jobs.empty(); });
+                if (stop) {
+                    return;
+                }
+                job = std::move(jobs.front());
+                jobs.pop_front();
+            }
+            @autoreleasepool {
+                job();
+            }
+            job = nullptr; // releases what the job holds before it counts as finished
+            std::scoped_lock lock{mutex};
+            if (--unfinished == 0) {
+                idle_cv.notify_all();
+            }
+        }
+    }
+
+    std::mutex mutex;
+    std::condition_variable cv;
+    std::condition_variable idle_cv;
+    std::deque<std::function<void()>> jobs;
+    u64 unfinished{};
+    std::vector<std::thread> workers;
+    bool stop{};
+};
+
+namespace {
+/// BB_MTL_ASYNC_COMPILE=0: no compile threads (modules and pipelines compile on the calling
+/// thread, as before P12). BB_MTL_COMPILE_THREADS: their number (default: the cores less two, 2
+/// to 8).
+u32 CompileThreads() {
+    const char* async = std::getenv("BB_MTL_ASYNC_COMPILE");
+    if (async && async[0] == '0') {
+        return 0;
+    }
+    const char* env = std::getenv("BB_MTL_COMPILE_THREADS");
+    if (env && *env) {
+        return static_cast<u32>(std::strtoul(env, nullptr, 10));
+    }
+    const u32 cores = std::thread::hardware_concurrency();
+    return std::clamp(cores > 2 ? cores - 2 : 2u, 2u, 8u);
+}
+
+/// BB_MTL_DEFER_PSO=0: new pipelines (not the preloaded ones) build on the thread that asks for
+/// them, as before P12.
+bool DeferPsoEnabled() {
+    const char* env = std::getenv("BB_MTL_DEFER_PSO");
+    return !(env && env[0] == '0');
 }
 } // namespace
 
@@ -126,6 +256,10 @@ VideoCore::PipelineCapabilities MakePipelineCapabilities() {
         // The vertex descriptor is part of the render pipeline state: pipelines depend on the
         // vertex formats (the key holds them).
         .vertex_input_dynamic_state = false,
+        // CreateGraphicsPipeline derives the vertex attributes without the V#s (the formats are
+        // in the key): new pipelines of passes drawn every frame compile on the core's compile
+        // threads while their draws wait a frame or two (BB_ASYNC_PIPELINES, P12).
+        .async_graphics_pipelines = true,
         // Geometry draws: the export shader and the geometry shader run as compute kernels, the
         // strips they write are drawn by a pass-through vertex function (mtl_geometry.h, P7.1).
         .geometry_stage = true,
@@ -190,12 +324,78 @@ PipelineCache::PipelineCache(Device& device_, const VideoCore::BackendLimits& li
       pso_cache{device_, msl_cache_dir, ReadFloatRules() == FloatRules::RelaxedMath},
       pass_through{device_} {
     std::printf("GPU: Metal float rules %s\n", FloatRulesName(ReadFloatRules()));
+    if (const u32 threads = CompileThreads()) {
+        pool = std::make_unique<CompilePool>(threads);
+        defer_builds = DeferPsoEnabled();
+    }
+    const auto start = std::chrono::steady_clock::now();
+    preloading_async = pool != nullptr;
     WarmUp();
+    preloading_async = false;
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() -
+                                                                 start)
+                          .count();
+    std::printf("GPU: pipeline cache warm-up took %.0f ms (%llu modules, %llu pipelines), %u "
+                "compile threads (BB_MTL_ASYNC_COMPILE=0: none), new pipeline states %s\n",
+                ms, (unsigned long long)counters.modules.load(),
+                (unsigned long long)counters.pipelines.load(), pool ? pool->Threads() : 0u,
+                defer_builds ? "built there while the GPU thread goes on (BB_MTL_DEFER_PSO=0: "
+                               "on the GPU thread)"
+                             : "built on the GPU thread");
 }
 
 PipelineCache::~PipelineCache() {
-    // The pipelines refer to the modules' shaders and the PSO cache: stop the core first.
+    // The pool first: its jobs write into pipelines the core owns (jobs not started are dropped;
+    // a pipeline left pending is never recorded any more). Then the core: its compile threads
+    // build without the pool and may compile a module whose job was dropped.
+    pool.reset();
     DestroyPipelines();
+}
+
+bool PipelineCache::DeferBuild(bool preloading) const {
+    // The core's compile threads (BB_ASYNC_PIPELINES) build at once: their draws go without the
+    // pipeline until the job is done, which must then mean built.
+    return pool && (preloading ? preloading_async : defer_builds && !OnCompileThread());
+}
+
+bool PipelineCache::AwaitBuild(const VideoCore::PipelineBase& pipeline) {
+    const BuildLatch& latch = pipeline.IsCompute()
+                                  ? static_cast<const ComputeShaderPipeline&>(pipeline).Latch()
+                                  : static_cast<const GraphicsPipeline&>(pipeline).Latch();
+    if (latch.Done()) {
+        return !latch.Failed();
+    }
+    const auto start = std::chrono::steady_clock::now();
+    const bool built = latch.Wait();
+    const u64 ns = static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        std::chrono::steady_clock::now() - start)
+                                        .count());
+    ++counters.build_waits;
+    counters.build_wait_us += ns / 1000;
+    // The frame stats count it as compile time: the recording waited for the compiler.
+    Vulkan::g_bb_compile_ns += ns;
+    if (ns >= 16'000'000) {
+        LOG_WARNING(Render, "Slow compile: recording waited {:.1f} ms for {} pipeline {:#x}",
+                    double(ns) / 1e6, pipeline.IsCompute() ? "compute" : "graphics",
+                    pipeline.IsCompute()
+                        ? u64(0)
+                        : u64(std::hash<VideoCore::GraphicsPipelineKey>{}(
+                              pipeline.GetGraphicsKey())));
+    }
+    return built;
+}
+
+void PipelineCache::AwaitPreloadedPipelines() {
+    if (pool) {
+        pool->WaitIdle();
+    }
+}
+
+bool PipelineCache::PreloadFailed(const VideoCore::PipelineBase& pipeline) const {
+    if (pipeline.IsCompute()) {
+        return !static_cast<const ComputeShaderPipeline&>(pipeline).compute;
+    }
+    return !static_cast<const GraphicsPipeline&>(pipeline).render;
 }
 
 ShaderModuleHandle PipelineCache::CreateShaderModule(std::span<const u32> spirv,
@@ -206,37 +406,78 @@ ShaderModuleHandle PipelineCache::CreateShaderModule(std::span<const u32> spirv,
     if (const size_t pos = name.find("0x"); pos != std::string_view::npos) {
         hash = std::strtoull(std::string{name.substr(pos)}.c_str(), nullptr, 16);
     }
-    auto module = std::make_unique<ShaderModule>();
+    auto module = std::make_shared<ShaderModule>();
     const ShaderStage stage = ReadShaderStage(spirv);
     const bool tessellation_stage = stage == ShaderStage::TessellationControl ||
                                     stage == ShaderStage::TessellationEval ||
                                     stage == ShaderStage::Geometry;
+    module->stage = stage;
+    module->hash = hash;
+    module->name = name.empty() ? std::string{"cached"} : std::string{name};
+    if (stage == ShaderStage::Vertex || tessellation_stage) { // (incl. geometry)
+        module->spirv.assign(spirv.begin(), spirv.end());
+    }
+    ++counters.modules;
     if (tessellation_stage) {
         // Only compiled as a variant of a tessellated or geometry pipeline.
         module->status = CompileStatus::Ok;
-        module->stage = stage;
     } else {
-        CompileResult result =
-            compiler.Compile(spirv, hash, name.empty() ? std::string_view{"cached"} : name);
-        module->status = result.status;
-        module->stage = result.stage;
-        module->shader = std::move(result.shader);
+        module->pending_spirv.assign(spirv.begin(), spirv.end());
+        module->compile_state = ShaderModule::CompileState::Queued;
     }
-    if (module->stage == ShaderStage::Vertex || tessellation_stage) { // (incl. geometry)
-        module->spirv.assign(spirv.begin(), spirv.end());
-        module->hash = hash;
-        module->name = name.empty() ? std::string{"cached"} : std::string{name};
+    ShaderModule* raw = module.get();
+    if (module->compile_state == ShaderModule::CompileState::Queued) {
+        if (pool) {
+            pool->Submit([this, module] { FinishModule(*module); });
+        } else {
+            FinishModule(*module);
+        }
     }
-    ++counters.modules;
-    if (!module->shader && !tessellation_stage) {
+    std::scoped_lock lock{modules_mutex};
+    modules_.emplace(raw, std::move(module));
+    return ToHandle(raw);
+}
+
+void PipelineCache::FinishModule(ShaderModule& module) {
+    std::unique_lock lock{module.compile_mutex};
+    switch (module.compile_state) {
+    case ShaderModule::CompileState::Done:
+        return;
+    case ShaderModule::CompileState::Running:
+        module.compile_cv.wait(lock, [&] {
+            return module.compile_state == ShaderModule::CompileState::Done;
+        });
+        return;
+    case ShaderModule::CompileState::Queued:
+        module.compile_state = ShaderModule::CompileState::Running;
+        lock.unlock();
+        CompileModule(module);
+        lock.lock();
+        module.compile_state = ShaderModule::CompileState::Done;
+        module.compile_cv.notify_all();
+        return;
+    }
+}
+
+void PipelineCache::CompileModule(ShaderModule& module) {
+    CompileResult result = compiler.Compile(module.pending_spirv, module.hash, module.name);
+    module.status = result.status;
+    module.shader = std::move(result.shader);
+    module.pending_spirv = {};
+    if (!module.shader) {
         // A cached shader that does not compile is no damaged entry, and a null handle from the
         // disk cache would make WarmUp drop the whole cache: the module stays, unusable.
         ++counters.unusable_modules;
     }
-    ShaderModule* raw = module.get();
-    std::scoped_lock lock{modules_mutex};
-    modules_.emplace(raw, std::move(module));
-    return ToHandle(raw);
+}
+
+const CompiledShader* PipelineCache::UsableShader(ShaderModuleHandle handle, ShaderStage stage) {
+    ShaderModule* module = handle ? ToModule(handle) : nullptr;
+    if (!module) {
+        return nullptr;
+    }
+    FinishModule(*module);
+    return module->shader && module->shader->stage == stage ? module->shader.get() : nullptr;
 }
 
 void PipelineCache::DestroyShaderModule(ShaderModuleHandle handle) {
@@ -244,6 +485,17 @@ void PipelineCache::DestroyShaderModule(ShaderModuleHandle handle) {
     const auto it = modules_.find(ToModule(handle));
     if (it == modules_.end()) {
         return;
+    }
+    {
+        // A module no thread has started is not compiled any more; a running compile finishes.
+        ShaderModule& module = *it->second;
+        std::unique_lock compile_lock{module.compile_mutex};
+        if (module.compile_state == ShaderModule::CompileState::Queued) {
+            module.compile_state = ShaderModule::CompileState::Done;
+        }
+        module.compile_cv.wait(compile_lock, [&] {
+            return module.compile_state == ShaderModule::CompileState::Done;
+        });
     }
     if (it->second->shader) {
         retired_shaders.push_back(std::move(it->second->shader));
@@ -475,8 +727,10 @@ std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateGraphicsPipeline(
     std::optional<const Shader::Gcn::FetchShaderData> fetch_shader,
     std::span<const ShaderModuleHandle, VideoCore::MaxShaderStages> modules,
     VideoCore::PipelineSerialization& sdata, bool preloading) {
+    // Also called on the core's compile threads (BB_ASYNC_PIPELINES): reads only the key, the
+    // modules, the fetch shader and the runtime infos (copies), never `infos`' contents.
     using Shader::SwStage;
-    constexpr u32 VS = u32(SwStage::Vertex), FS = u32(SwStage::Fragment);
+    constexpr u32 VS = u32(SwStage::Vertex);
     const bool has_tcs = key.stage_hashes[u32(SwStage::TessellationControl)] != 0;
     const bool has_tes = key.stage_hashes[u32(SwStage::TessellationEval)] != 0;
     const bool has_gs = key.stage_hashes[u32(SwStage::Geometry)] != 0;
@@ -489,18 +743,68 @@ std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateGraphicsPipeline(
                     "a tessellation control or evaluation stage without the other");
         return nullptr;
     }
+    const bool has_fs = infos[u32(SwStage::Fragment)] != nullptr;
+
+    auto pipeline = std::make_unique<GraphicsPipeline>(key, infos, fetch_shader);
+    auto& serialized = static_cast<GraphicsSerialization&>(sdata);
+    if (preloading) {
+        pipeline->vertex_attributes = serialized.vertex_attributes;
+    } else {
+        // The step rates come from this pipeline's runtime info, as in the Vulkan pipeline's
+        // static vertex input state.
+        const auto& vs_info = runtime_infos[VS].sw.vs;
+        pipeline->vertex_attributes =
+            VertexAttributesOf(fetch_shader, vs_info.step_rate_0, vs_info.step_rate_1);
+        serialized.vertex_attributes = pipeline->vertex_attributes;
+    }
+    if (preloading && (has_tcs || has_gs) && serialized.vertex_attributes.empty() &&
+        key.vertex_buffer_formats[0] != vk::Format::eUndefined) {
+        // An entry of a build before the tessellation (geometry) path: the pipeline was dropped
+        // then and its attributes never recorded. The core rebuilds the cache.
+        throw Serialization::CorruptData{
+            has_tcs ? "a tessellated pipeline recorded without its vertex attributes (cache of a "
+                      "Metal build before tessellation support)"
+                    : "a geometry pipeline recorded without its vertex attributes"};
+    }
+
+    if (DeferBuild(preloading)) {
+        // On the pool. WarmUp waits for its pipelines (AwaitPreloadedPipelines) and drops the
+        // ones that failed (PreloadFailed); a new pipeline goes to the draw at once, the
+        // recording hooks wait for its states (AwaitBuild).
+        std::array<ShaderModuleHandle, VideoCore::MaxShaderStages> stage_modules;
+        std::ranges::copy(modules, stage_modules.begin());
+        pipeline->latch.Begin();
+        if (!preloading) {
+            ++counters.deferred_builds;
+        }
+        pool->Submit([this, raw = pipeline.get(), key, stage_modules, has_fs] {
+            raw->latch.Finish(BuildGraphicsPipeline(*raw, key, stage_modules, has_fs));
+        });
+        return pipeline;
+    }
+    if (!BuildGraphicsPipeline(*pipeline, key, modules, has_fs)) {
+        return nullptr;
+    }
+    return pipeline;
+}
+
+bool PipelineCache::BuildGraphicsPipeline(
+    GraphicsPipeline& pipeline, const VideoCore::GraphicsPipelineKey& key,
+    std::span<const ShaderModuleHandle, VideoCore::MaxShaderStages> modules, bool has_fs) {
+    using Shader::SwStage;
+    constexpr u32 VS = u32(SwStage::Vertex), FS = u32(SwStage::Fragment);
     // Tessellated draws: the vertex, control and evaluation shaders compile as variants (no plain
     // vertex shader is needed), the draw runs the three stages (mtl_tessellation.h).
-    const bool tessellation = has_tcs;
-    const bool has_fs = infos[FS] != nullptr;
+    const bool tessellation = key.stage_hashes[u32(SwStage::TessellationControl)] != 0;
+    const bool has_gs = key.stage_hashes[u32(SwStage::Geometry)] != 0;
     // (A geometry draw's export shader compiles as kernels too, its plain form is not needed.)
     const bool variants_only = tessellation || has_gs;
     const CompiledShader* vs =
-        infos[VS] && !variants_only ? UsableShader(modules[VS], ShaderStage::Vertex) : nullptr;
+        modules[VS] && !variants_only ? UsableShader(modules[VS], ShaderStage::Vertex) : nullptr;
     const CompiledShader* fs = has_fs ? UsableShader(modules[FS], ShaderStage::Fragment) : nullptr;
     if ((!vs && !variants_only) || (has_fs && !fs)) {
         NoteSkipped(key, counters.unusable_shader, "a shader did not translate to Metal");
-        return nullptr;
+        return false;
     }
 
     // RectList: a vertex shader that evaluates the three vertices and emits two triangles; the
@@ -512,51 +816,13 @@ std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateGraphicsPipeline(
         if (!vs) {
             const std::string reason = "rect list vertex shader not rewritable: " + error;
             NoteSkipped(key, counters.rect_list_unrewritable, reason.c_str());
-            return nullptr;
+            return false;
         }
-    }
-
-    auto pipeline = std::make_unique<GraphicsPipeline>(key, infos, std::move(fetch_shader));
-    auto& serialized = static_cast<GraphicsSerialization&>(sdata);
-    if (preloading) {
-        pipeline->vertex_attributes = serialized.vertex_attributes;
-    } else {
-        // The step rates come from this pipeline's runtime info, as in the Vulkan pipeline's
-        // static vertex input state.
-        VideoCore::VertexInputs<vk::VertexInputAttributeDescription> attributes;
-        VideoCore::VertexInputs<vk::VertexInputBindingDescription> bindings;
-        VideoCore::VertexInputs<vk::VertexInputBindingDivisorDescriptionEXT> divisors;
-        VideoCore::VertexInputs<AmdGpu::Buffer> guest_buffers;
-        const auto& vs_info = runtime_infos[VS].sw.vs;
-        pipeline->GetVertexInputs(attributes, bindings, divisors, guest_buffers,
-                                  vs_info.step_rate_0, vs_info.step_rate_1);
-        for (size_t i = 0; i < attributes.size(); ++i) {
-            VertexAttribute attribute;
-            attribute.location = attributes[i].location;
-            attribute.per_instance = bindings[i].inputRate == vk::VertexInputRate::eInstance;
-            if (attribute.per_instance) {
-                for (const auto& divisor : divisors) {
-                    if (divisor.binding == bindings[i].binding) {
-                        attribute.divisor = divisor.divisor;
-                    }
-                }
-            }
-            pipeline->vertex_attributes.push_back(attribute);
-        }
-        serialized.vertex_attributes = pipeline->vertex_attributes;
     }
 
     if (tessellation) {
-        if (preloading && serialized.vertex_attributes.empty() &&
-            key.vertex_buffer_formats[0] != vk::Format::eUndefined) {
-            // An entry of a build before the tessellation path: the pipeline was dropped then
-            // and its attributes never recorded. The core rebuilds the cache.
-            throw Serialization::CorruptData{
-                "a tessellated pipeline recorded without its vertex attributes (cache of a "
-                "Metal build before tessellation support)"};
-        }
         TessellationInput tess_input;
-        tess_input.vertex_attributes = pipeline->vertex_attributes;
+        tess_input.vertex_attributes = pipeline.vertex_attributes;
         std::string error;
         bool unsupported = false;
         if (!TessellationShaders(modules, tess_input, error, unsupported)) {
@@ -564,27 +830,23 @@ std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateGraphicsPipeline(
             NoteSkipped(key, unsupported ? counters.tessellation_unsupported
                                          : counters.unusable_shader,
                         reason.c_str());
-            return nullptr;
+            return false;
         }
-        pipeline->tessellation = pso_cache.GetTessellationPipeline(key, tess_input, fs);
-        if (!pipeline->tessellation) {
+        const TessellationPipeline* tess = pso_cache.GetTessellationPipeline(key, tess_input, fs);
+        if (!tess) {
             // PsoCache logged the Metal error (once per key).
             ++counters.pso_failures;
-            return nullptr;
+            return false;
         }
-        pipeline->render = pipeline->tessellation->render;
+        pipeline.tessellation = tess;
+        pipeline.render = tess->render;
         ++counters.pipelines;
-        return pipeline;
+        return true;
     }
 
     if (has_gs) {
-        if (preloading && serialized.vertex_attributes.empty() &&
-            key.vertex_buffer_formats[0] != vk::Format::eUndefined) {
-            throw Serialization::CorruptData{
-                "a geometry pipeline recorded without its vertex attributes"};
-        }
         GeometryPipelineInput geometry_input;
-        geometry_input.vertex_attributes = pipeline->vertex_attributes;
+        geometry_input.vertex_attributes = pipeline.vertex_attributes;
         std::string error;
         bool unsupported = false;
         if (!GeometryShaders(key, modules, fs, geometry_input, error, unsupported)) {
@@ -592,48 +854,69 @@ std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateGraphicsPipeline(
             NoteSkipped(key, unsupported ? counters.geometry_unsupported
                                          : counters.unusable_shader,
                         reason.c_str());
-            return nullptr;
+            return false;
         }
-        pipeline->geometry = pso_cache.GetGeometryPipeline(key, geometry_input, fs);
-        if (!pipeline->geometry) {
+        const GeometryPipeline* geometry = pso_cache.GetGeometryPipeline(key, geometry_input, fs);
+        if (!geometry) {
             // PsoCache logged the Metal error (once per key).
             ++counters.pso_failures;
-            return nullptr;
+            return false;
         }
-        pipeline->render = pipeline->geometry->render;
+        pipeline.geometry = geometry;
+        pipeline.render = geometry->render;
         ++counters.pipelines;
-        return pipeline;
+        return true;
     }
 
-    const RenderPipelineInput input{.vertex_attributes = pipeline->vertex_attributes,
+    const RenderPipelineInput input{.vertex_attributes = pipeline.vertex_attributes,
                                     .rect_list_triangles = rect_list};
-    pipeline->render = pso_cache.GetRenderPipeline(key, vs, fs, input);
-    if (!pipeline->render) {
+    pipeline.render = pso_cache.GetRenderPipeline(key, vs, fs, input);
+    if (!pipeline.render) {
         // PsoCache logged the Metal error (once per key).
         ++counters.pso_failures;
-        return nullptr;
+        return false;
     }
     ++counters.pipelines;
-    return pipeline;
+    return true;
 }
 
 std::unique_ptr<VideoCore::PipelineBase> PipelineCache::CreateComputePipeline(
     VideoCore::ComputePipelineKey key, const Shader::Info& info, ShaderModuleHandle module,
     VideoCore::PipelineSerialization& sdata, bool preloading) {
-    const CompiledShader* cs = UsableShader(module, ShaderStage::Compute);
-    if (!cs) {
-        ++counters.unusable_shader;
-        LOG_WARNING(Render, "Metal: compute pipeline {:#x} not created: the shader did not "
-                            "translate to Metal; its dispatches are dropped",
-                    key.value);
-        return nullptr;
+    const auto build = [this, key, module]() -> const ComputePipeline* {
+        const CompiledShader* cs = UsableShader(module, ShaderStage::Compute);
+        if (!cs) {
+            ++counters.unusable_shader;
+            LOG_WARNING(Render, "Metal: compute pipeline {:#x} not created: the shader did not "
+                                "translate to Metal; its dispatches are dropped",
+                        key.value);
+            return nullptr;
+        }
+        const ComputePipeline* compute = pso_cache.GetComputePipeline(key, cs);
+        if (!compute) {
+            ++counters.pso_failures;
+            return nullptr;
+        }
+        ++counters.pipelines;
+        return compute;
+    };
+    if (DeferBuild(preloading)) {
+        // As CreateGraphicsPipeline.
+        auto pipeline = std::make_unique<ComputeShaderPipeline>(info, nullptr);
+        pipeline->latch.Begin();
+        if (!preloading) {
+            ++counters.deferred_builds;
+        }
+        pool->Submit([raw = pipeline.get(), build] {
+            raw->compute = build();
+            raw->latch.Finish(raw->compute != nullptr);
+        });
+        return pipeline;
     }
-    const ComputePipeline* compute = pso_cache.GetComputePipeline(key, cs);
+    const ComputePipeline* compute = build();
     if (!compute) {
-        ++counters.pso_failures;
         return nullptr;
     }
-    ++counters.pipelines;
     return std::make_unique<ComputeShaderPipeline>(info, compute);
 }
 

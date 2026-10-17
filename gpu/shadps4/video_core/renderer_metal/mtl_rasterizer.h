@@ -127,6 +127,7 @@ private:
         TessellationIndirect,  ///< an indirect tessellated draw
         GeometryInstanced,     ///< a geometry draw of more than one instance
         GeometryTooLarge,      ///< a geometry draw whose scratch memory would exceed the limit
+        PipelineFailed,        ///< the deferred build of the pipeline's states failed (P12)
         Count,
     };
     /// The common start of a draw: the pass (a new one unless the open encoder began with

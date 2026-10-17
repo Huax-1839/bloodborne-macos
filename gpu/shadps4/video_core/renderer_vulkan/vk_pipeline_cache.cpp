@@ -102,6 +102,8 @@ static VideoCore::PipelineCapabilities MakeCapabilities(const Instance& instance
     return {
         .depth_clip_control = instance.IsDepthClipControlSupported(),
         .vertex_input_dynamic_state = instance.IsVertexInputDynamicState(),
+        // Without dynamic vertex input the pipeline reads the vertex buffers' V#s.
+        .async_graphics_pipelines = instance.IsVertexInputDynamicState(),
         .geometry_stage = instance.IsGeometryStageSupported(),
         .tessellation = instance.IsTessellationSupported(),
         .mixed_any_samples = instance.IsMixedAnySamplesSupported(),

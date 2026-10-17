@@ -36,7 +36,8 @@
 #include "bbport_toggles.h"
 
 // bbport: shader/pipeline compile time on the GPU thread, reported by BB_FRAME_STATS (read by
-// the video out driver as Vulkan::g_bb_compile_ns).
+// the video out driver as Vulkan::g_bb_compile_ns); Metal adds the time its recording waited for
+// a pipeline built on its compile threads (Metal::PipelineCache::AwaitBuild).
 namespace Vulkan {
 std::atomic<u64> g_bb_compile_ns;
 std::atomic<u32> g_bb_compiles;
@@ -296,6 +297,14 @@ PipelineCacheCore::PipelineCacheCore(AmdGpu::Liverpool* liverpool_,
     profile.buffer_copy_shader_hash = Game::BufferCopyShader();
 }
 
+namespace {
+thread_local bool t_compile_thread = false;
+}
+
+bool PipelineCacheCore::OnCompileThread() {
+    return t_compile_thread;
+}
+
 /// bbport BB_ASYNC_PIPELINES: worker threads creating graphics pipelines (the driver's compile,
 /// vkCreateGraphicsPipelines, with its own VkPipelineCache synchronization). Jobs run in order.
 class PipelineCompiler {
@@ -325,6 +334,7 @@ public:
 
 private:
     void Run() {
+        t_compile_thread = true;
         for (;;) {
             std::function<void()> job;
             {
@@ -588,14 +598,15 @@ const PipelineBase* PipelineCacheCore::FinishPipeline(const GraphicsPipelineKey&
 bool PipelineCacheCore::AsyncSkippable(const PipelineSelection& selection, bool indirect) {
     // Only a pass drawn every frame may go without a draw for a frame or two (its render target
     // drawn to in each of the last frames, below). A one-time render compiles at once, as during
-    // loading screens (a frame of fewer than 300 draws before this one). The pipeline must not
-    // depend on the draw's vertex buffers (VK_EXT_vertex_input_dynamic_state). A size rule (the
+    // loading screens (a frame of fewer than 300 draws before this one). The pipeline's creation
+    // must not read the draw's state (PipelineCapabilities::async_graphics_pipelines; Vulkan: the
+    // vertex buffers' formats are dynamic, VK_EXT_vertex_input_dynamic_state). A size rule (the
     // scene's, the output's) missed most passes: many set a 16384 scissor.
     static const bool enabled = [] {
         const char* env = std::getenv("BB_ASYNC_PIPELINES");
         return !(env && env[0] == '0');
     }();
-    if (!enabled || !caps.vertex_input_dynamic_state || !selection.regs) {
+    if (!enabled || !caps.async_graphics_pipelines || !selection.regs) {
         return false;
     }
     static u32 frame_seen = ~0u;

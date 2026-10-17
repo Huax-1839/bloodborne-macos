@@ -391,6 +391,18 @@ void PipelineCacheCore::WarmUp() {
             }
         });
 
+    // bbport: the backend may still be building the pipelines created above on its threads.
+    AwaitPreloadedPipelines();
+    const auto drop_failed = [this](auto& pipelines) {
+        for (auto it = pipelines.begin(); it != pipelines.end(); ++it) {
+            if (it->second && PreloadFailed(*it->second)) {
+                it.value().reset();
+            }
+        }
+    };
+    drop_failed(graphics_pipelines);
+    drop_failed(compute_pipelines);
+
     if (num_damaged) {
         // Nothing preloaded is trusted: modules of a damaged entry may sit in programs that later
         // lookups would reuse. Start as with no cache and write a fresh one.

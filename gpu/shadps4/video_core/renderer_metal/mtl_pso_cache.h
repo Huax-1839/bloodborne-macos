@@ -287,6 +287,8 @@ public:
     const Counters& GetCounters() const {
         return counters;
     }
+    /// Microseconds spent adding pipelines to the binary archive (part of render_us/compute_us).
+    u64 ArchiveAddUs() const;
     const std::filesystem::path& ArchivePath() const {
         return archive_path;
     }

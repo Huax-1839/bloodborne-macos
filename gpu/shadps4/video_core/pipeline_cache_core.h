@@ -103,6 +103,9 @@ struct PrepWorker {
 struct PipelineCapabilities {
     bool depth_clip_control{};          ///< the clip space z range [-w, w] is native
     bool vertex_input_dynamic_state{};  ///< a pipeline does not depend on the vertex formats
+    /// bbport: CreateGraphicsPipeline reads nothing the GPU thread changes per draw (no V#s, no
+    /// Shader::Info user data), so BB_ASYNC_PIPELINES may run it on the compile threads.
+    bool async_graphics_pipelines{};
     bool geometry_stage{};
     bool tessellation{};
     bool mixed_any_samples{};   ///< color attachments of different sample counts
@@ -210,6 +213,19 @@ protected:
     virtual std::unique_ptr<PipelineBase> CreateComputePipeline(
         ComputePipelineKey key, const Shader::Info& info, ShaderModuleHandle module,
         PipelineSerialization& sdata, bool preloading) = 0;
+
+    /// bbport: true on the compile threads of BB_ASYNC_PIPELINES (CreateGraphicsPipeline runs
+    /// there for a draw that goes without its pipeline until the job is done).
+    static bool OnCompileThread();
+
+    /// bbport: WarmUp calls it once after the cached pipelines were created (preloading true),
+    /// before it uses them. A backend that builds them on its own threads waits for them here and
+    /// returns true for each one whose build failed; the core keeps a null entry for those (their
+    /// draws and dispatches are dropped, as for a pipeline whose creation returned null).
+    virtual void AwaitPreloadedPipelines() {}
+    virtual bool PreloadFailed(const PipelineBase& pipeline) const {
+        return false;
+    }
 
     Shader::Profile profile{};
     PipelineCapabilities caps;

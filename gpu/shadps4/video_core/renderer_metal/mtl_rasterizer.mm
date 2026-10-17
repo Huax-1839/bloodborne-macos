@@ -627,6 +627,7 @@ constexpr const char* kDropNames[] = {
     "indirect tessellated draw",
     "geometry draw of more than one instance",
     "geometry draw needing more scratch memory than the limit",
+    "pipeline whose deferred build failed",
 };
 } // namespace
 
@@ -710,6 +711,21 @@ void Rasterizer::MaybePrintStats() {
                 (unsigned long long)pc.pso_failures.load(), (unsigned long long)sc.compiled.load(),
                 (unsigned long long)sc.compile_failures.load(),
                 (unsigned long long)sc.pervertex_failures.load());
+    const PsoCache& pso = pipeline_cache->GetPsoCache();
+    const auto& psc = pso.GetCounters();
+    std::printf("Metal deferred pipeline builds: %llu, recording waited for %llu of them (%llu ms)\n",
+                (unsigned long long)pc.deferred_builds.load(),
+                (unsigned long long)pc.build_waits.load(),
+                (unsigned long long)pc.build_wait_us.load() / 1000);
+    std::printf("Metal PSOs: %llu render, %llu compute (%llu ms, %llu ms), binary archive %s: %llu "
+                "hits, %llu adds (%llu ms)\n",
+                (unsigned long long)psc.render_pipelines.load(),
+                (unsigned long long)psc.compute_pipelines.load(),
+                (unsigned long long)psc.render_us.load() / 1000,
+                (unsigned long long)psc.compute_us.load() / 1000,
+                pso.ArchiveLoaded() ? "loaded" : "new", (unsigned long long)psc.archive_hits.load(),
+                (unsigned long long)psc.archive_adds.load(),
+                (unsigned long long)pso.ArchiveAddUs() / 1000);
     for (u32 i = 1; i < Impl::kNumDrops; ++i) {
         if (const u64 count = impl->drops[i].load(std::memory_order_relaxed)) {
             std::printf("  dropped %llu: %s\n", (unsigned long long)count, kDropNames[i]);
@@ -1618,6 +1634,10 @@ void Rasterizer::RecordGeometryDraw(const GraphicsPipeline& graphics, const Rend
 void Rasterizer::RecordDraw(const VideoCore::PipelineBase* pipeline, const RenderState& state,
                             const DrawCall& draw, const DynamicDrawState& dynamic) {
     @autoreleasepool {
+        if (!pipeline_cache->AwaitBuild(*pipeline)) {
+            NoteDrop(Drop::PipelineFailed);
+            return;
+        }
         const auto& graphics = *static_cast<const GraphicsPipeline*>(pipeline);
         if (graphics.Tessellation()) {
             RecordTessellationDraw(graphics, state, draw, dynamic);
@@ -1729,6 +1749,10 @@ void Rasterizer::RecordDrawIndirect(const VideoCore::PipelineBase* pipeline,
                                     const IndirectDraw& indirect, const IndirectBuffers& buffers,
                                     const DynamicDrawState& dynamic) {
     @autoreleasepool {
+        if (!pipeline_cache->AwaitBuild(*pipeline)) {
+            NoteDrop(Drop::PipelineFailed);
+            return;
+        }
         const auto& graphics = *static_cast<const GraphicsPipeline*>(pipeline);
         // The count buffer (draw count from the GPU) needs a compute pass that clamps and
         // translates the commands: P4.3d.
@@ -1780,6 +1804,10 @@ void Rasterizer::RecordDrawIndirect(const VideoCore::PipelineBase* pipeline,
 void Rasterizer::RecordDispatch(const VideoCore::PipelineBase* pipeline, const Shader::Info& cs,
                                 const AmdGpu::ComputeProgram& cs_program) {
     @autoreleasepool {
+        if (!pipeline_cache->AwaitBuild(*pipeline)) {
+            NoteDrop(Drop::PipelineFailed);
+            return;
+        }
         const ComputePipeline& compute =
             static_cast<const ComputeShaderPipeline*>(pipeline)->Compute();
         if (!compute.state || !compute.shader) {
@@ -1812,6 +1840,10 @@ void Rasterizer::RecordDispatchIndirect(const VideoCore::PipelineBase* pipeline,
                                         u32 size, const VideoCore::Buffer* args,
                                         u64 args_offset) {
     @autoreleasepool {
+        if (!pipeline_cache->AwaitBuild(*pipeline)) {
+            NoteDrop(Drop::PipelineFailed);
+            return;
+        }
         const ComputePipeline& compute =
             static_cast<const ComputeShaderPipeline*>(pipeline)->Compute();
         if (!compute.state || !compute.shader || !args) {
@@ -1845,7 +1877,11 @@ void Rasterizer::RecordHoistedDispatch(const VideoCore::PipelineBase* pipeline,
                                        const Shader::Info& cs,
                                        const AmdGpu::ComputeProgram& cs_program) {
     // Before the held pass (P6.2): the scheduler's compute encoder in front of it, ordered after
-    // what was hoisted before; the pass waits for it.
+    // what was hoisted before; the pass waits for it. A failed build hoists nothing.
+    if (!pipeline_cache->AwaitBuild(*pipeline)) {
+        NoteDrop(Drop::PipelineFailed);
+        return;
+    }
     scheduler.BeginHoist();
     scheduler.ComputeEncoder("Hoisted dispatches");
     scheduler.MemoryBarrier();
