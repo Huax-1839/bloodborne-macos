@@ -40,7 +40,7 @@ public protocol Pipeline: Sendable {
     func thoroughCheck(game: URL, progress: @escaping @Sendable (Int, Int) -> Void) async throws -> [String]
     /// The scene and output size run.sh derives from bbport.ini when no render size is given
     /// (patches.py --print-scaled): nil for a 1080p output.
-    func scaledSizes(settings: URL) async throws -> (render: String, output: String)?
+    func scaledSizes(settings: URL) async throws -> ScaledSizes?
     /// Runs one launch step, its output appended to `log`.
     func run(_ step: LaunchSpec.Step, log: FileHandle?) async throws
 }
