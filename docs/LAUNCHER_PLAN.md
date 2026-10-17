@@ -20,11 +20,11 @@ launcher code existed, and is expected to change with the spikes of L0.
 - **no Sony/FromSoftware artwork, logos or game files in the repository or the app**: artwork
   comes from the user's own game (`sce_sys`), and "Bloodborne" is not part of the app's name;
 - new third-party dependencies other than Sparkle and python-build-standalone (the latter only
-  until the Swift port, L8, removes it);
+  until the Swift port, L7, removes it);
 - `macos/run.sh` and `macos/bench/*` keep working as the developer path: the launcher is an
   additional front end, not a replacement for them;
 - the renderer and runtime stay launcher-agnostic: shared-code changes needed for the launcher
-  (L0.1, L2.5, L4.1, L6.1) are verified on Metal and Vulkan (bench + screenshot) as `CLAUDE.md`
+  (L0.1, L2.5, L4.1) are verified on Metal and Vulkan (bench + screenshot) as `CLAUDE.md`
   requires.
 
 **Open: the orchestrator decides on evidence**: the decisions D1–D17 below, the phase order, how
@@ -44,8 +44,8 @@ Xcode, Homebrew or Python.
 |---|---|
 | L-M1 dev launcher | The SwiftUI app, built from the repo, registers a ready 1.09 game folder, writes the settings of the chosen profile and starts the game on Metal and on Vulkan, hides itself while the game runs and shows the outcome afterwards. `run.sh` and the bench are unchanged in behaviour. |
 | L-M2 self-contained | The app bundle carries the runtime (`bb-probe`, `libbbgpu`, SDL3, MoltenVK), the pipeline and its own Python; it starts the game from `/Applications` on a Mac account with no Xcode, no Command Line Tools Python, no Homebrew and no repository checkout. |
-| L-M3 v1.0 | **Acceptance (the user's criterion):** on a fresh Mac account, open the DMG, import a game folder or base + update, choose a profile, enable a mod, play, find a save backup made, and receive an update through Sparkle. In addition v1 contains the PKG import through an external tool, save export/import, online/co-op and minimal diagnostics. |
-| After v1 | Pipeline fully ported to Swift (Python removed, `run.sh` calls the same Swift CLI), controller mapping, bug-report bundle, Developer ID signing and notarization (the user decides later), more languages, playtime/library extras. |
+| L-M3 v1.0 | **Acceptance (the user's criterion):** on a fresh Mac account, open the DMG, import a game folder or base + update, choose a profile, enable a mod, play, find a save backup made, and receive an update through Sparkle. In addition v1 contains the PKG import through an external tool, save export/import and minimal diagnostics. Online/co-op is not part of v1 (backlog, L7). |
+| After v1 | Online/co-op (network module on macOS + launcher page), pipeline fully ported to Swift (Python removed, `run.sh` calls the same Swift CLI), controller mapping, bug-report bundle, Developer ID signing and notarization (the user decides later), more languages, playtime/library extras. |
 
 v1 feature set (decided with the user):
 
@@ -57,7 +57,6 @@ v1 feature set (decided with the user):
 | Mods | local folders and ZIPs, order, enable/disable, conflict view, mod set per profile |
 | Patches | built-in and external GoldHEN XML, FPS patches coupled to the profile |
 | Saves | automatic backup before each start with rotation, named snapshots, restore, export/import |
-| Online | servers, account, connection test (needs the network module on macOS first, L6.1) |
 | Updates | Sparkle 2 with EdDSA, appcast from GitHub Releases |
 | Diagnostics | log viewer, last crash, open logs folder, copy system info |
 | UI | German and English; home page with the game's own artwork and a Play button, sidebar settings |
@@ -144,7 +143,7 @@ v1 feature set (decided with the user):
   (aarch64, `install_only_stripped`; the scripts are pure Python, so no x86-64 Python is needed).
 - The launcher never calls `/usr/bin/python3`: on a Mac without Command Line Tools that is a stub
   that opens an install dialog.
-- After v1 (L8), `SwiftPipeline` replaces the scripts one by one, each with golden tests
+- After v1 (L7), `SwiftPipeline` replaces the scripts one by one, each with golden tests
   (byte-identical `content.bin`, `patches.bin`, `boot-linked.bin`; equal overlay trees). The same
   Swift code also builds a CLI `lantern` that `run.sh` then calls, so there is again one
   implementation.
@@ -232,8 +231,9 @@ v1 feature set (decided with the user):
   - a separate `--user` root for savedata, with the GPU cache shared through `BB_GPU_USER_DIR`;
   - checked in L4.4.
 
-**D12 Online.**
-- Requires porting the network module first (L6.1):
+**D12 Online (backlog, not in v1; user decision 2026-10-17).**
+- v1 ships without online: the launcher never sets `BB_ONLINE` and shows no online page.
+- When it is picked up (L7), it first needs the network module ported:
   - build `libbbnet` with `BB_NET=ON` as a dylib;
   - find it via `_NSGetExecutablePath` or an explicit `BB_NET_MODULE`.
 - Then the launcher page:
@@ -242,8 +242,8 @@ v1 feature set (decided with the user):
   - NPID and password in the Keychain;
   - a connection test (`online.py check`);
   - `host_overrides.json` written per launch.
-- If L0.7 shows the port is much larger than a phase, this is a reason to stop and ask the user
-  (§0: v1 scope is fixed).
+- The L7 entry starts with a spike: build `libbbnet` on macOS (`BB_NET=ON`), list what fails,
+  estimate the port.
 
 **D13 Updates.**
 - Sparkle 2 with an EdDSA key. The private key lives only in a GitHub Actions secret and the
@@ -300,11 +300,11 @@ v1 feature set (decided with the user):
 | Source | Launcher |
 |---|---|
 | `macos/run.sh` env logic | `LaunchSpec` (Swift), checked against `run.sh --print-env` (D5) |
-| `scripts/*.py` | embedded and called in v1 (D4); Swift port in L8 |
+| `scripts/*.py` | embedded and called in v1 (D4); Swift port in L7 |
 | upstream `game_environment()` | reference for `LaunchSpec` fields (fullscreen, gamepad, display, language) |
 | upstream mods page, `mods.json` | `ModStore` + mods page, same file format |
 | upstream patch profile, `patches.json` | `PatchStore` + patches page, same semantics (store differences only) |
-| upstream online page, `online.py check` | online page (after L6.1) |
+| upstream online page, `online.py check` | online page (backlog, L7) |
 | upstream i18n (en, pt_BR, zh_CN, ru) | wording source for the String Catalogs; v1 ships de + en |
 | `BbSettings::Save` merge rules | `IniFile` in Swift, tests with the same cases |
 | `game_check.py` texts | error texts in the import UI |
@@ -324,9 +324,8 @@ Task marks: **O** orchestrator, **S** `porter` (Sonnet), **H** `scout` (Haiku), 
 | L0.4 | S | Spike: Sparkle 2 updates an ad-hoc signed test app v0.0.1 → v0.0.2 from a local appcast; behaviour under quarantine and App Translocation | Update works, or D13/D14 updated |
 | L0.5 | O | Spike (with the user's PKGs, if available): `ps4-pkg-tools` and `pkgextract` on base + update PKG; merge; game check; time | Recommended tool and its version fixed in D6 |
 | L0.6 | S, high | Spike: Bloodborne save layout in `SPRJ0005` (slot files, a global file, checksums); can one character be exported and imported into another save? On copies only | D11 decided: per-character export or whole saves |
-| L0.7 | O | Spike: build `libbbnet` on macOS (`BB_NET=ON`), list what fails, estimate L6.1 | Estimate in §8; if ≥ one phase of work, ask the user (D12) |
 
-Exit: every spike reported in §8, D3/D4/D6/D11/D12/D13 updated, decisions logged in §9.
+Exit: every spike reported in §8, D3/D4/D6/D11/D13 updated, decisions logged in §9.
 
 ### L1: Skeleton and dev launcher (→ L-M1)
 
@@ -336,7 +335,7 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D12/D13 updated, decisions logge
 | L1.2 | S | `IniFile`: parse/merge/write with `BbSettings::Save` semantics, atomic | Unit tests incl. foreign lines, `key.*`/`pad.*`, missing file |
 | L1.3 | S | `LaunchSpec` from a profile + game + data dirs; test against `run.sh --print-env` for a matrix (m4air, default, uncap, vulkan, non-1080p output) | Test green |
 | L1.4 | S, high | `GameProcess`: spawn, log capture, exit and restart codes, single instance, cancel | Unit tests with a fake executable |
-| L1.5 | S | UI skeleton: home (artwork, Play, profile picker, status cards), sidebar pages (Game, Profiles, Graphics, Mods, Patches, Saves, Online, Advanced, About) as stubs; import path (a) | Starts the game from the dev build |
+| L1.5 | S | UI skeleton: home (artwork, Play, profile picker, status cards), sidebar pages (Game, Profiles, Graphics, Mods, Patches, Saves, Advanced, About) as stubs; import path (a) | Starts the game from the dev build |
 | L1.6 | O | Integration: launch on Metal and Vulkan from the launcher, hide while the game runs, show the outcome afterwards; run.sh and bench unchanged | **L-M1** |
 
 ### L2: Game import
@@ -376,27 +375,24 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D12/D13 updated, decisions logge
 | L5.2 | S | Export/import as `.lanternsave` (whole save; per character if L0.6 allows) | Round trip on another data dir loads in the game |
 | L5.3 | S | First-start migration of `macos/user` and `macos/bbport.ini` from a repo checkout (optional, asks) | Saves and settings taken over |
 
-### L6: Online
+### L6: Packaging, release, first run (→ L-M2, L-M3)
 
 | Task | | What | Done when |
 |---|---|---|---|
-| L6.1 | O | Network module on macOS (D12), sized by L0.7 | Messages/bloodstains from the community server appear in the game |
-| L6.2 | S | Online page: servers, NPID/password in the Keychain, connection test, overrides per launch | Test passes against the default servers |
+| L6.1 | S | `launcher/package.sh`: app + nested game app + Python + pipeline + patches XML, ad-hoc signing inside-out, DMG | **L-M2** on a clean account (L6.5's setup) |
+| L6.2 | S | First-run assistant (D16): Rosetta, macOS, translocation/move, data dir, import | All branches tested by hand |
+| L6.3 | S | Sparkle integration, appcast generation, EdDSA key handling | Update v0.9 → v0.9.1 from GitHub Releases works |
+| L6.4 | S | GitHub Actions: deps cache, runtime, launcher, all tests, DMG, release on tag | A tag produces a release with DMG and appcast |
+| L6.5 | O | Acceptance on a fresh macOS user account (no Homebrew in PATH, no CLT Python): the L-M3 run | **L-M3** |
+| L6.6 | S | Minimal diagnostics: log viewer, last crash, open logs, copy system info (no paths, no user names) | Shown after a forced crash |
+| L6.7 | S | README sections (DE/EN): install, Open Anyway, import, PKG tool, mods, saves | Reviewed |
 
-### L7: Packaging, release, first run (→ L-M2, L-M3)
+### L7: After v1 (backlog, not part of L-M3)
 
-| Task | | What | Done when |
-|---|---|---|---|
-| L7.1 | S | `launcher/package.sh`: app + nested game app + Python + pipeline + patches XML, ad-hoc signing inside-out, DMG | **L-M2** on a clean account (L7.5's setup) |
-| L7.2 | S | First-run assistant (D16): Rosetta, macOS, translocation/move, data dir, import | All branches tested by hand |
-| L7.3 | S | Sparkle integration, appcast generation, EdDSA key handling | Update v0.9 → v0.9.1 from GitHub Releases works |
-| L7.4 | S | GitHub Actions: deps cache, runtime, launcher, all tests, DMG, release on tag | A tag produces a release with DMG and appcast |
-| L7.5 | O | Acceptance on a fresh macOS user account (no Homebrew in PATH, no CLT Python): the L-M3 run | **L-M3** |
-| L7.6 | S | Minimal diagnostics: log viewer, last crash, open logs, copy system info (no paths, no user names) | Shown after a forced crash |
-| L7.7 | S | README sections (DE/EN): install, Open Anyway, import, PKG tool, mods, saves | Reviewed |
-
-### L8: After v1 (not part of L-M3)
-
+- Online/co-op (D12): spike first (build `libbbnet` on macOS, estimate), then the network module
+  (found via `_NSGetExecutablePath`/`BB_NET_MODULE`), then the online page (servers,
+  NPID/password in the Keychain, connection test, `host_overrides.json` per launch). Done when
+  messages and bloodstains from the community server appear in the game.
 - Pipeline in Swift, one module at a time with golden tests (content_profile → patches →
   mods → game_check → prepare/link_modules); `lantern` CLI for `run.sh`; Python removed.
 - Controller and keyboard mapping (`key.*`/`pad.*` in the ini; the in-game menu cannot edit
@@ -412,7 +408,7 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D12/D13 updated, decisions logge
 - `LaunchSpec` vs `run.sh --print-env` (D5) and `patches.bin` equality (L3.5) are tests, not
   manual checks.
 - Every phase ends with a launch from the launcher on Metal and on Vulkan, and run.sh still works.
-  Shared-code changes (L0.1, L2.5, L4.1, L6.1) also get a bench run and screenshot comparison.
+  Shared-code changes (L0.1, L2.5, L4.1) also get a bench run and screenshot comparison.
 - L-M2/L-M3 are checked on a separate macOS user account without developer tools in PATH. A test
   in the bundle fails when anything resolves `python3`, `brew` or the repository.
 
@@ -421,25 +417,23 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D12/D13 updated, decisions logge
 | Risk | Effect | Fallback |
 |---|---|---|
 | **Rosetta 2 ends**: macOS 27 is the last release with general Rosetta; from macOS 28 only "legacy games" keep a subset, and how a game qualifies is undefined | Affects the whole port, not only the launcher | Test with `game-test-tool` on macOS 27 betas; the Info.plist game category of the nested app (D3) may matter; the long-term answer is outside this plan (arm64 runtime) |
-| Online port larger than expected (L0.7) | v1 scope | Ask the user: v1 without online, or later release |
 | Characters not separable in the save (L0.6) | Per-character export | Whole-save export, clear UI |
 | Gatekeeper friction with ad-hoc signing | Users stuck at first start | Illustrated note in the DMG, README; Developer ID later (D14) |
 | Sparkle with ad-hoc signing / translocation | Updates fail | Move-to-Applications check; manual DMG update as fallback |
 | PKG tools are young, small projects | Import (c) breaks | Detect several tools; folder import always works |
 | Presets for Pro/Max unmeasured | Bad first impression | Conservative values, marked, community feedback |
 | Runner images and Rosetta on CI change | Release pipeline breaks | Pin images; `-intel` label as fallback; local `package.sh` keeps working |
-| App size (runtime ~50 MB + Python) | Download size | Sparkle deltas; Python goes away in L8 |
+| App size (runtime ~50 MB + Python) | Download size | Sparkle deltas; Python goes away in L7 |
 
 ## 8. Status and results
 
-- [ ] L0.1–L0.7 spikes and groundwork
+- [ ] L0.1–L0.6 spikes and groundwork
 - [ ] L1 skeleton and dev launcher → L-M1
 - [ ] L2 game import
 - [ ] L3 profiles and settings
 - [ ] L4 mods
 - [ ] L5 saves
-- [ ] L6 online
-- [ ] L7 packaging, release, first run → L-M2, L-M3
+- [ ] L6 packaging, release, first run → L-M2, L-M3
 
 Found during the inventory (fix when the task touching the file comes up):
 - `live_resolution` has no runtime reader; the comment in `bbport_settings.cpp` (Save) says
@@ -456,11 +450,15 @@ Found during the inventory (fix when the task touching the file comes up):
   update, and PKG through an external tool; settings split (launcher before launch, in-game menu
   live, one ini); profiles as complete packages; local mods only; home page + sidebar; releases
   by GitHub Actions; Apple silicon, macOS 14+; plan in this format; v1 also contains save backups
-  with export/import, Sparkle updates and online/co-op; the launcher locks settings while the game
+  with export/import, Sparkle updates (and online/co-op, moved to the backlog later the same day,
+  see below); the launcher locks settings while the game
   runs; L-M3 acceptance as proposed; name "Hunter's Lantern"; signing decided later (ad hoc until
   then).
 - 2026-10-17 (orchestrator, from the inventory): online needs the network module ported first
-  (not built on macOS, D12, L0.7); the launcher builds its own `LaunchSpec` checked against
+  (not built on macOS, D12); the launcher builds its own `LaunchSpec` checked against
   `run.sh --print-env` rather than calling run.sh (D5); restart through an exit code instead of
   exec'ing run.sh (D8); prepared-image cache (D9); nested game app for name, icon and Game Mode
   (D3); recommended PKG tool `ps4-pkg-tools`, LibOrbisPkg on .NET 6+ refused (D6).
+- 2026-10-17 (user): online/co-op is not part of v1.0 and goes to the backlog (L7), after the
+  inventory showed the network module is not built on macOS. Removed: phase "Online", spike
+  L0.7, the online page in v1; phases after it renumbered (packaging is now L6, the backlog L7).
