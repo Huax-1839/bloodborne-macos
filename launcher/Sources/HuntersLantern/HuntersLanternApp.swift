@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct HuntersLanternApp: App {
     @StateObject private var model = AppModel()
+    @StateObject private var updater = Updater()
 
     var body: some Scene {
         WindowGroup {
@@ -15,5 +16,6 @@ struct HuntersLanternApp: App {
                 .task { await Snapshot.runIfRequested(model) }
         }
         .defaultSize(width: 1080, height: 680)
+        .commands { UpdateCommands(updater: updater) }
     }
 }

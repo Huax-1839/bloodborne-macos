@@ -1960,6 +1960,16 @@
           }
         }
       }
+    },
+    "Check for Updates…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Updates suchen…"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

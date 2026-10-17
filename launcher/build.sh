@@ -16,7 +16,12 @@
 #                                Default: the numeric part of the latest git tag (v1.2.3 -> 1.2.3),
 #                                else 0.0.0.
 #              LANTERN_SCRATCH   swift build --scratch-path (default launcher/.build).
+# Updates (D13): --bundle writes Sparkle's feed (the latest GitHub release's appcast.xml) and the
+# public EdDSA key into Info.plist (LANTERN_FEED_URL overrides the feed for tests); the private
+# key is a CI secret (packaging/appcast.sh).
 set -euo pipefail
+SPARKLE_FEED=${LANTERN_FEED_URL:-https://github.com/Huax-1839/bloodborne-macos/releases/latest/download/appcast.xml}
+SPARKLE_PUBLIC_KEY=3vXmh5UR6G/JKVDAUSQnwiYZH0sRTQWgKsKuef2Xa7U=
 
 here=$(cd -- "$(dirname -- "$0")" && pwd -P)
 repo=$(cd -- "$here/.." && pwd -P)
@@ -62,6 +67,14 @@ rm -rf -- "$app"
 mkdir -p -- "$app/Contents/MacOS" "$app/Contents/Resources"
 cp -- "$bin/HuntersLantern" "$app/Contents/MacOS/HuntersLantern"
 cp -- "$build/AppIcon.icns" "$app/Contents/Resources/AppIcon.icns"
+
+# Sparkle.framework (SwiftPM leaves it next to the executable). The app is not sandboxed, so its
+# XPC services are not needed; Autoupdate and Updater.app stay.
+frameworks=$app/Contents/Frameworks
+mkdir -p -- "$frameworks"
+ditto "$bin/Sparkle.framework" "$frameworks/Sparkle.framework"
+rm -rf -- "$frameworks/Sparkle.framework/Versions/B/XPCServices" "$frameworks/Sparkle.framework/XPCServices"
+install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/HuntersLantern"
 
 # SwiftPM's generated Bundle.module looks in Bundle.main.resourceURL first (its candidate list:
 # resourceURL, the framework's resourceURL, bundleURL), so the resource bundles go to
@@ -124,6 +137,10 @@ cat > "$app/Contents/Info.plist" <<PLIST
 PLIST
 if [[ $mode == dev ]]; then
     plutil -insert LanternRepository -string "$repo" "$app/Contents/Info.plist"
+else
+    plutil -insert SUFeedURL -string "$SPARKLE_FEED" "$app/Contents/Info.plist"
+    plutil -insert SUPublicEDKey -string "$SPARKLE_PUBLIC_KEY" "$app/Contents/Info.plist"
+    plutil -insert SUEnableAutomaticChecks -bool true "$app/Contents/Info.plist"
 fi
 plutil -lint "$app/Contents/Info.plist" >/dev/null
 
@@ -153,7 +170,12 @@ if [[ $mode == bundle ]]; then
     done < <(find "$python" -type f \( -name '*.so' -o -name '*.dylib' -o -path "$python/bin/*" \) -print0)
 fi
 
-# 5. Sign the app (no --deep, no hardened runtime) and check it.
+# 5. Sign Sparkle inside out (its prebuilt signature has the hardened runtime flag: --options=0
+# drops it, D14), then the app (no --deep, no hardened runtime), and check it.
+sparkle=$frameworks/Sparkle.framework/Versions/B
+for item in "$sparkle/Updater.app" "$sparkle/Autoupdate" "$frameworks/Sparkle.framework"; do
+    codesign --force -s - --timestamp=none --options=0 "$item"
+done
 codesign --force -s - --timestamp=none "$app"
 codesign --verify --deep --strict "$app"
 
