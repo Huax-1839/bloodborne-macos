@@ -1970,6 +1970,336 @@
           }
         }
       }
+    },
+    "Welcome to Hunter's Lantern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Willkommen bei Hunter's Lantern"
+          }
+        }
+      }
+    },
+    "A few checks before the first hunt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein paar Prüfungen vor der ersten Jagd."
+          }
+        }
+      }
+    },
+    "Rosetta 2": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rosetta 2"
+          }
+        }
+      }
+    },
+    "Installed: the game runs under Rosetta 2.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installiert: Das Spiel läuft unter Rosetta 2."
+          }
+        }
+      }
+    },
+    "Missing: the game is an Intel program and needs Rosetta 2. macOS offers to install it when you continue, or run “softwareupdate --install-rosetta” in Terminal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlt: Das Spiel ist ein Intel-Programm und braucht Rosetta 2. macOS bietet die Installation an, wenn du fortfährst, oder führe „softwareupdate --install-rosetta“ im Terminal aus."
+          }
+        }
+      }
+    },
+    "Install Rosetta…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rosetta installieren…"
+          }
+        }
+      }
+    },
+    "macOS %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS %lld"
+          }
+        }
+      }
+    },
+    "The game runs on Metal, the faster renderer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel läuft mit Metal, dem schnelleren Renderer."
+          }
+        }
+      }
+    },
+    "The game runs on Vulkan (MoltenVK). macOS 15 or newer adds the faster Metal renderer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel läuft mit Vulkan (MoltenVK). Ab macOS 15 kommt der schnellere Metal-Renderer dazu."
+          }
+        }
+      }
+    },
+    "Location": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicherort"
+          }
+        }
+      }
+    },
+    "The app runs from the disk image or a temporary location. Move it to the Applications folder so it can update itself.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App läuft vom Disk-Image oder von einem temporären Ort. Bewege sie in den Programme-Ordner, damit sie sich selbst aktualisieren kann."
+          }
+        }
+      }
+    },
+    "The app can update itself here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App kann sich hier selbst aktualisieren."
+          }
+        }
+      }
+    },
+    "Move to Applications": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In „Programme“ bewegen"
+          }
+        }
+      }
+    },
+    "Free space": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freier Speicher"
+          }
+        }
+      }
+    },
+    "Enough space to import the game (about 30 GB when merging or extracting).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genug Platz für den Import des Spiels (etwa 30 GB beim Zusammenführen oder Entpacken)."
+          }
+        }
+      }
+    },
+    "Less than 35 GB free: importing from PKG files or merging onto another disk needs about 30 GB. A ready game folder needs no extra space.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weniger als 35 GB frei: Der Import aus PKG-Dateien oder das Zusammenführen auf ein anderes Laufwerk braucht etwa 30 GB. Ein fertiger Spielordner braucht keinen zusätzlichen Platz."
+          }
+        }
+      }
+    },
+    "Next: add your own copy of the game on the Game page. The app contains no game files.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Als Nächstes: Füge deine eigene Kopie des Spiels auf der Seite „Spiel“ hinzu. Die App enthält keine Spieldateien."
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Später"
+          }
+        }
+      }
+    },
+    "Add the game": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel hinzufügen"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnose"
+          }
+        }
+      }
+    },
+    "System information": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systeminformationen"
+          }
+        }
+      }
+    },
+    "Copied": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiert"
+          }
+        }
+      }
+    },
+    "Copy for a bug report": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für einen Fehlerbericht kopieren"
+          }
+        }
+      }
+    },
+    "Contains no paths and no user names.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enthält keine Pfade und keine Benutzernamen."
+          }
+        }
+      }
+    },
+    "Last crash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzter Absturz"
+          }
+        }
+      }
+    },
+    "Show this log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Protokoll zeigen"
+          }
+        }
+      }
+    },
+    "Game logs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielprotokolle"
+          }
+        }
+      }
+    },
+    "Open logs folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokollordner öffnen"
+          }
+        }
+      }
+    },
+    "Reload": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu laden"
+          }
+        }
+      }
+    },
+    "No logs yet: each game start writes one (the last 10 are kept).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Protokolle: Jeder Spielstart schreibt eines (die letzten 10 bleiben erhalten)."
+          }
+        }
+      }
+    },
+    "Log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokoll"
+          }
+        }
+      }
+    },
+    "The last 400 lines.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzten 400 Zeilen."
+          }
+        }
+      }
+    },
+    "Open in Console": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In der Konsole öffnen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

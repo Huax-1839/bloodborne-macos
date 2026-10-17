@@ -38,6 +38,22 @@ final class Updater: ObservableObject {
     }
 }
 
+extension Updater {
+    /// Copies the app to /Applications (replacing an older copy there), opens the copy and quits.
+    static func moveToApplications() throws {
+        let fm = FileManager.default
+        let source = Bundle.main.bundleURL
+        let target = URL(fileURLWithPath: "/Applications").appendingPathComponent(source.lastPathComponent)
+        if fm.fileExists(atPath: target.path) { try fm.trashItem(at: target, resultingItemURL: nil) }
+        try fm.copyItem(at: source, to: target)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(at: target, configuration: configuration) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
+    }
+}
+
 /// The app menu's "Check for Updates…".
 struct UpdateCommands: Commands {
     @ObservedObject var updater: Updater

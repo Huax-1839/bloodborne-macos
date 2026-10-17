@@ -2,7 +2,7 @@
 import SwiftUI
 
 enum Page: String, CaseIterable, Identifiable {
-    case home, game, profiles, graphics, mods, patches, saves, advanced, about
+    case home, game, profiles, graphics, mods, patches, saves, advanced, diagnostics, about
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .patches: "Patches"
         case .saves: "Saves"
         case .advanced: "Advanced"
+        case .diagnostics: "Diagnostics"
         case .about: "About"
         }
     }
@@ -30,6 +31,7 @@ enum Page: String, CaseIterable, Identifiable {
         case .patches: "wrench.and.screwdriver"
         case .saves: "externaldrive.badge.timemachine"
         case .advanced: "gearshape.2"
+        case .diagnostics: "stethoscope"
         case .about: "info.circle"
         }
     }
@@ -52,11 +54,19 @@ struct RootView: View {
                 .safeAreaInset(edge: .top, spacing: 0) { noticeBanner }
         }
         .frame(minWidth: 960, minHeight: 600)
+        .sheet(isPresented: firstRunShown) { FirstRunView() }
         .alert("Something went wrong", isPresented: errorShown) {
             Button("OK") { model.errorMessage = nil }
         } message: {
             Text(model.errorMessage ?? "")
         }
+    }
+
+    /// The first-run assistant until it was finished once (not during snapshots and tests).
+    private var firstRunShown: Binding<Bool> {
+        Binding(get: { !model.state.firstRunDone && ProcessInfo.processInfo.environment["LANTERN_SNAPSHOT"] == nil
+                       && ProcessInfo.processInfo.environment["LANTERN_AUTOPLAY"] == nil },
+                set: { if !$0 { model.state.firstRunDone = true } })
     }
 
     @ViewBuilder
@@ -70,6 +80,7 @@ struct RootView: View {
         case .patches: PatchesView()
         case .saves: SavesView()
         case .advanced: AdvancedView()
+        case .diagnostics: DiagnosticsView()
         case .about: AboutView()
         }
     }
