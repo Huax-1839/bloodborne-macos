@@ -567,6 +567,11 @@ Found during the inventory (fix when the task touching the file comes up):
 - ~~`macos/test.sh` does not run the Python tests in `tests/`~~ (it does now, with the
   launcher's).
 - Env overrides read by `BbSettings::Load` are written into the ini by the next Save.
+- `skip_intro`, `debug_camera` and `debug_menu` are bbport.ini keys (the game menu's) and also
+  built-in extras on the Patches page (BB_PATCHES): either source turns the patch on. Decide
+  whether the launcher owns those keys (found in L3.5).
+- After an experimental per-character import, the game's `backup0010` is older than
+  `userdata0010`: check in the game whether that matters (L5.2).
 
 ## 9. Decision log
 
