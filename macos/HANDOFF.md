@@ -12,7 +12,9 @@ Build: `bash macos/build-deps.sh` (once), `bash macos/build.sh`; run: `bash maco
 `BB_PROFILE=m4air bash macos/run.sh` (960x540 scene, MetalFX to 1080p). Renderer: Metal by default
 on Apple silicon with macOS 15+, `BB_RENDERER=vulkan` for the Vulkan backend on MoltenVK (the
 reference). The repository is macOS only: the Linux build (top-level `build.sh`/`run.sh`,
-`shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17.
+`shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17. A
+native macOS launcher ("Hunter's Lantern", SwiftUI, DMG) is planned in `docs/LAUNCHER_PLAN.md`
+(2026-10-17, no code yet).
 
 ## State
 
