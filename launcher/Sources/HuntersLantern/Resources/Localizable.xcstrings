@@ -961,6 +961,16 @@
         }
       }
     },
+    "Looking for the PKG tool…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suche nach dem PKG-Werkzeug…"
+          }
+        }
+      }
+    },
     "Low Power Mode is on and lowers the frame rate. Turn it off in System Settings under Battery.": {
       "localizations": {
         "de": {

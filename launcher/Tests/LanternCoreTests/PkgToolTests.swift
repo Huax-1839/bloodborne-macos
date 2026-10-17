@@ -78,44 +78,81 @@ final class PkgToolTests: ImportTestCase {
 
     // MARK: - validate
 
-    func testValidateIdentifiesByUsage() throws {
+    func testValidateIdentifiesByUsage() async throws {
         let tool = try fakePS4Tool()
-        XCTAssertEqual(try PkgTool.validate(tool).get(), PkgTool(kind: .ps4PkgTools, executable: tool))
+        let found = await PkgTool.validate(tool)
+        XCTAssertEqual(try found.get(), PkgTool(kind: .ps4PkgTools, executable: tool))
         let util = try script("orbis-pkg-util", in: try folder("u"), "echo 'orbis-pkg-util 1.0: extract <pkg>' >&2")
-        XCTAssertEqual(try PkgTool.validate(util).get().kind, .orbisPkgUtil)
+        let utilFound = await PkgTool.validate(util)
+        XCTAssertEqual(try utilFound.get().kind, .orbisPkgUtil)
         let extract = try script("pkgextract", in: try folder("e"), "[ \"$1\" = -h ] && echo 'Usage: pkgextract <file.pkg> [-o DIR] [-f]'")
-        XCTAssertEqual(try PkgTool.validate(extract).get().kind, .pkgextract)  // answers -h only
+        let extractFound = await PkgTool.validate(extract)
+        XCTAssertEqual(try extractFound.get().kind, .pkgextract)  // answers -h only
     }
 
-    func testValidateIdentifiesARenamedTool() throws {
+    func testValidateIdentifiesARenamedTool() async throws {
         let renamed = try script("my-extractor", in: try folder("r"), "echo '\(ps4Usage)' >&2")
-        XCTAssertEqual(try PkgTool.validate(renamed).get(), PkgTool(kind: .ps4PkgTools, executable: renamed))
+        let found = await PkgTool.validate(renamed)
+        XCTAssertEqual(try found.get(), PkgTool(kind: .ps4PkgTools, executable: renamed))
     }
 
-    func testValidateRefusesLibOrbisPkg() throws {
+    func testValidateRefusesLibOrbisPkg() async throws {
         for name in ["PkgTool.Core", "PkgTool", "PkgTool.Core.dll", "dotnet"] {
             let tool = try script(name, in: try folder("lib-" + name), "echo 'PkgTool.Core usage'")
-            XCTAssertEqual(PkgTool.validate(tool), .failure(.libOrbisPkg), name)
+            let result = await PkgTool.validate(tool)
+            XCTAssertEqual(result, .failure(.libOrbisPkg), name)
         }
         let byUsage = try script("renamed", in: try folder("lib-usage"), "echo 'LibOrbisPkg PkgTool'")
-        XCTAssertEqual(PkgTool.validate(byUsage), .failure(.libOrbisPkg))
+        let result = await PkgTool.validate(byUsage)
+        XCTAssertEqual(result, .failure(.libOrbisPkg))
         XCTAssertNotNil(PkgToolError.libOrbisPkg.errorDescription)
     }
 
-    func testValidateRefusesWrongFiles() throws {
+    func testValidateRefusesWrongFiles() async throws {
         let bin = try folder("v")
         try write(bin, "pkgextract", "#!/bin/bash\n")
-        XCTAssertEqual(PkgTool.validate(bin.appendingPathComponent("pkgextract")), .failure(.notExecutable(bin.appendingPathComponent("pkgextract"))))
-        XCTAssertEqual(PkgTool.validate(bin.appendingPathComponent("missing")), .failure(.notFound(bin.appendingPathComponent("missing"))))
+        let notExecutable = await PkgTool.validate(bin.appendingPathComponent("pkgextract"))
+        XCTAssertEqual(notExecutable, .failure(.notExecutable(bin.appendingPathComponent("pkgextract"))))
+        let missing = await PkgTool.validate(bin.appendingPathComponent("missing"))
+        XCTAssertEqual(missing, .failure(.notFound(bin.appendingPathComponent("missing"))))
         let liar = try script("pkgextract", in: try folder("liar"), "echo 'Usage: grep PATTERN'")
-        XCTAssertEqual(PkgTool.validate(liar), .failure(.unrecognized("pkgextract")))
+        let lie = await PkgTool.validate(liar)
+        XCTAssertEqual(lie, .failure(.unrecognized("pkgextract")))
     }
 
-    func testValidateTimesOutAfterFiveSeconds() throws {
+    func testValidateTimesOutAfterFiveSeconds() async throws {
         let hang = try script("pkgextract", in: try folder("hang"), "exec sleep 60")
         let started = Date()
-        XCTAssertEqual(PkgTool.validate(hang), .failure(.timedOut))
+        let result = await PkgTool.validate(hang)
+        XCTAssertEqual(result, .failure(.timedOut))
         XCTAssertLessThan(Date().timeIntervalSince(started), 8)
+    }
+
+    /// A program whose child keeps the output open past the kill (a shell script calling a
+    /// program that hangs) still times out on time; a program that ignores SIGTERM too.
+    func testValidateTimesOutWhenAChildHoldsTheOutput() async throws {
+        let wrapper = try script("pkgextract", in: try folder("wrap"), "trap '' TERM; sleep 30; echo late")
+        let started = Date()
+        let result = await PkgTool.validate(wrapper, timeout: 0.5)
+        XCTAssertEqual(result, .failure(.timedOut))
+        XCTAssertLessThan(Date().timeIntervalSince(started), 3)
+    }
+
+    /// Validation does not block the thread it is called from: the main actor stays free.
+    @MainActor
+    func testValidateLeavesTheMainActorFree() async throws {
+        let slow = try script("pkgextract", in: try folder("slow"), "sleep 1; echo 'Usage: pkgextract <file.pkg>'")
+        let ticks = LockedBox(0)
+        let ticker = Task { @MainActor in
+            while !Task.isCancelled {
+                ticks.mutate { $0 += 1 }
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+        }
+        let result = await PkgTool.validate(slow)
+        ticker.cancel()
+        XCTAssertEqual(try result.get().kind, .pkgextract)
+        XCTAssertGreaterThan(ticks.value, 5, "the main actor ran while the help text was awaited")
     }
 
     // MARK: - extract

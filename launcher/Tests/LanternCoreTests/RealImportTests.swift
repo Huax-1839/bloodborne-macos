@@ -40,8 +40,9 @@ final class RealImportTests: XCTestCase {
         let repo = environment["LANTERN_REPO"]!
         let base = URL(fileURLWithPath: environment["LANTERN_REAL_BASE_PKG"] ?? repo + "/game/Bloodborne.Game.of.the.Year.Edition.PS4-PRELUDE.pkg")
         let update = URL(fileURLWithPath: environment["LANTERN_REAL_UPDATE_PKG"] ?? repo + "/game/Bloodborne.Game.of.the.Year.Edition.Update.v1.09.PS4-PRELUDE.pkg")
-        let tool = try XCTUnwrap(environment["LANTERN_REAL_TOOL"].map { try PkgTool.validate(URL(fileURLWithPath: $0)).get() }
-                                 ?? PkgTool.detect(), "no PKG tool found")
+        var chosen: PkgTool?
+        if let path = environment["LANTERN_REAL_TOOL"] { chosen = try await PkgTool.validate(URL(fileURLWithPath: path)).get() }
+        let tool = try XCTUnwrap(chosen ?? PkgTool.detect(), "no PKG tool found")
         print("PKG tool: \(tool.kind) \(tool.executable.lastPathComponent)")
         let dirs = DataDirs(root: scratch)
         let started = Date()

@@ -50,7 +50,8 @@ public final class Launcher: @unchecked Sendable {
         self.pipeline = pipeline ?? PythonPipeline(runtime: runtime)
     }
 
-    /// Ends the running game (the launcher's Stop button).
+    /// Ends the launch (the launcher's Stop button): the game when it runs, else the launch stops
+    /// before the next step. Cancelling the launching task also ends the pipeline step that runs.
     public func cancel() {
         let process = lock.withLock {
             cancelled = true
@@ -59,9 +60,22 @@ public final class Launcher: @unchecked Sendable {
         process?.cancel()
     }
 
+    /// A launch stopped by `cancel()` or by cancelling the task ends with `.cancelled`, not an
+    /// error (a pipeline step killed by the cancellation fails).
     public func launch(game: Game, profile: Profile, settings: LauncherSettings,
                        onPhase: @escaping @Sendable (LaunchPhase) -> Void) async throws -> LaunchResult {
         lock.withLock { cancelled = false }
+        do {
+            return try await run(game: game, profile: profile, settings: settings, onPhase: onPhase)
+        } catch where isCancelled {
+            return Self.cancelledResult
+        }
+    }
+
+    private static let cancelledResult = LaunchResult(outcome: .cancelled, log: nil, changedProfileKeys: [:], logTail: "")
+
+    private func run(game: Game, profile: Profile, settings: LauncherSettings,
+                     onPhase: @escaping @Sendable (LaunchPhase) -> Void) async throws -> LaunchResult {
         try dirs.create()
         onPhase(.checking)
         let check = try await pipeline.quickCheck(game: game.path)
@@ -96,11 +110,16 @@ public final class Launcher: @unchecked Sendable {
                                       appleSilicon: MacHost.appleSilicon, macOSMajor: MacHost.macOSMajor)
             let spec = LaunchSpec.make(inputs)
             try await prepare(spec, prepared: prepared, game: game, onPhase: onPhase)
-            if isCancelled { return LaunchResult(outcome: .cancelled, log: nil, changedProfileKeys: [:], logTail: "") }
+            if isCancelled { return Self.cancelledResult }
 
             let process = GameProcess(spec: spec, logsDir: dirs.logsDir, lockFile: dirs.lockFile)
             let log = try process.start()
-            lock.withLock { current = process }
+            // A Stop between start() and here found no process to end: it is done now.
+            let stopNow = lock.withLock {
+                current = process
+                return cancelled || Task.isCancelled
+            }
+            if stopNow { process.cancel() }
             onPhase(.running)
             let outcome = await process.wait()
             lock.withLock { current = nil }
@@ -136,7 +155,7 @@ public final class Launcher: @unchecked Sendable {
         return overlay.lastPathComponent.hasPrefix("mod-game-") ? overlay : nil
     }
 
-    private var isCancelled: Bool { lock.withLock { cancelled } }
+    private var isCancelled: Bool { Task.isCancelled || lock.withLock { cancelled } }
 
     /// Runs the launch steps. prepare/link/content_profile depend only on the eboot and the
     /// scripts (D9): skipped when the prepared folder's stamp matches; patches.py runs each time.
@@ -153,11 +172,12 @@ public final class Launcher: @unchecked Sendable {
         var environment = ProcessInfo.processInfo.environment
         environment.merge(spec.environment) { $1 }
         for step in spec.steps {
+            if isCancelled { throw CancellationError() }
             let imageStep = step.script != "patches.py"
             if imageStep && cached { continue }
             if imageStep { try? fm.removeItem(at: stampFile) }
             onPhase(.preparing(step.script))
-            log.write(Data("$ \(step.script) \(step.arguments.joined(separator: " "))\n".utf8))
+            try log.write(contentsOf: Data("$ \(step.script) \(step.arguments.joined(separator: " "))\n".utf8))
             try await pipeline.run(step, environment: environment, log: log)
         }
         if !cached { try stamp.write(to: stampFile, atomically: true, encoding: .utf8) }

@@ -99,8 +99,16 @@ public enum ProcessRunner {
         process.standardOutput = out
         process.standardError = err
         let collector = OutputCollector(log: log, onLine: onLine)
-        out.fileHandleForReading.readabilityHandler = { handle in collector.add(handle.availableData, stdout: true) }
-        err.fileHandleForReading.readabilityHandler = { handle in collector.add(handle.availableData, stdout: false) }
+        // At the end of the output the handler is called again and again with no data: it stops
+        // itself (the termination handler reads what is left).
+        out.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty { handle.readabilityHandler = nil } else { collector.add(data, stdout: true) }
+        }
+        err.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            if data.isEmpty { handle.readabilityHandler = nil } else { collector.add(data, stdout: false) }
+        }
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ProcessResult, Error>) in
                 process.terminationHandler = { process in
@@ -142,7 +150,8 @@ final class OutputCollector: @unchecked Sendable {
         guard !data.isEmpty else { return }
         lock.lock()
         defer { lock.unlock() }
-        log?.write(data)
+        // Not write(_:): it raises an Objective-C exception on a full disk. The log is a copy.
+        try? log?.write(contentsOf: data)
         if stdout {
             out.append(data)
             guard let onLine else { return }

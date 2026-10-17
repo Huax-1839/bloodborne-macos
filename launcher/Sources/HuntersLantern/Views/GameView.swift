@@ -81,6 +81,7 @@ struct GameView: View {
                     Button("Set active") { model.state.activeGame = game.id }
                 }
                 Button("Remove…", role: .destructive) { removing = game }
+                    .disabled(thoroughGame == game.id && model.thoroughProgress != nil)
             }
             Text(verbatim: game.path.path)
                 .font(.system(.caption, design: .monospaced))
@@ -296,8 +297,6 @@ struct PKGSheet: View {
     let onImport: (URL, URL) -> Void
     @State private var base: URL?
     @State private var update: URL?
-    /// Bumped after choosing a tool so the description is read again.
-    @State private var toolVersion = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -324,22 +323,28 @@ struct PKGSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
-                .disabled(base == nil || update == nil || tool == nil)
+                .disabled(base == nil || update == nil || model.pkgTool == nil || model.pkgToolSearching)
             }
         }
         .padding(24)
         .frame(width: 580)
+        // Once per opening: finding the tool runs the chosen program.
+        .task { await model.refreshPKGTool() }
     }
 
     private var tool: String? {
-        _ = toolVersion
-        return model.pkgToolDescription
+        model.pkgTool.map { "\($0.kind.displayName) – \($0.executable.path)" }
     }
 
     private var toolSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("PKG tool").font(.headline)
-            if let tool {
+            if model.pkgToolSearching {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Looking for the PKG tool…").font(.callout).foregroundStyle(.secondary)
+                }
+            } else if let tool {
                 Label(title: { Text(verbatim: tool) }, icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) })
                     .font(.callout)
             } else {
@@ -351,10 +356,10 @@ struct PKGSheet: View {
             HStack {
                 Button(tool == nil ? "Choose the tool…" : "Choose another tool…") {
                     if let url = Panels.chooseFile(message: String(localized: "Choose the PKG tool's executable"), types: []) {
-                        model.choosePKGTool(url)
-                        toolVersion += 1
+                        Task { await model.choosePKGTool(url) }
                     }
                 }
+                .disabled(model.pkgToolSearching)
                 Link("ps4-pkg-tools on GitHub", destination: URL(string: "https://github.com/xXJSONDeruloXx/ps4-pkg-tools")!)
             }
         }

@@ -153,8 +153,14 @@ public struct PkgTool: Equatable, Sendable {
     // MARK: - Validating a chosen one
 
     /// A user-chosen program: refused when it is LibOrbisPkg or no executable, else run with
-    /// --help (then -h) for 5 s and identified by its usage text.
-    public static func validate(_ url: URL) -> Result<PkgTool, PkgToolError> {
+    /// --help (then -h) for 5 s each and identified by its usage text. Runs the program: call it
+    /// once per choice, not from a view.
+    public static func validate(_ url: URL) async -> Result<PkgTool, PkgToolError> {
+        await validate(url, timeout: 5)
+    }
+
+    /// `timeout` per help run (tests).
+    static func validate(_ url: URL, timeout: TimeInterval) async -> Result<PkgTool, PkgToolError> {
         let name = url.lastPathComponent
         if isLibOrbisPkg(named: name) { return .failure(.libOrbisPkg) }
         var isDirectory: ObjCBool = false
@@ -164,7 +170,7 @@ public struct PkgTool: Equatable, Sendable {
         }
         var usage = ""
         for flag in ["--help", "-h"] {
-            switch helpText(url, flag: flag) {
+            switch await helpText(url, flag: flag, timeout: timeout) {
             case .failure(let error): return .failure(error)
             case .success(let text): usage = text
             }
@@ -182,8 +188,10 @@ public struct PkgTool: Equatable, Sendable {
         return .failure(.unrecognized(name))
     }
 
-    /// stdout and stderr of `url flag`, killed after 5 s.
-    private static func helpText(_ url: URL, flag: String, timeout: TimeInterval = 5) -> Result<String, PkgToolError> {
+    /// stdout and stderr of `url flag`, killed after `timeout` (or when the task is cancelled).
+    /// The output goes to a file, not a pipe (ProcessRunner): a child the program started could
+    /// keep a pipe open after the kill, and reading it to the end would wait for that child.
+    private static func helpText(_ url: URL, flag: String, timeout: TimeInterval) async -> Result<String, PkgToolError> {
         let fm = FileManager.default
         let directory = fm.temporaryDirectory.appendingPathComponent("lantern-help-" + UUID().uuidString, isDirectory: true)
         let output = directory.appendingPathComponent("out.txt")
@@ -203,15 +211,19 @@ public struct PkgTool: Equatable, Sendable {
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = handle
         process.standardError = handle
+        let exit = ExitSignal()
+        process.terminationHandler = { _ in exit.fire() }
         do { try process.run() } catch { return .failure(.cannotRun(error.localizedDescription)) }
-        let end = Date().addingTimeInterval(timeout)
-        while process.isRunning {
-            if Date() > end {
-                process.terminate()
-                return .failure(.timedOut)
-            }
-            Thread.sleep(forTimeInterval: 0.02)
+        let inTime = await withTaskGroup(of: Bool.self) { group in
+            group.addTask { await exit.wait(); return true }
+            group.addTask { try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000)); return false }
+            let first = await group.next() ?? false
+            // SIGKILL: a help run has nothing to clean up, and SIGTERM can be trapped.
+            if !first { kill(process.processIdentifier, SIGKILL) }
+            group.cancelAll()
+            return first
         }
+        guard inTime else { return .failure(.timedOut) }
         try? handle.synchronize()
         return .success((try? String(contentsOf: output, encoding: .utf8)) ?? "")
     }
@@ -263,6 +275,33 @@ public struct PkgTool: Equatable, Sendable {
         }
         progress(1)
         return app
+    }
+}
+
+/// A process's end, awaited (the termination handler may fire before anyone waits).
+private final class ExitSignal: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    func fire() {
+        let waiter = lock.withLock {
+            done = true
+            defer { self.waiter = nil }
+            return self.waiter
+        }
+        waiter?.resume()
+    }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let now = lock.withLock {
+                if done { return true }
+                waiter = continuation
+                return false
+            }
+            if now { continuation.resume() }
+        }
     }
 }
 

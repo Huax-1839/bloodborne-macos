@@ -53,9 +53,11 @@ final class AppModel: ObservableObject {
 
     // MARK: Games
 
-    /// Import path (a): a ready 1.09 folder, registered where it is (D6).
-    func importFolder(_ url: URL) async {
+    /// Import path (a): a ready 1.09 folder, registered where it is (D6). The folder holding the
+    /// app folder (CUSA03173/) is taken as well, as in path (b).
+    func importFolder(_ chosen: URL) async {
         guard case .success(let runtime) = runtime else { return showRuntimeError() }
+        let url = GameFolder.locate(chosen) ?? chosen
         importStatus = (String(localized: "Checking the game…"), nil)
         defer { importStatus = nil }
         do {
@@ -75,11 +77,9 @@ final class AppModel: ObservableObject {
     /// Import path (b): base game and update folders merged with APFS clones into the data
     /// folder's games/ (D6).
     func importBaseAndUpdate(base: URL, update: URL) async {
-        await runImport { runtime in
+        await runImport { runtime, progress in
             let imported = try await GameImporter.importFolders(base: base, update: update, dirs: self.dirs,
-                                                                pipeline: PythonPipeline(runtime: runtime)) { phase, fraction in
-                Task { @MainActor in self.importStatus = (Self.text(for: phase), fraction) }
-            }
+                                                                pipeline: PythonPipeline(runtime: runtime), progress: progress)
             return (imported.folder, imported.check)
         }
     }
@@ -90,31 +90,41 @@ final class AppModel: ObservableObject {
             errorMessage = String(localized: "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game page.")
             return
         }
-        await runImport { runtime in
+        await runImport { runtime, progress in
             let imported = try await GameImporter.importPKGs(base: base, update: update, tool: tool, dirs: self.dirs,
-                                                             pipeline: PythonPipeline(runtime: runtime)) { phase, fraction in
-                Task { @MainActor in self.importStatus = (Self.text(for: phase), fraction) }
-            }
+                                                             pipeline: PythonPipeline(runtime: runtime)) { progress($0, $1) }
             return (imported.folder, imported.check)
         }
     }
 
-    /// The PKG tool: the one the user chose, else one found on this Mac.
-    var pkgTool: PkgTool? {
-        if let path = state.pkgToolPath, case .success(let tool) = PkgTool.validate(URL(fileURLWithPath: path)) { return tool }
-        return PkgTool.detect()
-    }
+    /// The PKG tool: the one the user chose, else one found on this Mac (nil: none, or not looked
+    /// for yet; the PKG sheet refreshes it when it opens). Finding it runs the chosen program
+    /// (validate), so it is a stored value, never computed by a view.
+    @Published private(set) var pkgTool: PkgTool?
+    /// The PKG tool is being looked for.
+    @Published private(set) var pkgToolSearching = false
 
-    /// The PKG tool found on this Mac (nil: none; the Game page explains how to get one).
-    var pkgToolDescription: String? {
-        pkgTool.map { "\($0.kind.displayName) – \($0.executable.path)" }
+    /// Looks for the PKG tool again, off the main actor.
+    func refreshPKGTool() async {
+        let path = state.pkgToolPath
+        pkgToolSearching = true
+        defer { pkgToolSearching = false }
+        pkgTool = await Task.detached {
+            if let path, case .success(let tool) = await PkgTool.validate(URL(fileURLWithPath: path)) { return tool }
+            return PkgTool.detect()
+        }.value
     }
 
     /// Lets the user pick the PKG tool's executable.
-    func choosePKGTool(_ url: URL) {
-        switch PkgTool.validate(url) {
-        case .success(let tool): state.pkgToolPath = tool.executable.path
-        case .failure(let error): errorMessage = error.localizedDescription
+    func choosePKGTool(_ url: URL) async {
+        pkgToolSearching = true
+        defer { pkgToolSearching = false }
+        switch await Task.detached(operation: { await PkgTool.validate(url) }).value {
+        case .success(let tool):
+            state.pkgToolPath = tool.executable.path
+            pkgTool = tool
+        case .failure(let error):
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -127,7 +137,7 @@ final class AppModel: ObservableObject {
             let updated = try await Game.ThoroughCheck.runThorough(game: game, pipeline: PythonPipeline(runtime: runtime)) { done, total in
                 Task { @MainActor in if self.thoroughProgress != nil { self.thoroughProgress = total > 0 ? Double(done) / Double(total) : 0 } }
             }
-            try library.update(updated)
+            try library.update(updated) // not again when the game was removed meanwhile
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -135,17 +145,36 @@ final class AppModel: ObservableObject {
     @Published private(set) var thoroughProgress: Double?
 
     private var importTask: Task<Void, Never>?
+    /// The running import (b or c) and the number of its last progress update shown: updates
+    /// arrive as separate main-actor tasks, in no fixed order, and may outlive the import.
+    private var importGeneration = 0
+    private var importProgressShown = 0
 
     func cancelImport() { importTask?.cancel() }
 
-    /// Runs an import (b or c) as a cancellable task and registers the folder it made.
-    private func runImport(_ work: @escaping @MainActor (Runtime) async throws -> (URL, GameCheck)) async {
+    /// Runs an import (b or c) as a cancellable task and registers the folder it made. `work`
+    /// gets the progress callback for the importer.
+    private func runImport(_ work: @escaping @MainActor (Runtime, @escaping @Sendable (GameImporter.Phase, Double?) -> Void) async throws -> (URL, GameCheck)) async {
         guard case .success(let runtime) = runtime else { return showRuntimeError() }
         guard importTask == nil else { return }
+        importGeneration += 1
+        importProgressShown = 0
+        let generation = importGeneration
+        let sequence = ProgressSequence()
+        let progress: @Sendable (GameImporter.Phase, Double?) -> Void = { phase, fraction in
+            let number = sequence.next()
+            Task { @MainActor in
+                // Only the newest update of the running import: never after it ended, never an
+                // older phase over a newer one.
+                guard self.importTask != nil, self.importGeneration == generation, number > self.importProgressShown else { return }
+                self.importProgressShown = number
+                self.importStatus = (Self.text(for: phase), fraction)
+            }
+        }
         importStatus = (String(localized: "Preparing the import…"), nil)
         let task = Task { @MainActor in
             do {
-                let (folder, check) = try await work(runtime)
+                let (folder, check) = try await work(runtime, progress)
                 let game = Game(path: folder, check: check, managed: true)
                 try library.add(game)
                 state.activeGame = game.id
@@ -245,7 +274,7 @@ final class AppModel: ObservableObject {
         let settings = state.settings
         lastResult = nil
         phase = .checking
-        Task {
+        launchTask = Task {
             do {
                 let result = try await launcher.launch(game: game, profile: profile, settings: settings) { phase in
                     Task { @MainActor in self.update(phase) }
@@ -257,10 +286,18 @@ final class AppModel: ObservableObject {
                 errorMessage = (error as? LaunchError)?.description ?? String(describing: error)
             }
             self.launcher = nil
+            launchTask = nil
         }
     }
 
-    func stop() { launcher?.cancel() }
+    /// The launch in progress: Stop cancels it, which ends the pipeline step that runs (prepare
+    /// can take minutes) as well as the game.
+    private var launchTask: Task<Void, Never>?
+
+    func stop() {
+        launcher?.cancel()
+        launchTask?.cancel()
+    }
 
     private func update(_ newPhase: LaunchPhase) {
         guard phase != nil else { return }
@@ -308,4 +345,11 @@ final class AppModel: ObservableObject {
     private func showRuntimeError() {
         if case .failure(let error) = runtime { errorMessage = String(describing: error) }
     }
+}
+
+/// Numbers progress callbacks in the order the importer made them (they come from its threads).
+private final class ProgressSequence: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    func next() -> Int { lock.withLock { count += 1; return count } }
 }

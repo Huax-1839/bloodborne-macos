@@ -107,7 +107,7 @@ extension Profile {
         p.renderResolution = "960x540"
         p.effects = [.dynamicShadows: false, .motionBlur: false, .depthOfField: false, .ambientOcclusion: false]
         p.modelLOD = 1
-        p.iniValues = ["upscaler": "metalfx"]
+        p.iniValues = ["upscaler": "metalfx", "preset": "0"]
         return p
     }()
 
@@ -120,7 +120,7 @@ extension Profile {
         p.frameRate = .fps60
         p.renderResolution = "1280x720"
         p.effects = [.motionBlur: false]
-        p.iniValues = ["upscaler": "metalfx"]
+        p.iniValues = ["upscaler": "metalfx", "preset": "0"]
         return p
     }()
 
@@ -140,8 +140,14 @@ extension Profile {
         var p = Profile(id: "builtin-vanilla", name: "Vanilla")
         p.builtin = true
         p.frameRate = .fps30
+        p.iniValues = ["upscaler": "fsr3", "preset": "0"] // bbport_settings.h; MetalFX on Metal
         return p
     }()
 
+    /// Every built-in preset writes the same display keys (`displayKeys`): a key one of them
+    /// writes stays in the shared bbport.ini and would otherwise reach the next preset launched.
     public static let builtins: [Profile] = [air, pro, max, vanilla]
+
+    /// The bbport.ini keys each built-in preset sets.
+    static let displayKeys: Set<String> = ["upscaler", "preset"]
 }

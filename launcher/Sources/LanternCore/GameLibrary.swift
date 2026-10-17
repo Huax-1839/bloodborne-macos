@@ -83,8 +83,10 @@ public struct GameLibrary: Sendable {
         try save()
     }
 
+    /// Replaces the entry with the same id and folder; a game removed meanwhile (a background
+    /// check that ends after Remove) stays removed.
     public mutating func update(_ game: Game) throws {
-        guard let index = games.firstIndex(where: { $0.id == game.id }) else { return try add(game) }
+        guard let index = games.firstIndex(where: { $0.id == game.id && $0.path == game.path }) else { return }
         games[index] = game
         try save()
     }
