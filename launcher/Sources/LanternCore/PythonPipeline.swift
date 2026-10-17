@@ -43,6 +43,15 @@ public struct PythonPipeline: Pipeline {
         return words.count >= 2 ? ScaledSizes(render: String(words[0]), output: String(words[1])) : nil
     }
 
+    public func buildModOverlay(game: URL, out: URL, modsDir: URL, config: URL) async throws -> URL {
+        let result = try await python(["mods.py", game.path, "--out", out.path, "--mods-dir", modsDir.path,
+                                       "--config", config.path, "--enabled", "1"], environment: [:])
+        guard result.status == 0, let line = result.stdout.split(separator: "\n").last else {
+            throw PipelineError(result.stderr.split(separator: "\n").last.map(String.init) ?? "mods.py failed (status \(result.status))")
+        }
+        return URL(fileURLWithPath: String(line), isDirectory: true)
+    }
+
     public func run(_ step: LaunchSpec.Step, environment: [String: String], log: FileHandle?) async throws {
         let result = try await python([step.script] + step.arguments, environment: environment, log: log)
         guard result.status == 0 else {

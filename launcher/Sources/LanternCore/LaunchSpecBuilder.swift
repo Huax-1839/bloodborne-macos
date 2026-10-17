@@ -50,6 +50,8 @@ extension LaunchSpec {
         let user = value("BB_USER_DIR", profile.ownSaves ? dirs.profileUserDir(profile.id).path : dirs.userDir.path)
         env["BB_GPU_USER_DIR"] = value("BB_GPU_USER_DIR", profile.ownSaves ? dirs.userDir.path : user)
         let game = value("BB_GAME_DIR", inputs.gameDir.path)
+        // run.sh's mods step: the game runs from the overlay, the image steps read the game.
+        let app0 = inputs.modGame?.path ?? game
 
         // Renderer: Metal on Apple silicon with macOS 15 or newer.
         if !has("BB_RENDERER") {
@@ -80,7 +82,7 @@ extension LaunchSpec {
         ]
         steps.append(Step(script: "patches.py", arguments: [
             "--out", out, "--fps", fps, "--extra", env["BB_PATCHES"] ?? "", "--settings", ini,
-            "--game-dir", game, "--render-res", env["BB_RENDER_RES"] ?? "", "--output-res", env["BB_OUTPUT_RES"] ?? "",
+            "--game-dir", app0, "--render-res", env["BB_RENDER_RES"] ?? "", "--output-res", env["BB_OUTPUT_RES"] ?? "",
             "--patches-dir", value("BB_PATCHES_DIR", dirs.patchesDir.path),
             "--patches-config", value("BB_PATCHES_CONFIG", dirs.patchesConfig.path),
         ]))
@@ -110,7 +112,7 @@ extension LaunchSpec {
 
         let probe = value("BB_PROBE", inputs.runtime.probe.path)
         let arguments = [out + "/boot-linked.bin", "--content-profile", out + "/content.bin",
-                         "--patches", out + "/patches.bin", "--app0", game, "--user", user,
+                         "--patches", out + "/patches.bin", "--app0", app0, "--user", user,
                          "--timeout", value("BB_TIMEOUT", "0")]
 
         return LaunchSpec(steps: steps, executable: URL(fileURLWithPath: probe), arguments: arguments,

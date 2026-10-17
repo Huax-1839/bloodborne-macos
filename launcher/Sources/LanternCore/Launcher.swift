@@ -81,11 +81,13 @@ public final class Launcher: @unchecked Sendable {
         try ini.write(to: dirs.iniFile)
 
         let prepared = dirs.preparedDir.appendingPathComponent(Self.preparedName(check), isDirectory: true)
+        let modGame = try await modOverlay(game: game, profile: profile, onPhase: onPhase)
+        defer { if let modGame { try? FileManager.default.removeItem(at: modGame) } }
         var result: LaunchResult
         repeat {
             let scaled = profile.renderResolution == nil ? try await pipeline.scaledSizes(settings: dirs.iniFile) : nil
             let inputs = LaunchInputs(profile: profile, gameDir: game.path, preparedDir: prepared, dirs: dirs,
-                                      runtime: runtime, settings: settings, scaled: scaled,
+                                      runtime: runtime, settings: settings, scaled: scaled, modGame: modGame,
                                       appleSilicon: Host.appleSilicon, macOSMajor: Host.macOSMajor)
             let spec = LaunchSpec.make(inputs)
             try await prepare(spec, prepared: prepared, game: game, onPhase: onPhase)
@@ -107,6 +109,24 @@ public final class Launcher: @unchecked Sendable {
             result.changedProfileKeys[key] = after[key]
         }
         return result
+    }
+
+    /// The profile's mod set as an overlay (D10): mods.json with the set's order and every other
+    /// mod disabled. Overlays a killed run left behind are removed first.
+    func modOverlay(game: Game, profile: Profile, onPhase: @escaping @Sendable (LaunchPhase) -> Void) async throws -> URL? {
+        let fm = FileManager.default
+        for stale in (try? fm.contentsOfDirectory(at: dirs.runDir, includingPropertiesForKeys: nil)) ?? []
+        where stale.lastPathComponent.hasPrefix("mod-game-") {
+            try? fm.removeItem(at: stale)
+        }
+        guard let mods = profile.mods, !mods.isEmpty else { return nil }
+        onPhase(.preparing("mods.py"))
+        let installed = ((try? fm.contentsOfDirectory(atPath: dirs.modsDir.path)) ?? []).filter { !$0.hasPrefix(".") }
+        let config = dirs.runDir.appendingPathComponent("mods.json")
+        let object: [String: [String]] = ["order": mods, "disabled": installed.filter { !mods.contains($0) }]
+        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]).write(to: config, options: .atomic)
+        let overlay = try await pipeline.buildModOverlay(game: game.path, out: dirs.runDir, modsDir: dirs.modsDir, config: config)
+        return overlay.lastPathComponent.hasPrefix("mod-game-") ? overlay : nil
     }
 
     private var isCancelled: Bool { lock.withLock { cancelled } }

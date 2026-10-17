@@ -42,6 +42,25 @@ step "$PYTHON" scripts/prepare.py "$game" --out "$out"
 step "$PYTHON" scripts/link_modules.py "$game" --out "$out"
 step "$PYTHON" scripts/content_profile.py "$game" --out "$out" --sku "${BB_CONTENT_SKU:-full}"
 
+# Mods (docs/MODS.md): mods.py links the enabled mods over the untouched game into
+# $data/out/mod-game-* and prints that folder (the game itself when no mod is enabled). The
+# game runs from it (/app0); the image steps above read the unchanged eboot.bin from the game.
+app0=$game
+if [[ -n $print_env ]]; then
+    step "$PYTHON" scripts/mods.py "$game" --out "$data/out" --mods-dir "${BB_MODS_DIR:-$data/mods}" \
+        --config "${BB_MODS_CONFIG:-$data/mods.json}" --enabled "${BB_MODS_ENABLED:-1}"
+else
+    app0=$("$PYTHON" scripts/mods.py "$game" --out "$data/out" --mods-dir "${BB_MODS_DIR:-$data/mods}" \
+        --config "${BB_MODS_CONFIG:-$data/mods.json}" --enabled "${BB_MODS_ENABLED:-1}")
+fi
+# Only a folder mods.py made is removed (after the game, and before a restart's exec).
+mod_overlay=
+if [[ $(basename -- "$app0") == mod-game-* && $(dirname -- "$app0") == "$(cd -- "$data/out" && pwd -P)" ]]; then
+    mod_overlay=$app0
+fi
+remove_mod_overlay() { [[ -z $mod_overlay ]] || rm -rf -- "$mod_overlay"; }
+trap remove_mod_overlay EXIT
+
 # BB_PROFILE=m4air: 30 FPS on a MacBook Air M4 (fanless, 10-core GPU). The scene at 960x540,
 # FSR 3 to the 1080p output (the UI drawn at 1080p), frame rate capped at 30, the effects that
 # cost most off and one model detail level lower (the clinic draws ~7 million triangles a frame).
@@ -67,7 +86,7 @@ if [[ -n ${scaled_output:-} && ${BB_LIVE_RES:-0} != 1 ]]; then
     [[ -n $print_env ]] || echo "Output ${scaled_output}: scene ${scaled_render}, direct memory ${BB_DMEM_MB} MiB"
 fi
 step "$PYTHON" scripts/patches.py --out "$out" --fps "$fps" --extra "${BB_PATCHES:-}" --settings "$BB_CONFIG" \
-    --game-dir "$game" --render-res "${BB_RENDER_RES:-}" --output-res "${BB_OUTPUT_RES:-}" \
+    --game-dir "$app0" --render-res "${BB_RENDER_RES:-}" --output-res "${BB_OUTPUT_RES:-}" \
     --patches-dir "${BB_PATCHES_DIR:-$data/patches}" --patches-config "${BB_PATCHES_CONFIG:-$data/patches.json}"
 
 # Memory model: the new one through the layer's memory module. Metal has no sparse buffers (the
@@ -96,7 +115,7 @@ export ROSETTA_ADVERTISE_AVX=${ROSETTA_ADVERTISE_AVX:-1}
 
 probe=${BB_PROBE:-$data/out/bb-probe}
 args=("$out/boot-linked.bin" --content-profile "$out/content.bin" --patches "$out/patches.bin"
-    --app0 "$game" --user "$user" --timeout "${BB_TIMEOUT:-0}" "$@")
+    --app0 "$app0" --user "$user" --timeout "${BB_TIMEOUT:-0}" "$@")
 if [[ -n $print_env ]]; then
     printf 'cwd %s\nexec %s\n' "$PWD" "$probe"
     for a in "${args[@]}"; do printf 'arg %s\n' "$a"; done
@@ -107,6 +126,7 @@ status=0
 "$probe" "${args[@]}" || status=$?
 if (( status == 75 )); then
     echo "Restarting the game"
+    remove_mod_overlay
     exec bash macos/run.sh "$@"
 fi
 exit "$status"

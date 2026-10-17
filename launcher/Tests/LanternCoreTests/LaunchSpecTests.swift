@@ -160,6 +160,12 @@ final class LaunchSpecTests: XCTestCase {
         XCTAssertEqual(shell.status, 0, c.name)
         var expected = Self.parse(shell.stdout)
         for name in c.dropFromRunSh { expected.environment[name] = nil }
+        // The mods step runs before the spec is made (Launcher.buildModOverlay): not a spec step.
+        let mods = expected.steps.first { $0.script == "mods.py" }
+        XCTAssertEqual(mods?.arguments, [fixture.game.path, "--out", fixture.dirs.root.appendingPathComponent("out").path,
+                                         "--mods-dir", fixture.dirs.root.appendingPathComponent("mods").path,
+                                         "--config", fixture.dirs.modsConfig.path, "--enabled", "1"], c.name)
+        expected.steps.removeAll { $0.script == "mods.py" }
 
         let scaled = try scaledSizes(fixture)
         let spec = LaunchSpec.make(inputs(c.profile, fixture, scaled: scaled),

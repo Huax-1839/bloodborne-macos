@@ -60,12 +60,14 @@ public struct LaunchInputs: Sendable {
     /// The scene and output size patches.py --print-scaled derives from bbport.ini (after the
     /// profile's keys were written): used when the profile has no render size, as in run.sh.
     public var scaled: ScaledSizes?
+    /// The mod overlay (mods.py's linked tree over the game) the game runs from; nil without mods.
+    public var modGame: URL?
     /// The host: Apple silicon and the macOS major version (the automatic renderer).
     public var appleSilicon: Bool
     public var macOSMajor: Int
 
     public init(profile: Profile, gameDir: URL, preparedDir: URL, dirs: DataDirs, runtime: Runtime,
-                settings: LauncherSettings, scaled: ScaledSizes?, appleSilicon: Bool, macOSMajor: Int) {
+                settings: LauncherSettings, scaled: ScaledSizes?, modGame: URL? = nil, appleSilicon: Bool, macOSMajor: Int) {
         self.profile = profile
         self.gameDir = gameDir
         self.preparedDir = preparedDir
@@ -73,6 +75,7 @@ public struct LaunchInputs: Sendable {
         self.runtime = runtime
         self.settings = settings
         self.scaled = scaled
+        self.modGame = modGame
         self.appleSilicon = appleSilicon
         self.macOSMajor = macOSMajor
     }

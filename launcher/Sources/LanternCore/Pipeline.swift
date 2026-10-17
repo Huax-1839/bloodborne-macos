@@ -41,6 +41,9 @@ public protocol Pipeline: Sendable {
     /// The scene and output size run.sh derives from bbport.ini when no render size is given
     /// (patches.py --print-scaled): nil for a 1080p output.
     func scaledSizes(settings: URL) async throws -> ScaledSizes?
+    /// Links the enabled mods over the game (mods.py, D10) into `out`/mod-game-*: that folder,
+    /// or the game itself when no mod applies. `config` is a mods.json (order/disabled).
+    func buildModOverlay(game: URL, out: URL, modsDir: URL, config: URL) async throws -> URL
     /// Runs one launch step with the launch's environment (patches.py reads BB_* variables),
     /// its output appended to `log`.
     func run(_ step: LaunchSpec.Step, environment: [String: String], log: FileHandle?) async throws
