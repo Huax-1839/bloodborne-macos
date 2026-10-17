@@ -2320,6 +2320,56 @@
           }
         }
       }
+    },
+    "Import the profile “%@”?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Profil „%@“ importieren?"
+          }
+        }
+      }
+    },
+    "Import with These Variables": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit diesen Variablen importieren"
+          }
+        }
+      }
+    },
+    "Import without Them": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ohne sie importieren"
+          }
+        }
+      }
+    },
+    "This profile sets expert variables for the game. Only keep them when you trust the file:\n%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Profil setzt Expertenvariablen für das Spiel. Behalte sie nur, wenn du der Datei vertraust:\n%@"
+          }
+        }
+      }
+    },
+    "Left out (not allowed in a profile file): %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weggelassen (in einer Profildatei nicht erlaubt): %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

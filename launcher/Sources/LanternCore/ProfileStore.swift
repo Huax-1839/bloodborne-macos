@@ -53,13 +53,33 @@ public struct ProfileStore: Sendable {
         try JSONEncoder.lantern.encode(profile).write(to: url, options: .atomic)
     }
 
-    public mutating func importProfile(from url: URL) throws -> Profile {
+    /// A profile file read for import, not saved yet: a new id, never built-in, and only the
+    /// expert variables a shared file may set (R4). The caller shows `profile.environment` and
+    /// asks before saving.
+    public func readImport(from url: URL) throws -> ProfileImport {
         var profile = try JSONDecoder.lantern.decode(Profile.self, from: Data(contentsOf: url))
         profile.id = UUID().uuidString.lowercased()
         profile.builtin = false
+        let kept = profile.environment.filter {
+            ExpertVariables.isValidName($0.key) && !ExpertVariables.notImported.contains($0.key)
+        }
+        let dropped = Set(profile.environment.keys).subtracting(kept.keys).sorted()
+        profile.environment = kept
+        return ProfileImport(profile: profile, dropped: dropped)
+    }
+
+    public mutating func importProfile(from url: URL) throws -> Profile {
+        let profile = try readImport(from: url).profile
         try save(profile)
         return profile
     }
 
     private func file(_ id: String) -> URL { dir.appendingPathComponent(id + ".json") }
+}
+
+/// A profile file read by `ProfileStore.readImport`.
+public struct ProfileImport: Sendable {
+    public var profile: Profile
+    /// Expert variables the file set that were left out (invalid names, `ExpertVariables.notImported`).
+    public var dropped: [String]
 }

@@ -249,10 +249,37 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Imports a profile file as a new user profile and makes it the active one.
+    /// A profile file read for import that sets expert variables: the Profiles page asks before
+    /// it is saved (R4).
+    @Published var pendingImport: ProfileImport?
+
+    /// Imports a profile file as a new user profile and makes it the active one; one with expert
+    /// variables waits in `pendingImport` for the user's answer.
     func importProfile(from url: URL) {
         do {
-            state.activeProfile = try profiles.importProfile(from: url).id
+            let read = try profiles.readImport(from: url)
+            if read.profile.environment.isEmpty && read.dropped.isEmpty {
+                finishImport(read.profile)
+            } else {
+                pendingImport = read
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Saves the pending import, with or without its expert variables.
+    func confirmImport(keepingVariables: Bool) {
+        guard var profile = pendingImport?.profile else { return }
+        pendingImport = nil
+        if !keepingVariables { profile.environment = [:] }
+        finishImport(profile)
+    }
+
+    private func finishImport(_ profile: Profile) {
+        do {
+            try profiles.save(profile)
+            state.activeProfile = profile.id
         } catch {
             errorMessage = error.localizedDescription
         }

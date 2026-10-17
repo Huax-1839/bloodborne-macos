@@ -34,9 +34,40 @@ struct ProfilesView: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .confirmationDialog("Import the profile “\(model.pendingImport?.profile.name ?? "")”?", isPresented: importing,
+                            titleVisibility: .visible, presenting: model.pendingImport) { pending in
+            if pending.profile.environment.isEmpty {
+                Button("Import") { model.confirmImport(keepingVariables: false) }
+            } else {
+                Button("Import with These Variables") { model.confirmImport(keepingVariables: true) }
+                Button("Import without Them") { model.confirmImport(keepingVariables: false) }
+            }
+            Button("Cancel", role: .cancel) { model.pendingImport = nil }
+        } message: { pending in
+            Text(importMessage(pending))
+        }
         .sheet(isPresented: $renaming) {
             RenameSheet(name: model.activeProfile.name) { model.renameProfile(model.activeProfile, to: $0) }
         }
+    }
+
+    private var importing: Binding<Bool> {
+        Binding(get: { model.pendingImport != nil }, set: { if !$0 { model.pendingImport = nil } })
+    }
+
+    /// The imported file's expert variables (R4): they change how the game runs, so the user sees
+    /// them before they are taken.
+    private func importMessage(_ pending: ProfileImport) -> String {
+        var parts: [String] = []
+        if !pending.profile.environment.isEmpty {
+            let list = pending.profile.environment.keys.sorted()
+                .map { "\($0)=\(pending.profile.environment[$0] ?? "")" }.joined(separator: "\n")
+            parts.append(String(localized: "This profile sets expert variables for the game. Only keep them when you trust the file:\n\(list)"))
+        }
+        if !pending.dropped.isEmpty {
+            parts.append(String(localized: "Left out (not allowed in a profile file): \(pending.dropped.joined(separator: ", "))"))
+        }
+        return parts.joined(separator: "\n\n")
     }
 
     private var selection: Binding<String?> {

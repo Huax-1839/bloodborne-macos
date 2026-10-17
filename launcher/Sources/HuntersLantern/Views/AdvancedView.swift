@@ -50,7 +50,7 @@ struct AdvancedView: View {
                 } footer: {
                     Text("The port has no PlayStation Network. With this on, the game starts offline without asking.")
                 }
-                ExpertVariables()
+                ExpertVariablesSection()
             }
             .formStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -82,12 +82,10 @@ struct AdvancedView: View {
 }
 
 /// The active profile's BB_*, MVK_* and ROSETTA_* variables, applied last at launch.
-private struct ExpertVariables: View {
+private struct ExpertVariablesSection: View {
     @EnvironmentObject private var model: AppModel
     @State private var newName = ""
     @State private var newValue = ""
-
-    private static let prefixes = ["BB_", "MVK_", "ROSETTA_"]
 
     var body: some View {
         let profile = model.activeProfile
@@ -124,11 +122,7 @@ private struct ExpertVariables: View {
         }
     }
 
-    private var validName: Bool {
-        Self.prefixes.contains { newName.hasPrefix($0) }
-            && newName.count > 3
-            && newName.allSatisfy { $0.isASCII && ($0.isUppercase || $0.isNumber || $0 == "_") }
-    }
+    private var validName: Bool { ExpertVariables.isValidName(newName) }
 
     private func add() {
         guard validName else { return }

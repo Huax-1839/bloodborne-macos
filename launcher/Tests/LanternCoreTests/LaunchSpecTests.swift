@@ -249,6 +249,28 @@ final class LaunchSpecTests: XCTestCase {
 
     // MARK: Swift only
 
+    /// R4: a profile's variables with names outside BB_/MVK_/ROSETTA_ never reach the game, and an
+    /// imported profile cannot choose the executable.
+    func testForeignExpertVariablesAreIgnored() throws {
+        let fixture = try makeFixture(ini: "")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        var profile = Profile.vanilla
+        profile.environment = ["DYLD_INSERT_LIBRARIES": "/tmp/evil.dylib", "PATH": "/tmp", "BB_VBLANK_HZ": "120"]
+        let spec = LaunchSpec.make(inputs(profile, fixture, scaled: nil))
+        XCTAssertNil(spec.environment["DYLD_INSERT_LIBRARIES"])
+        XCTAssertNil(spec.environment["PATH"])
+        XCTAssertEqual(spec.environment["BB_VBLANK_HZ"], "120")
+
+        let file = fixture.root.appendingPathComponent("shared.json")
+        try Data(#"{"id":"x","name":"Shared","environment":{"BB_PROBE":"/bin/sh","DYLD_INSERT_LIBRARIES":"/tmp/evil.dylib"}}"#.utf8)
+            .write(to: file)
+        let imported = try ProfileStore(dir: fixture.root.appendingPathComponent("profiles")).readImport(from: file).profile
+        let importedSpec = LaunchSpec.make(inputs(imported, fixture, scaled: nil))
+        XCTAssertEqual(importedSpec.executable.path, fixture.runtime.probe.path)
+        XCTAssertNil(importedSpec.environment["DYLD_INSERT_LIBRARIES"])
+        XCTAssertNil(importedSpec.environment["BB_PROBE"])
+    }
+
     func testOwnSaves() throws {
         let fixture = try makeFixture(ini: "")
         defer { try? FileManager.default.removeItem(at: fixture.root) }

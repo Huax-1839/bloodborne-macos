@@ -7,15 +7,14 @@ extension LaunchSpec {
     ///
     /// run.sh's incoming environment is, in this order of precedence (later wins): `baseEnvironment`
     /// (only its BB_*/MVK_*/ROSETTA_* variables), the launcher settings' variables, the profile's
-    /// variables, `profile.environment` (the expert variables). `${X:-default}` in run.sh means a
-    /// non-empty value from that environment wins over the default.
+    /// variables, `profile.environment` (the expert variables, only valid names:
+    /// `ExpertVariables`). `${X:-default}` in run.sh means a non-empty value from that environment
+    /// wins over the default.
     public static func make(_ inputs: LaunchInputs, baseEnvironment: [String: String] = [:]) -> LaunchSpec {
         let profile = inputs.profile
         let dirs = inputs.dirs
-        let prefixes = ["BB_", "MVK_", "ROSETTA_"]
-
         // The incoming environment.
-        var env = baseEnvironment.filter { item in prefixes.contains { item.key.hasPrefix($0) } }
+        var env = baseEnvironment.filter { item in ExpertVariables.prefixes.contains { item.key.hasPrefix($0) } }
 
         let settings = inputs.settings
         // window.cpp: only "1" turns fullscreen on, so the default adds nothing.
@@ -35,7 +34,7 @@ extension LaunchSpec {
         case .vulkan: env["BB_RENDERER"] = "vulkan"
         }
         env["BB_GAME_DIR"] = inputs.gameDir.path
-        for (name, value) in profile.environment { env[name] = value }
+        for (name, value) in ExpertVariables.valid(profile.environment) { env[name] = value }
 
         /// run.sh's `${NAME:-default}`: an empty variable counts as unset.
         func value(_ name: String, _ fallback: String) -> String {
