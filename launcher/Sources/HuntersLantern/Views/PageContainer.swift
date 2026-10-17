@@ -54,27 +54,3 @@ struct PlaceholderPage: View {
         }
     }
 }
-
-struct ModsView: View {
-    var body: some View {
-        PlaceholderPage(
-            title: "Mods", symbol: "puzzlepiece.extension",
-            summary: "Add mods from folders or ZIP files, put them in order, switch them on and off and see which files they replace. The mod set belongs to the profile.")
-    }
-}
-
-struct PatchesView: View {
-    var body: some View {
-        PlaceholderPage(
-            title: "Patches", symbol: "wrench.and.screwdriver",
-            summary: "Switch the built-in and external game patches on or off. The frame rate patches follow the profile's frame rate.")
-    }
-}
-
-struct SavesView: View {
-    var body: some View {
-        PlaceholderPage(
-            title: "Saves", symbol: "externaldrive.badge.timemachine",
-            summary: "Automatic backups before each start, named snapshots, restoring and exporting or importing a save.")
-    }
-}
