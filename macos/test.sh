@@ -3,6 +3,9 @@
 # macos/test.sh [target...]: builds and runs the GPU library's unit tests (by default every
 # target of gpu/CMakeLists.txt named *-test) as x86-64 under Rosetta, 3 minutes each at most, and
 # prints one line per target. Needs a configured build (bash macos/build.sh). Exit 1 if any failed.
+# Without arguments it also runs the launcher's tests (launcher/test.sh, swift test) and the Python
+# tests in tests/ (test_game_check, test_patches, test_prepare, test_content, test_link_libc,
+# test_mods); with targets only those GPU targets run.
 set -uo pipefail
 cd -- "$(dirname -- "$0")/.."
 out=macos/out/gpu
@@ -27,4 +30,18 @@ for t in "${targets[@]}"; do
         echo "FAIL $t (rc=$rc, see $logs/$t.log)"; failed=1
     fi
 done
+
+if [[ $# -eq 0 ]]; then
+    if bash launcher/test.sh > "$logs/launcher.log" 2>&1; then
+        echo "ok   launcher (swift test)"
+    else
+        echo "FAIL launcher (swift test, see $logs/launcher.log)"; failed=1
+    fi
+    if (cd tests && python3 -m unittest -q test_game_check test_patches test_prepare test_content \
+            test_link_libc test_mods) > "$logs/python.log" 2>&1; then
+        echo "ok   python (tests/test_*.py)"
+    else
+        echo "FAIL python (tests/test_*.py, see $logs/python.log)"; failed=1
+    fi
+fi
 exit $failed

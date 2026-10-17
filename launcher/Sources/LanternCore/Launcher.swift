@@ -88,7 +88,7 @@ public final class Launcher: @unchecked Sendable {
             let scaled = profile.renderResolution == nil ? try await pipeline.scaledSizes(settings: dirs.iniFile) : nil
             let inputs = LaunchInputs(profile: profile, gameDir: game.path, preparedDir: prepared, dirs: dirs,
                                       runtime: runtime, settings: settings, scaled: scaled, modGame: modGame,
-                                      appleSilicon: Host.appleSilicon, macOSMajor: Host.macOSMajor)
+                                      appleSilicon: MacHost.appleSilicon, macOSMajor: MacHost.macOSMajor)
             let spec = LaunchSpec.make(inputs)
             try await prepare(spec, prepared: prepared, game: game, onPhase: onPhase)
             if isCancelled { return LaunchResult(outcome: .cancelled, log: nil, changedProfileKeys: [:], logTail: "") }
@@ -186,7 +186,7 @@ public final class Launcher: @unchecked Sendable {
 }
 
 /// The host the launcher runs on.
-public enum Host {
+public enum MacHost {
     public static var appleSilicon: Bool {
         var value: Int32 = 0
         var size = MemoryLayout<Int32>.size

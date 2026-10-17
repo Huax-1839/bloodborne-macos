@@ -7,13 +7,16 @@
 # [out-dir]   the build output holding bb-probe, gpu/libbbgpu.dylib, lib/ (default: macos/out of
 #             the repository this script lives in; build it with bash macos/build.sh)
 # LANTERN_VERSION (default 0.0.0) becomes CFBundleShortVersionString and CFBundleVersion.
+# LANTERN_ICON (optional) is an .icns copied to Contents/Resources/AppIcon.icns (CFBundleIconFile).
 set -euo pipefail
 
-[[ $# -ge 1 && $# -le 2 ]] || { sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+[[ $# -ge 1 && $# -le 2 ]] || { sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 repo=$(cd -- "$(dirname -- "$0")/../.." && pwd -P)
 dest=$1
 out=${2:-$repo/macos/out}
 version=${LANTERN_VERSION:-0.0.0}
+icon=${LANTERN_ICON:-}
+[[ -z $icon || -f $icon ]] || { echo "LANTERN_ICON $icon does not exist." >&2; exit 1; }
 
 for f in bb-probe gpu/libbbgpu.dylib lib/libSDL3.0.dylib lib/libMoltenVK.dylib; do
     [[ -f $out/$f ]] || { echo "Missing $out/$f (run bash macos/build.sh)." >&2; exit 1; }
@@ -58,7 +61,12 @@ for lib in "${libs[@]}"; do
 done
 
 # Info.plist.
-# TODO: CFBundleIconFile (an .icns in Contents/Resources) once the icon exists.
+icon_plist=
+if [[ -n $icon ]]; then
+    mkdir -p "$app/Contents/Resources"
+    cp -- "$icon" "$app/Contents/Resources/AppIcon.icns"
+    icon_plist=$'\t<key>CFBundleIconFile</key>\n\t<string>AppIcon</string>'
+fi
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -80,6 +88,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 	<string>$version</string>
 	<key>CFBundleVersion</key>
 	<string>$version</string>
+$icon_plist
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSArchitecturePriority</key>
