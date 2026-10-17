@@ -1,4 +1,4 @@
-# macOS port: state and history (2026-10-16)
+# macOS port: state and history (2026-10-17)
 
 Public repository `Huax-1839/bloodborne-macos`, branch `main`: one squashed commit as the public
 start (2026-10-16), the work since on top; the earlier history is kept privately (bundle backup),
@@ -45,6 +45,14 @@ native macOS launcher ("Hunter's Lantern", SwiftUI, DMG) is planned in `docs/LAU
     → 14.9 ms at 540p, 21.5 → 18.2 ms at 720p, 43.4 → 38.1 ms at native 1080p; images unchanged.
     `BB_MTL_FULL_USAGE=1` restores the old usages; `BB_IMAGE_USAGE_LOG=<tsv>` (read with
     `macos/bench/image_usage.py`) records which usages each texture needs.
+  - P11 (2026-10-17, power and heat on the Air, `docs/metal/power_budget_design.md`): at the 30 cap
+    the CPU burned ~80% of the ~7-W package, almost all of it in the game's own 30-FPS limiter,
+    which busy-waits on `gettimeofday`. `BB_CLOCK_SPIN_US` (default 100, `=0` off; both
+    backends) sleeps a quantum inside the clock read once one call site spins: CPU −1.6 W
+    (−35%) at 720p, missed slots not worse, 29.94 instead of 30.00 FPS. Uncapped
+    (`BB_FPS=uncap`), 540p holds ~53 FPS (720p ~51) for 20 min with the Air at heavy thermal
+    pressure and the P cores parked; milestone M4 (uncapped play as an option, the user's,
+    mean ≥ 45, every minute ≥ 40) passes on AC, its gameplay check and battery run are open.
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
@@ -54,8 +62,11 @@ native macOS launcher ("Hunter's Lantern", SwiftUI, DMG) is planned in `docs/LAU
 
 ## Next
 
-First the M3 battery run under the acceptance rule (when the user is ready; the bench cache was
-filled at 540p by the P10.1 runs). Then the user's call whether M3 goes back to 720p
+First the runs that need the user at the Mac (P11): the M3 battery run under the acceptance rule
+(with `POWERMETRICS=1 THREADCPU=10`; the bench cache was filled at 540p by the P10.1 runs), 720p
+while charging and on battery, Low Power Mode at 540p/720p (P11.3: advice for players, into this
+file and the README); M4's gameplay check (a route recorded by hand with `record_route.sh`,
+replayed uncapped; sprint, a cutscene, falling objects by eye) and battery run. Then the user's call whether M3 goes back to 720p
 (P9.1 made it nearly pass on a warm Air). Then the options,
 in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
@@ -74,6 +85,11 @@ against the faster frame.
   pass size and shaders, for Instruments), `BB_MTL_GUEST_IN_SET=1` (guest memory back in the
   residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules), `BB_MTL_FULL_USAGE=1` (pre-P10.1 texture
   usages), `BB_IMAGE_USAGE_LOG=<tsv>` (per-texture usage inventory, `macos/bench/image_usage.py`).
+- Power and CPU (P11): `BB_THREAD_CPU_LOG=<s>` (per-thread CPU time grouped game / port / Metal /
+  other, thermal pressure changes, poll and spin counters; `BB_THREAD_CPU_CSV=<path>` per thread),
+  `BB_THERMAL_LOG=1` (thermal pressure only), `BB_GUEST_PROFILE=<s>` (guest-PC sampler of the
+  game's main thread, `BB_GUEST_PROFILE_ALL=1` all game threads; Mach suspension, no signals),
+  `BB_CLOCK_SPIN_US=0` (the limiter's spin back on).
 - Both backends: `BB_PRESENT_DUMP_TRIGGER=<file> BB_DUMP_DIR=<dir>` (display buffer dumps),
   `BB_TOGGLE_FILE` (experiment bits at runtime, `gpu/shim/bbport_toggles.h`).
 - Validation: `MTL_DEBUG_LAYER=1 MTL_DEBUG_LAYER_ERROR_MODE=nslog NSZombieEnabled=YES`.
@@ -156,7 +172,12 @@ Yharnam, the player's save of 2026-10-16; `BENCH_SAVE=pristine-savedata-yharnam`
   vulkan): restores the fixed save (the game saves on every load), continues into the clinic via
   `BB_PAD_FILE`, prints mean FPS / worst frame / draws per frame, takes a screenshot, quits the
   game and appends a line to `runs/results.tsv`.
-- `m2.sh` (the M2 protocol), `m1_run.sh` (scripted walk for long runs), `m3stats.py` (5-s windows),
+- `m2.sh` (the M2 protocol), `m1_run.sh` (scripted walk for long runs; `POWERMETRICS=1`,
+  `THREADCPU=<s>`), `m3stats.py` (the M3 rule; `--milestone m4` the M4 rule),
+  `power.sh` (powermetrics next to a run: the user allowed exactly
+  `sudo -n /usr/bin/powermetrics --samplers cpu_power,gpu_power,thermal[,tasks] -i 1000 -f plist`,
+  stopped with SIGINT under job control), `powerstats.py` (watts, clocks, pressure per minute,
+  joined with the flip and thread logs),
   `memgrowth.py` (footprint per minute).
 - Within one run: `ab.sh` (FPS A/B of two `BB_TOGGLE_FILE` settings), `traceab.sh` (GPU time A/B;
   compare the busy union, not the per-label sum, and mind the ~20% rise as the Air warms),
