@@ -1737,7 +1737,7 @@ void RasterizerCore::UpdatePrimitiveState(PrimitiveState& state, const bool is_i
 
     state = {
         .restart_enabled = prim_restart,
-        .rasterizer_discard = regs.clipper_control.dx_rasterization_kill,
+        .rasterizer_discard = regs.clipper_control.dx_rasterization_kill != 0,
         .cull_mode = cull_mode,
         .front_face = front_face,
     };

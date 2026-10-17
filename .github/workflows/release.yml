@@ -11,7 +11,7 @@ permissions:
   contents: write
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +24,9 @@ jobs:
           brew install cmake ninja pkgconf glslang boost
           sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
           xcodebuild -version
-      - name: Cache x86-64 dependencies
-        uses: actions/cache@v4
+      - name: Restore x86-64 dependencies
+        id: deps
+        uses: actions/cache/restore@v4
         with:
           path: macos/deps
           key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
@@ -37,6 +38,13 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
           key: swiftpm-${{ hashFiles('launcher/Package.swift', 'launcher/Package.resolved') }}
       - run: bash macos/build-deps.sh
+      # Saved right away, so a later failing step does not throw the hour of building away.
+      - name: Save x86-64 dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: macos/deps
+          key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
       - run: bash macos/build.sh
       - name: Tests (GPU library, launcher, Python)
         run: bash macos/test.sh

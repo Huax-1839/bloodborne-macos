@@ -303,7 +303,8 @@ v1 feature set (decided with the user):
   spike before that step.
 
 **D15 CI and releases.**
-- GitHub Actions on `macos-15` (arm64). The x86-64 runtime is cross-compiled, as `build.sh`
+- GitHub Actions on `macos-26` (arm64; changed from `macos-15` on 2026-10-17: its Xcode 26.3
+  rejected code that Xcode 27 builds). The x86-64 runtime is cross-compiled, as `build.sh`
   already does (`clang -arch x86_64`).
 - Rosetta is installed on the runner for the x86-64 unit tests.
 - `macos/deps` is cached, keyed by the hash of `build-deps.sh` (~200 MB, well under the 10 GB
