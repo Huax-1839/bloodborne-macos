@@ -9,6 +9,14 @@ struct AboutView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
 
+    /// The license texts' folder (launcher/build.sh fills Contents/Resources/Licenses), opened in
+    /// the Finder: README.txt says which folder is which component.
+    private var licenses: URL? {
+        guard let folder = Bundle.main.resourceURL?.appendingPathComponent("Licenses", isDirectory: true),
+              FileManager.default.fileExists(atPath: folder.appendingPathComponent("README.txt").path) else { return nil }
+        return folder
+    }
+
     var body: some View {
         PageContainer(title: "About", locked: false) {
             ScrollView {
@@ -27,6 +35,10 @@ struct AboutView: View {
                         Text("The game is your own copy. This app contains no game files and downloads none.")
                         Text("Licence: GPL-2.0-or-later")
                             .foregroundStyle(.secondary)
+                        if let licenses {
+                            Button("Licenses…") { NSWorkspace.shared.open(licenses) }
+                                .help("The license texts of Hunter's Lantern and the components it contains")
+                        }
                     }
                     .card()
                     VStack(alignment: .leading, spacing: 10) {

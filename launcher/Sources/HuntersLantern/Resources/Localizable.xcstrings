@@ -2430,6 +2430,26 @@
           }
         }
       }
+    },
+    "Licenses…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lizenzen…"
+          }
+        }
+      }
+    },
+    "The license texts of Hunter's Lantern and the components it contains": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Lizenztexte von Hunter's Lantern und den enthaltenen Komponenten"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

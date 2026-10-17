@@ -10,6 +10,8 @@
 #            Game.app" (packaging/make-game-app.sh; macos/out is built first if bb-probe is
 #            missing), the pinned embedded Python in Contents/Resources/python
 #            (packaging/fetch-python.sh), the pipeline in Contents/Resources/pipeline.
+#            Both modes put the license texts into Contents/Resources/Licenses
+#            (packaging/collect-licenses.sh; the build fails when one is missing).
 # --debug    a debug build of the launcher (default release).
 # Everything is signed ad hoc, inside out, without the hardened runtime (D14).
 # Environment: LANTERN_VERSION   CFBundleShortVersionString/CFBundleVersion (numeric, dotted).
@@ -185,6 +187,16 @@ if [[ $mode == bundle ]]; then
             codesign --force -s - --timestamp=none "$f"
         fi
     done < <(find "$python" -type f \( -name '*.so' -o -name '*.dylib' -o -path "$python/bin/*" \) -print0)
+fi
+
+# Licenses (GPL, Sparkle's MIT, and in --bundle the runtime's libraries and Python): in the app,
+# for the About page, and on the DMG.
+sparkle_license=${LANTERN_SCRATCH:-$here/.build}/artifacts/sparkle/Sparkle/LICENSE
+if [[ $mode == bundle ]]; then
+    bash "$here/packaging/collect-licenses.sh" "$app/Contents/Resources/Licenses" "$sparkle_license" \
+        "$app/Contents/Resources/python"
+else
+    bash "$here/packaging/collect-licenses.sh" "$app/Contents/Resources/Licenses" "$sparkle_license"
 fi
 
 # 5. Sign Sparkle inside out (its prebuilt signature has the hardened runtime flag: --options=0
