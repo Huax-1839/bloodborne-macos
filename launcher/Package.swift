@@ -14,7 +14,7 @@ let package = Package(
         .executable(name: "HuntersLantern", targets: ["HuntersLantern"]),
     ],
     targets: [
-        .target(name: "LanternCore"),
+        .target(name: "LanternCore", resources: [.process("Resources")]),
         .executableTarget(
             name: "HuntersLantern",
             dependencies: ["LanternCore"],
