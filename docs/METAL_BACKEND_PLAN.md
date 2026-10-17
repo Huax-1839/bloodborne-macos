@@ -1,6 +1,6 @@
 # Metal backend: plan
 
-Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. Progress is tracked in the checklist in §8;
+Status: P0–P8 done except the M3 battery run under the acceptance rule: M1 met (2026-10-14), M2 met (2026-10-15, target changed, §9), Metal the default on Apple (2026-10-15); M3 at 540p (m4air; target moved from 720p by the user's decision, §9) passes the acceptance rule on power (2026-10-16, b0a3d62, after the missed-slot limit moved to 2%, §9), the battery run is pending. P9.1 (shader float semantics) done 2026-10-16: GPU time a frame −33%, V1 the Metal default (ea029d9). P10.1 (lossless texture compression) done 2026-10-17: GPU time a frame −10% at 540p, −15% at 720p, lean texture usages the Metal default. P11 (power and heat on the Air) started 2026-10-17. Progress is tracked in the checklist in §8;
 the orchestrating session updates it after every step (see `CLAUDE.md`).
 
 ## 0. How binding this plan is
@@ -623,6 +623,50 @@ typical frame 16.6 → 14.9 ms at 540p, 21.5 → 18.2 ms at 720p, 43.4 → 38.1 
 images within same-build noise); `BB_MTL_FULL_USAGE=1` restores the old usages; numbers in §8
 "P10.1 results".
 
+### P11: Power and heat on the fanless Air (2026-10-17)
+
+The Air has no fan: CPU and GPU share one thermal budget. Before P9.1/P10.1 the GPU's frame time
+rose 20–25% within minutes of play from heat (P8 step 2) and charging during a run cost 3.5 FPS by
+minute 14; at 540p/720p the GPU now has headroom even when hot, but heat can still decide the
+recording tail behind missed 30-FPS slots (§8 "P8.6": the recording thread runs 2.5–3× slower
+off the performance cores), native 1080p at 30 FPS (38 ms cool against 33) and battery life.
+Nobody has measured where the power goes (`m1_run.sh` logs `pmset` data only). Design:
+`docs/metal/power_budget_design.md`; lever 3 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`. No
+milestone changes. `powermetrics` needs root: the user runs it or allows `sudo -n` for it; the
+port never works around `sudo` (fallback if they decline: a bench-only IOReport reader).
+
+1. (S, O) P11.1 measurement tooling and a baseline:
+   - tools (S): `macos/bench/power.sh` (starts/stops `powermetrics --samplers
+     cpu_power,gpu_power,thermal -i 1000 -f plist` next to a run), `macos/bench/powerstats.py`
+     (per second CPU P/E-cluster MHz and W where reported, GPU W, MHz and active residency,
+     thermal pressure; joined by wall time with the per-flip log; per-minute report), hooked into
+     `m1_run.sh` (`POWERMETRICS=1`);
+   - in the game (S, shared code): `BB_THREAD_CPU_LOG=<seconds>` (per-thread CPU time by
+     `task_threads`/`thread_info`, grouped guest / port host / Metal / other; `BB_THREAD_CPU_CSV`
+     per thread), thermal pressure changes in the game log, the frame log's wall-clock epoch,
+     contention and polling counters for the P11.2 candidates; Vulkan bench + screenshot;
+   - baseline (O; the user for battery and charging): 20-min walks at the 30 cap on AC with the
+     battery full at 540p (m4air), 720p and native 1080p (`BB_FPS=30`); 720p while charging and
+     on battery; one battery run at 540p can be the pending M3 battery run;
+   - analysis (O, scouts digest the logs): the CPU/GPU power split per setting, the GPU and CPU
+     clocks over 20 minutes against `gpu_ms`, `rec_busy_ms` and missed slots, the thread
+     breakdown, what charging adds.
+2. (O design, S at effort high) P11.2 CPU power cuts, only where P11.1 shows the CPU's share
+   matters: the spin locks of the page and region managers (C1), the small-timer polling of
+   `equeue.cpp` (C2), `pthread_once` waiters (C3) and copy waits (C4) block instead of yielding;
+   the game's own yields (C5) only if guest threads spin; trade-offs measured, not changed
+   blindly (pipeline QoS, the scheduler's bounded spins, the `bb:Copy` thread count). Each cut
+   by interleaved boots A B B A on the 720p walk; kept when CPU W falls by more than the A/A
+   spread and missed slots do not get worse, with an off switch; otherwise recorded and
+   reverted. Shared code verified on Vulkan (bench + screenshot).
+3. (O, the user's runs) P11.3 measured advice for players: Low Power Mode on vs off at 540p and
+   720p (30 cap: FPS, missed slots, W, battery % per 20 min); AC charging vs AC full vs battery
+   (GPU MHz and W over 20 minutes); short advice in `macos/HANDOFF.md` and the README's macOS
+   section.
+
+Exit: the five P11.1 questions answered with numbers (§8 "P11 results"), each P11.2 cut kept or
+reverted on its A/B numbers (or recorded as not needed), the advice written.
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -997,6 +1041,14 @@ commit (kept privately, not in this repository):
     `mtl-runtime-test`), verification: GPU busy −10% at 540p, −15% at 720p, −12% at 1080p;
     images, validation walk, 20-min memory walk and Vulkan clean. Results below ("P10.1 results")
 
+- [ ] P11 Power and heat on the fanless Air (§5 P11; 2026-10-17;
+  `docs/metal/power_budget_design.md`)
+  - [ ] P11.1 tooling (`power.sh`, `powerstats.py`, `m1_run.sh POWERMETRICS=1`; in game
+    `BB_THREAD_CPU_LOG`, thermal pressure, counters) and the baseline (540p, 720p, 1080p on AC
+    full; 720p charging and on battery)
+  - [ ] P11.2 CPU power cuts where the baseline points (A B B A on the 720p walk)
+  - [ ] P11.3 advice for players (Low Power Mode, charging), in HANDOFF and README
+
 Results (filled in as measured):
 
 | Date | Backend | Settings | FPS mean | Worst frame | Notes |
@@ -1202,3 +1254,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-16 | P9.1: V1 (no `NoContraction` in game fragment shaders without depth export and in game compute shaders) is the Metal default; V2 (Relaxed math) stays opt-in (`BB_MTL_RELAXED_MATH=1`); `BB_MTL_STRICT_FLOAT=1` restores V0 | interleaved boots with traces: GPU busy 24.7 → 16.5 ms at 540p, 37.3 → 24.6 at 720p (lighting −87%, C1 −80%); FPS 540p uncapped 33.1 → 43.6; images within §6, temporal residuals within V0's range, validation clean, Vulkan SPIR-V unchanged; V2 −0.3 to −0.9 ms more, inside the noise | P9, M3 (720p at 30 on a warm Air now misses the rule only on 2.29% missed slots), Vulkan untouched |
 | 2026-10-17 | New phase P10 (memory bandwidth: lossless texture compression), task P10.1: texture-cache images on Metal get `ShaderWrite` and `PixelFormatView` only when needed, gated by a `BackendLimits` field only Metal sets; ground truth by a microbenchmark and an in-game inventory before the upper bound and the policy; no milestone change | code review: every colour image `eStorage` → `ShaderWrite`, every image `eMutableFormat` → `PixelFormatView` (`image.cpp`, `mtl_runtime.mm` `CreateImage`), nothing sets compression options; Apple names both usages as preventing lossless compression; P9.1 left the G-buffer passes (~5.5 ms at 540p) as the largest item, likely bandwidth-bound | P10, `docs/metal/texture_compression_design.md`, Vulkan untouched |
 | 2026-10-17 | P10.1: texture-cache images on Metal are created without `ShaderWrite` and `PixelFormatView` (colour and block; depth keeps `PixelFormatView`, MSAA keeps both) and promoted on first need (a new backing, the contents copied in stream order, the old one retired through the deferred destroy); `BackendLimits::lean_image_usage`, set only by Metal; `BB_MTL_FULL_USAGE=1` restores the old usages | microbenchmark: either usage costs the compression of colour targets (RGBA16F ×2.2), depth unaffected, `optimizeContentsForGPUAccess` useless; inventory: 80–84% of images need neither, but shader-written and never-written targets share formats and sizes (no rule at creation), the set is stable across scenes; upper bound and the policy: GPU busy −1.7 ms at 540p, −3.3 ms at 720p, −5.3 ms at 1080p, images unchanged, validation and Vulkan clean | P10, `docs/metal/texture_compression_design.md`; the live path's proxies and the upscaler's own textures keep their usages (not measured) |
+| 2026-10-17 | New phase P11 (power and heat on the fanless Air): P11.1 measurement tooling (`powermetrics` next to a run, per-thread CPU time and thermal pressure in the game) and a baseline at 540p/720p/1080p at the 30 cap, P11.2 CPU power cuts only where the baseline points, P11.3 measured advice for players; no milestone change. The game logs the thermal pressure level through `notify_get_state` (`kOSThermalNotificationPressureLevelName`, public C API) instead of `ProcessInfo.thermalState`: C, both backends, no Objective-C outside `renderer_metal/`, the same levels as `powermetrics` | lever 3 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`: heat cost the GPU 20–25% before P9.1/P10.1, charging 3.5 FPS by minute 14; the power log holds `pmset` data only; candidates re-verified in the code (`SpinLock` on macOS in the page and region managers, small-timer yield loop, `pthread_once` and copy yields) | P11, `docs/metal/power_budget_design.md` |

@@ -115,6 +115,9 @@ measured (needs `sudo powermetrics`).
 
 ## 3. Thermal budget: CPU vs GPU power never measured
 
+Status (2026-10-17): in the plan as P11 (plan §5 P11), design in
+`docs/metal/power_budget_design.md`; results in plan §8 "P11 results" as measured.
+
 Evidence:
 - The Air is fanless; CPU and GPU share one thermal budget. The GPU's frame time rises 20–25%
   with heat (§5 P8 step 2), and charging during a run cost 3.5 FPS by minute 14.
