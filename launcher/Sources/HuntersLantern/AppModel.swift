@@ -7,6 +7,8 @@ import SwiftUI
 @MainActor
 final class AppModel: ObservableObject {
     let dirs = DataDirs.standard()
+    /// This Mac's chip and GPU (read once): the profile suggestion.
+    let hardware = Hardware.current()
     /// The runtime, or why it is missing (a broken bundle, a dev build without macos/out).
     let runtime: Result<Runtime, Error>
 
@@ -14,6 +16,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var profiles: ProfileStore
     @Published var state: LauncherState { didSet { try? state.save(dirs.stateFile) } }
 
+    /// The page shown (the sidebar's selection).
+    @Published var page: Page = .home
     /// A launch in progress (nil when idle).
     @Published private(set) var phase: LaunchPhase?
     /// The last launch's end, for the outcome card.
@@ -112,6 +116,31 @@ final class AppModel: ObservableObject {
     func deleteProfile(_ profile: Profile) {
         try? profiles.delete(profile.id)
         if state.activeProfile == profile.id { state.activeProfile = Profile.air.id }
+    }
+
+    func renameProfile(_ profile: Profile, to name: String) {
+        let name = name.trimmingCharacters(in: .whitespaces)
+        guard !profile.builtin, !name.isEmpty else { return }
+        var renamed = profile
+        renamed.name = name
+        saveProfile(renamed)
+    }
+
+    func exportProfile(_ profile: Profile, to url: URL) {
+        do {
+            try profiles.export(profile, to: url)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Imports a profile file as a new user profile and makes it the active one.
+    func importProfile(from url: URL) {
+        do {
+            state.activeProfile = try profiles.importProfile(from: url).id
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     // MARK: Play

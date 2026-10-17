@@ -4,10 +4,16 @@ import SwiftUI
 
 @main
 struct HuntersLanternApp: App {
+    @StateObject private var model = AppModel()
+
     var body: some Scene {
         WindowGroup {
-            Text("Hunter's Lantern")
-                .frame(minWidth: 900, minHeight: 560)
+            RootView()
+                .environmentObject(model)
+                .preferredColorScheme(.dark)
+                .tint(Theme.amber)
+                .task { await Snapshot.runIfRequested(model) }
         }
+        .defaultSize(width: 1080, height: 680)
     }
 }
