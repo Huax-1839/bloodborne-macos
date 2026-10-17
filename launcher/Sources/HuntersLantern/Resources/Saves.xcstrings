@@ -1,0 +1,864 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@, level %lld, playtime %@ h" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, Level %lld, Spielzeit %@ Std."
+          }
+        }
+      }
+    },
+    "%lld Echoes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Echos"
+          }
+        }
+      }
+    },
+    "A .lanternsave file holds the whole save (all characters and options). Use it to move your save to another Mac or to keep a copy. The game may have stored your local network address (an IPv4 address) in the save, so do not share the file publicly if that matters to you." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine .lanternsave-Datei enthält den ganzen Spielstand (alle Charaktere und Optionen). Damit ziehst du deinen Spielstand auf einen anderen Mac um oder hebst eine Kopie auf. Das Spiel hat möglicherweise deine lokale Netzwerkadresse (eine IPv4-Adresse) im Spielstand abgelegt. Gib die Datei also nicht öffentlich weiter, wenn dir das wichtig ist."
+          }
+        }
+      }
+    },
+    "A backup is made automatically before each start; the last 10 are kept. Snapshots stay until you delete them. Backups share disk space with the saves until the game changes them." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vor jedem Start wird automatisch ein Backup gemacht; die letzten 10 bleiben erhalten. Schnappschüsse bleiben, bis du sie löschst. Backups teilen sich den Speicherplatz mit den Spielständen, bis das Spiel sie ändert."
+          }
+        }
+      }
+    },
+    "A snapshot keeps the saves as they are now until you delete it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Schnappschuss hält die Spielstände so fest, wie sie jetzt sind, bis du ihn löschst."
+          }
+        }
+      }
+    },
+    "Also copy the shader cache (%@): saves the first start's shader compile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den Shader-Cache (%@) auch kopieren: spart das Shader-Kompilieren beim ersten Start"
+          }
+        }
+      }
+    },
+    "Automatic backup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatisches Backup"
+          }
+        }
+      }
+    },
+    "Backups" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backups"
+          }
+        }
+      }
+    },
+    "Before the Orphan of Kos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vor der Waise von Kos"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        }
+      }
+    },
+    "Character exported to %@." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charakter nach %@ exportiert."
+          }
+        }
+      }
+    },
+    "Character “%@” imported into slot %lld. The state before is in an automatic backup." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charakter „%@“ in Slot %lld importiert. Der Stand davor liegt in einem automatischen Backup."
+          }
+        }
+      }
+    },
+    "Characters" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charaktere"
+          }
+        }
+      }
+    },
+    "Choose a .lanternsave file with a single character." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle eine .lanternsave-Datei mit einem einzelnen Charakter."
+          }
+        }
+      }
+    },
+    "Choose a .lanternsave file with a whole save." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle eine .lanternsave-Datei mit einem ganzen Spielstand."
+          }
+        }
+      }
+    },
+    "Choose folder…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner wählen…"
+          }
+        }
+      }
+    },
+    "Choose the bbport folder (the one with macos/user inside), or a folder that holds savedata." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle den bbport-Ordner (den mit macos/user darin) oder einen Ordner, der savedata enthält."
+          }
+        }
+      }
+    },
+    "Copy the saves, the settings (bbport.ini) and, if you like, the shader cache from a bbport folder (macos/user and macos/bbport.ini) into the launcher. Your current saves are backed up first." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopiere die Spielstände, die Einstellungen (bbport.ini) und, wenn du magst, den Shader-Cache aus einem bbport-Ordner (macos/user und macos/bbport.ini) in den Launcher. Deine aktuellen Spielstände werden vorher gesichert."
+          }
+        }
+      }
+    },
+    "Delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Löschen"
+          }
+        }
+      }
+    },
+    "Delete the backup from %@?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Backup vom %@ löschen?"
+          }
+        }
+      }
+    },
+    "Delete the snapshot “%@”?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den Schnappschuss „%@“ löschen?"
+          }
+        }
+      }
+    },
+    "Experimental" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Experimentell"
+          }
+        }
+      }
+    },
+    "Export and import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export und Import"
+          }
+        }
+      }
+    },
+    "Export save…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstand exportieren…"
+          }
+        }
+      }
+    },
+    "Export the whole save. The game may have stored your local network address (IPv4) in it: do not share the file publicly if that matters to you." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den ganzen Spielstand exportieren. Das Spiel hat möglicherweise deine lokale Netzwerkadresse (IPv4) darin abgelegt: Gib die Datei nicht öffentlich weiter, wenn dir das wichtig ist."
+          }
+        }
+      }
+    },
+    "Export this character. It may carry your local network address (IPv4): do not share the file publicly if that matters to you. Importing characters is experimental." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Charakter exportieren. Er kann deine lokale Netzwerkadresse (IPv4) enthalten: Gib die Datei nicht öffentlich weiter, wenn dir das wichtig ist. Das Importieren von Charakteren ist experimentell."
+          }
+        }
+      }
+    },
+    "Export…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportieren…"
+          }
+        }
+      }
+    },
+    "Import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importieren"
+          }
+        }
+      }
+    },
+    "Import character" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charakter importieren"
+          }
+        }
+      }
+    },
+    "Import character into slot…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charakter in Slot importieren…"
+          }
+        }
+      }
+    },
+    "Import save…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstand importieren…"
+          }
+        }
+      }
+    },
+    "Import this save and replace the current one?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Spielstand importieren und den aktuellen ersetzen?"
+          }
+        }
+      }
+    },
+    "Into slot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Slot"
+          }
+        }
+      }
+    },
+    "Level %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level %lld"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "New snapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuer Schnappschuss"
+          }
+        }
+      }
+    },
+    "No backups yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Backups."
+          }
+        }
+      }
+    },
+    "No character in this save yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch kein Charakter in diesem Spielstand."
+          }
+        }
+      }
+    },
+    "No save yet. Start the game and create a character, or import a save below." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch kein Spielstand. Starte das Spiel und erstelle einen Charakter oder importiere unten einen Spielstand."
+          }
+        }
+      }
+    },
+    "Nothing to take over in “%@”: no saves (macos/user/savedata) and no macos/bbport.ini." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In „%@“ gibt es nichts zu übernehmen: keine Spielstände (macos/user/savedata) und keine macos/bbport.ini."
+          }
+        }
+      }
+    },
+    "Only this slot is changed. An automatic backup of the current saves is made first. Importing a single character has not been confirmed in the game yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur dieser Slot wird geändert. Vorher wird ein automatisches Backup der aktuellen Spielstände gemacht. Das Importieren eines einzelnen Charakters ist im Spiel noch nicht bestätigt."
+          }
+        }
+      }
+    },
+    "Playtime %@ h" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielzeit %@ Std."
+          }
+        }
+      }
+    },
+    "Restore the backup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup wiederherstellen"
+          }
+        }
+      }
+    },
+    "Restore the backup from %@?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Backup vom %@ wiederherstellen?"
+          }
+        }
+      }
+    },
+    "Restored the backup from %@. The state before is in an automatic backup." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Backup vom %@ wurde wiederhergestellt. Der Stand davor liegt in einem automatischen Backup."
+          }
+        }
+      }
+    },
+    "Restore…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederherstellen…"
+          }
+        }
+      }
+    },
+    "Save exported to %@." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstand nach %@ exportiert."
+          }
+        }
+      }
+    },
+    "Save imported. The state before is in an automatic backup." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstand importiert. Der Stand davor liegt in einem automatischen Backup."
+          }
+        }
+      }
+    },
+    "Save snapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnappschuss sichern"
+          }
+        }
+      }
+    },
+    "Saves (no characters yet)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstände (noch keine Charaktere)"
+          }
+        }
+      }
+    },
+    "Saves found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstände gefunden"
+          }
+        }
+      }
+    },
+    "Saves: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstände: %@"
+          }
+        }
+      }
+    },
+    "Settings (bbport.ini)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen (bbport.ini)"
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Finder zeigen"
+          }
+        }
+      }
+    },
+    "Single characters" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einzelne Charaktere"
+          }
+        }
+      }
+    },
+    "Slot %lld: %@ (level %lld)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slot %lld: %@ (Level %lld)"
+          }
+        }
+      }
+    },
+    "Slot %lld: empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slot %lld: leer"
+          }
+        }
+      }
+    },
+    "Snapshot “%@” taken." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnappschuss „%@“ erstellt."
+          }
+        }
+      }
+    },
+    "Space used: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Belegter Speicher: %@"
+          }
+        }
+      }
+    },
+    "Take over from a bbport checkout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus einem bbport-Ordner übernehmen"
+          }
+        }
+      }
+    },
+    "Take over now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt übernehmen"
+          }
+        }
+      }
+    },
+    "Take over…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übernehmen…"
+          }
+        }
+      }
+    },
+    "Take snapshot…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnappschuss erstellen…"
+          }
+        }
+      }
+    },
+    "Taken over: %@. The previous saves are in an automatic backup." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übernommen: %@. Die bisherigen Spielstände liegen in einem automatischen Backup."
+          }
+        }
+      }
+    },
+    "The file was made on %@ and holds no characters. The current save is replaced, after an automatic backup of it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datei wurde am %@ erstellt und enthält keine Charaktere. Der aktuelle Spielstand wird ersetzt, nachdem er automatisch gesichert wurde."
+          }
+        }
+      }
+    },
+    "The file was made on %@ and holds: %@. The current save is replaced, after an automatic backup of it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datei wurde am %@ erstellt und enthält: %@. Der aktuelle Spielstand wird ersetzt, nachdem er automatisch gesichert wurde."
+          }
+        }
+      }
+    },
+    "The own saves of the profile “%@”." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die eigenen Spielstände des Profils „%@“."
+          }
+        }
+      }
+    },
+    "The saves all profiles share." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spielstände, die sich alle Profile teilen."
+          }
+        }
+      }
+    },
+    "The saves as they are now are backed up first (an automatic backup), so you can undo this." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spielstände, wie sie jetzt sind, werden vorher gesichert (ein automatisches Backup), du kannst das also rückgängig machen."
+          }
+        }
+      }
+    },
+    "The saves in the launcher are replaced by these; they are backed up first (an automatic backup), so you can undo this. The settings file is kept aside as bbport.ini.before-migration. The folder you chose is not changed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spielstände im Launcher werden durch diese ersetzt; sie werden vorher gesichert (ein automatisches Backup), du kannst das also rückgängig machen. Die bisherige Einstellungsdatei bleibt als bbport.ini.before-migration erhalten. Der gewählte Ordner wird nicht verändert."
+          }
+        }
+      }
+    },
+    "This cannot be undone." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das lässt sich nicht rückgängig machen."
+          }
+        }
+      }
+    },
+    "This checkout (%@) holds saves and settings. Do you want to take them over into the launcher?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Ordner (%@) enthält Spielstände und Einstellungen. Möchtest du sie in den Launcher übernehmen?"
+          }
+        }
+      }
+    },
+    "Use this checkout (%@)…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Ordner nehmen (%@)…"
+          }
+        }
+      }
+    },
+    "saves" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielstände"
+          }
+        }
+      }
+    },
+    "settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen"
+          }
+        }
+      }
+    },
+    "shader cache" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shader-Cache"
+          }
+        }
+      }
+    },
+    "“%@” in this slot is replaced." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ in diesem Slot wird ersetzt."
+          }
+        }
+      }
+    },
+    "“Export” in the list above saves one character to a .lanternsave file. “Import character into slot…” puts it into a slot of this save, replacing what is in the slot. This works on the save files directly and has not been confirmed in the game yet: if the game does not like the result, restore the backup that is made first." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Exportieren“ in der Liste oben speichert einen Charakter in einer .lanternsave-Datei. „Charakter in Slot importieren…“ legt ihn in einen Slot dieses Spielstands und ersetzt, was dort liegt. Das arbeitet direkt an den Spielstanddateien und ist im Spiel noch nicht bestätigt: Gefällt dem Spiel das Ergebnis nicht, stelle das Backup wieder her, das vorher gemacht wird."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

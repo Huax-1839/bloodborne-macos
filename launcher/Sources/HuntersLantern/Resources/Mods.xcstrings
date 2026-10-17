@@ -1,0 +1,396 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Datei"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Dateien"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of its files are replaced by mods further down" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ihrer Dateien werden von Mods weiter unten ersetzt"
+          }
+        }
+      }
+    },
+    "A mod is a set of loose files that replace or add to the game's own: models, textures, texts, sounds. They go into a folder called dvdroot_ps4. Add a mod folder or a ZIP file here, or drop it onto this page." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Mod ist eine Sammlung loser Dateien, die die des Spiels ersetzen oder ergänzen: Modelle, Texturen, Texte, Sounds. Sie liegen in einem Ordner namens dvdroot_ps4. Füge hier einen Mod-Ordner oder eine ZIP-Datei hinzu oder ziehe sie auf diese Seite."
+          }
+        }
+      }
+    },
+    "Add ZIP…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ZIP hinzufügen …"
+          }
+        }
+      }
+    },
+    "Add mod folder…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mod-Ordner hinzufügen …"
+          }
+        }
+      }
+    },
+    "Adding “%@”…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wird hinzugefügt …"
+          }
+        }
+      }
+    },
+    "Available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verfügbar"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        }
+      }
+    },
+    "Choose the mod's ZIP file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle die ZIP-Datei der Mod"
+          }
+        }
+      }
+    },
+    "Choose the mod's folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle den Ordner der Mod"
+          }
+        }
+      }
+    },
+    "Mods" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mods"
+          }
+        }
+      }
+    },
+    "Mods replace game files with your own: models, textures, texts. Switch on the mods you want in the profile “%@”. They load from top to bottom; if two mods have the same file, the lower one wins. Drag the switched-on mods to change the order." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mods ersetzen Spieldateien durch eigene: Modelle, Texturen, Texte. Schalte im Profil „%@“ die Mods ein, die du haben möchtest. Sie werden von oben nach unten geladen; haben zwei Mods dieselbe Datei, gewinnt die untere. Ziehe die eingeschalteten Mods, um die Reihenfolge zu ändern."
+          }
+        }
+      }
+    },
+    "Move this mod to the Trash…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In den Papierkorb legen …"
+          }
+        }
+      }
+    },
+    "Move to the Trash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In den Papierkorb legen"
+          }
+        }
+      }
+    },
+    "Move “%@” to the Trash?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ in den Papierkorb legen?"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "No mods yet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Mods"
+          }
+        }
+      }
+    },
+    "Not supported: mods that replace eboot.bin or system files, and mods that work by injecting a DLL. Archives other than ZIP (7z, RAR) have to be unpacked first, with an app like The Unarchiver." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht unterstützt: Mods, die die eboot.bin oder Systemdateien ersetzen, und Mods, die per DLL-Injektion arbeiten. Andere Archive als ZIP (7z, RAR) musst du vorher mit einer App wie The Unarchiver entpacken."
+          }
+        }
+      }
+    },
+    "Overlapping files (%lld)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überschneidende Dateien (%lld)"
+          }
+        }
+      }
+    },
+    "Rename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umbenennen"
+          }
+        }
+      }
+    },
+    "Rename the mod" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mod umbenennen"
+          }
+        }
+      }
+    },
+    "Rename this mod…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Umbenennen …"
+          }
+        }
+      }
+    },
+    "Several switched-on mods replace these files. The highlighted mod is the one that wins; change the order to change that." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehrere eingeschaltete Mods ersetzen diese Dateien. Hervorgehoben ist die Mod, die gewinnt; ändere die Reihenfolge, um das zu ändern."
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Finder zeigen"
+          }
+        }
+      }
+    },
+    "Show mods folder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mod-Ordner zeigen"
+          }
+        }
+      }
+    },
+    "Switched on – load order" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingeschaltet – Ladereihenfolge"
+          }
+        }
+      }
+    },
+    "The mod at the bottom is loaded last and wins where files overlap." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die unterste Mod wird zuletzt geladen und gewinnt, wo sich Dateien überschneiden."
+          }
+        }
+      }
+    },
+    "The mod is switched off in every profile. You can put it back from the Trash." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Mod wird in allen Profilen ausgeschaltet. Du kannst sie aus dem Papierkorb zurückholen."
+          }
+        }
+      }
+    },
+    "This is a built-in profile and has no mods. Duplicate it to switch mods on." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist ein eingebautes Profil ohne Mods. Dupliziere es, um Mods einzuschalten."
+          }
+        }
+      }
+    },
+    "and %lld more files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more files"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "und %lld weitere Datei"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "und %lld weitere Dateien"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

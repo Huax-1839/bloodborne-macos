@@ -1,0 +1,160 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Mods must not contain links (symlinks): %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mods dürfen keine Verknüpfungen (Symlinks) enthalten: %@"
+          }
+        }
+      }
+    },
+    "Replacing eboot.bin or the system files is not supported: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die eboot.bin oder die Systemdateien zu ersetzen wird nicht unterstützt: %@"
+          }
+        }
+      }
+    },
+    "The launcher can only unpack ZIP files, not .%@ archives. Unpack it with an app like The Unarchiver, then add the unpacked folder." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Launcher kann nur ZIP-Dateien entpacken, keine .%@-Archive. Entpacke es mit einer App wie The Unarchiver und füge dann den entpackten Ordner hinzu."
+          }
+        }
+      }
+    },
+    "The mod could not be copied: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Mod ließ sich nicht kopieren: %@"
+          }
+        }
+      }
+    },
+    "There is already a mod called “%@”." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es gibt schon eine Mod namens „%@“."
+          }
+        }
+      }
+    },
+    "This is not a regular file: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist keine normale Datei: %@"
+          }
+        }
+      }
+    },
+    "game folders (%@)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielordner (%@)"
+          }
+        }
+      }
+    },
+    "nothing (it is empty)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nichts (er ist leer)"
+          }
+        }
+      }
+    },
+    "“%@” could not be moved to the Trash: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ließ sich nicht in den Papierkorb legen: %@"
+          }
+        }
+      }
+    },
+    "“%@” could not be unpacked: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ließ sich nicht entpacken: %@"
+          }
+        }
+      }
+    },
+    "“%@” does not hold a mod. A mod has the game's files in a folder called dvdroot_ps4, or the game's own folders (chr, parts, msg, …) directly. Found: %@." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ enthält keine Mod. Eine Mod hat die Dateien des Spiels in einem Ordner namens dvdroot_ps4 oder direkt in den Ordnern des Spiels (chr, parts, msg, …). Gefunden: %@."
+          }
+        }
+      }
+    },
+    "“%@” is neither a folder nor a ZIP file." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ist weder ein Ordner noch eine ZIP-Datei."
+          }
+        }
+      }
+    },
+    "“%@” is not a folder." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ist kein Ordner."
+          }
+        }
+      }
+    },
+    "“%@” is not a usable name. Use a name without “/” or “:” that does not start with a dot." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ ist kein brauchbarer Name. Nimm einen Namen ohne „/“ oder „:“, der nicht mit einem Punkt beginnt."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
