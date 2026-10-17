@@ -2370,6 +2370,66 @@
           }
         }
       }
+    },
+    "The game is running": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel läuft"
+          }
+        }
+      }
+    },
+    "Hunter's Lantern stops the game before it quits. Progress since the game's last autosave may be lost.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hunter's Lantern beendet das Spiel, bevor es sich schließt. Fortschritt seit der letzten automatischen Speicherung des Spiels kann verloren gehen."
+          }
+        }
+      }
+    },
+    "The game is being prepared": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel wird vorbereitet"
+          }
+        }
+      }
+    },
+    "Hunter's Lantern stops the launch before it quits.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hunter's Lantern bricht den Start ab, bevor es sich schließt."
+          }
+        }
+      }
+    },
+    "Stop the Game and Quit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel beenden und schließen"
+          }
+        }
+      }
+    },
+    "Keep Running": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiterlaufen lassen"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
