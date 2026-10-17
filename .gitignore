@@ -40,3 +40,5 @@ patches.json
 # Claude Code subagent worktrees
 /.claude/worktrees/
 .DS_Store
+# Local: the user's game PKGs and dumps
+/game/

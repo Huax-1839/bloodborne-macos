@@ -342,25 +342,28 @@ static void apply_patches(const char *path, Segment *segments, uint64_t ns, cons
     fclose(f);
     printf("Patches: %" PRIu64 " writes, %" PRIu64 " bytes applied, %" PRIu64 " pointers rebased\n",count,bytes,rebased);
 }
-/* Restarts the game through run.sh (the settings menu: a new render resolution is a patch
- * applied at start). Descriptors are closed first so the old GPU device and its memory are
- * released before the new process opens its own. */
+/* Restarts the game (the settings menu: a new render resolution is a patch applied at start).
+ * On macOS the process exits with BB_RESTART_EXIT and whoever started it (run.sh's loop, the
+ * launcher) prepares and starts it again: an app bundle has no run.sh to exec. Elsewhere
+ * descriptors are closed first so the old GPU device and its memory are released before the
+ * new process opens its own. */
 volatile int runtime_restarting;
 void runtime_restart(void) {
     fflush(NULL);
+#ifdef __APPLE__
+    puts("Runtime: exiting for a restart");
+    runtime_restarting = 1;
+    __sync_synchronize();
+    fflush(NULL);
+    _exit(BB_RESTART_EXIT);
+#elif !defined(_WIN32)
     puts("Runtime: restarting through run.sh");
     /* The GPU threads still run until exec: their Vulkan calls fail once the device fd is
      * closed below, and an assertion there must not end the process (exit 23) before exec. */
     runtime_restarting = 1;
     __sync_synchronize();
-#ifndef _WIN32
-#ifdef __APPLE__
-    for (int fd = 3, last = getdtablesize(); fd < last; ++fd) close(fd);
-    execlp("bash", "bash", "macos/run.sh", (char *)NULL);
-#else
     syscall(SYS_close_range, 3u, ~0u, 0u);
     execlp("bash", "bash", "run.sh", (char *)NULL);
-#endif
     perror("runtime_restart: exec");
     _exit(1);
 #endif

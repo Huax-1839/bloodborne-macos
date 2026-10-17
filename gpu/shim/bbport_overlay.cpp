@@ -655,7 +655,8 @@ void TextPrompt() {
 }
 
 /// BB_MENU_KEYS_FILE=<file> (scripted tests): tokens toggle up down left right enter back l1 r1,
-/// consumed when the file appears (it is removed), one key press per frame.
+/// consumed when the file appears (it is removed), one key press per frame; restart does what
+/// "Apply and restart game" does (saves the settings and restarts the game).
 void ScriptedKeys() {
     static const char* path = std::getenv("BB_MENU_KEYS_FILE");
     static std::chrono::steady_clock::time_point last_check{};
@@ -700,6 +701,10 @@ void ScriptedKeys() {
     if (token == "back") {
         SetOpen(false);
         return;
+    }
+    if (token == "restart") {
+        BbSettings::Save();
+        runtime_restart();
     }
     if (held != ImGuiKey_None) {
         io.AddKeyEvent(held, true);

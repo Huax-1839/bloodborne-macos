@@ -7,7 +7,9 @@
 #include <setjmp.h>
 /* Recovery point for speculative guest memory reads on this thread (probe.c fault handler). */
 extern __thread sigjmp_buf *runtime_fault_recover;
-/* Restarts the game (in-game settings menu, render resolution change). */
+/* Restarts the game (in-game settings menu, render resolution change). On macOS: exits with
+ * BB_RESTART_EXIT, and run.sh or the launcher starts the game again. */
+#define BB_RESTART_EXIT 75
 void runtime_restart(void);
 #endif
 #define ABI __attribute__((sysv_abi))

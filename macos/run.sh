@@ -3,20 +3,29 @@
 #   BB_GAME_DIR=/path/to/CUSA03173 bash macos/run.sh
 # The game folder holds the base game with the 1.09 update copied over it (eboot.bin, sce_sys).
 # Settings: macos/bbport.ini; saves and the shader cache: macos/user (BB_USER_DIR).
+#   bash macos/run.sh --print-env   prints the launch (cwd, pipeline steps, executable, arguments,
+#                                   BB_*/MVK_*/ROSETTA_* environment) and starts nothing: the
+#                                   launcher's LaunchSpec is tested against it.
+# The game exits with 75 to be restarted (the settings menu's "Apply and restart"); the script
+# then runs again with the same environment, as when bb-probe exec'd it.
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
+print_env=
+if [[ ${1:-} == --print-env ]]; then print_env=1; shift; fi
+# Pipeline step: run it, or print it in a dry run.
+step() { if [[ -n $print_env ]]; then printf 'step'; printf ' %q' "$@"; printf '\n'; else "$@"; fi; }
 data=${BB_DATA_DIR:-$PWD/macos}
 out=$data/out/game
-mkdir -p "$out"
+[[ -n $print_env ]] || mkdir -p "$out"
 export BB_CONFIG=${BB_CONFIG:-$data/bbport.ini}
 user=${BB_USER_DIR:-$data/user}
 export BB_GPU_USER_DIR=${BB_GPU_USER_DIR:-$user}
-mkdir -p "$user"
+[[ -n $print_env ]] || mkdir -p "$user"
 PYTHON=${PYTHON:-python3}
 game=${BB_GAME_DIR:-$HOME/Games/Bloodborne/CUSA03173-1.09}
 if [[ ! -f $game/eboot.bin ]]; then echo "No eboot.bin in $game (set BB_GAME_DIR)." >&2; exit 1; fi
 
-[[ -x $data/out/bb-probe && -z ${BB_REBUILD:-} ]] || bash macos/build.sh
+[[ -n $print_env || ( -x $data/out/bb-probe && -z ${BB_REBUILD:-} ) ]] || bash macos/build.sh
 
 # Renderer: Metal on Apple silicon with macOS 15 or newer (docs/METAL_BACKEND_PLAN.md: same image
 # as Vulkan, ~10% faster); BB_RENDERER=vulkan selects the Vulkan backend on MoltenVK.
@@ -27,12 +36,12 @@ if [[ -z ${BB_RENDERER:-} ]]; then
         export BB_RENDERER=vulkan
     fi
 fi
-echo "Renderer: $BB_RENDERER"
+[[ -n $print_env ]] || echo "Renderer: $BB_RENDERER"
 
-"$PYTHON" scripts/prepare.py "$game" --out "$out"
-"$PYTHON" scripts/link_libc.py "$game" --out "$out"
-"$PYTHON" scripts/link_modules.py "$game" --out "$out"
-"$PYTHON" scripts/content_profile.py "$game" --out "$out" --sku "${BB_CONTENT_SKU:-full}"
+step "$PYTHON" scripts/prepare.py "$game" --out "$out"
+step "$PYTHON" scripts/link_libc.py "$game" --out "$out"
+step "$PYTHON" scripts/link_modules.py "$game" --out "$out"
+step "$PYTHON" scripts/content_profile.py "$game" --out "$out" --sku "${BB_CONTENT_SKU:-full}"
 
 # BB_PROFILE=m4air: 30 FPS on a MacBook Air M4 (fanless, 10-core GPU). The scene at 960x540,
 # FSR 3 to the 1080p output (the UI drawn at 1080p), frame rate capped at 30, the effects that
@@ -56,9 +65,9 @@ fi
 if [[ -n ${scaled_output:-} && ${BB_LIVE_RES:-0} != 1 ]]; then
     export BB_RENDER_RES=$scaled_render BB_OUTPUT_RES=$scaled_output BB_AUTO_RENDER_RES=1
     export BB_DMEM_MB=${BB_DMEM_MB:-9152}
-    echo "Output ${scaled_output}: scene ${scaled_render}, direct memory ${BB_DMEM_MB} MiB"
+    [[ -n $print_env ]] || echo "Output ${scaled_output}: scene ${scaled_render}, direct memory ${BB_DMEM_MB} MiB"
 fi
-"$PYTHON" scripts/patches.py --out "$out" --fps "$fps" --extra "${BB_PATCHES:-}" --settings "$BB_CONFIG" \
+step "$PYTHON" scripts/patches.py --out "$out" --fps "$fps" --extra "${BB_PATCHES:-}" --settings "$BB_CONFIG" \
     --game-dir "$game" --render-res "${BB_RENDER_RES:-}" --output-res "${BB_OUTPUT_RES:-}" \
     --patches-dir "${BB_PATCHES_DIR:-$data/patches}" --patches-config "${BB_PATCHES_CONFIG:-$data/patches.json}"
 
@@ -87,5 +96,18 @@ export BB_GPU_LABELS=${BB_GPU_LABELS:-0}
 export ROSETTA_ADVERTISE_AVX=${ROSETTA_ADVERTISE_AVX:-1}
 
 probe=${BB_PROBE:-$data/out/bb-probe}
-exec "$probe" "$out/boot-linked.bin" --content-profile "$out/content.bin" --patches "$out/patches.bin" \
-    --app0 "$game" --user "$user" --timeout "${BB_TIMEOUT:-0}" "$@"
+args=("$out/boot-linked.bin" --content-profile "$out/content.bin" --patches "$out/patches.bin"
+    --app0 "$game" --user "$user" --timeout "${BB_TIMEOUT:-0}" "$@")
+if [[ -n $print_env ]]; then
+    printf 'cwd %s\nexec %s\n' "$PWD" "$probe"
+    for a in "${args[@]}"; do printf 'arg %s\n' "$a"; done
+    for v in $(compgen -e | grep -E '^(BB_|MVK_|ROSETTA_)' | sort); do printf 'env %s=%s\n' "$v" "${!v}"; done
+    exit 0
+fi
+status=0
+"$probe" "${args[@]}" || status=$?
+if (( status == 75 )); then
+    echo "Restarting the game"
+    exec bash macos/run.sh "$@"
+fi
+exit "$status"
