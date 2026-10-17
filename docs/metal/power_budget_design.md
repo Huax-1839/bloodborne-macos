@@ -1,6 +1,6 @@
 # Power and heat on the fanless Air (P11)
 
-Status: 2026-10-17, P11.1 tooling and the AC baseline done (results below); P11.2 diagnosing the game's main thread (plan §5 P11). Lever 3 of
+Status: 2026-10-17, P11.1 tooling and the AC baseline done (results below); P11.2 done (the clock-spin cut, the default); P11.3 and P11.4 (M4) open (plan §5 P11). Lever 3 of
 `docs/PERFORMANCE_LEVERS_2026-10-16.md` ("Thermal budget: CPU vs GPU power, then less CPU
 power"). Owner of the design, the runs and the analysis: the orchestrator; the measurement tools,
 the in-game thread log and the cuts' implementation: porter tasks; log digests: scout tasks.
@@ -200,4 +200,8 @@ Full tables in plan §8 "P11 results". AC baseline (2026-10-17, battery full, 30
 - Native 1080p: 13 W in minute 1, then heavy pressure and a ~7 W package. The CPU is cut first
   (P cluster 3.9 → 1.45 GHz, `rec_busy_ms` ×2, missed slots 20%), then the GPU (−11% clock).
 - The candidates C1–C4 never fire in play (all counters 0). The CPU's power is the game's `main`
-  thread, at ~98% of a P core. Whether it spins or computes: guest-PC sampler, next.
+  thread, at ~98% of a P core: its 30-FPS limiter busy-waits on `gettimeofday`
+  (`BB_GUEST_PROFILE`: ~85% of its samples in the clock, from one guest loop).
+- Cut C6 (new, the default): `BB_CLOCK_SPIN_US=100`, a quantum's sleep inside the clock read once
+  one call site spins. A B B A at 720p: CPU 5.0/4.3 → 3.0/3.1 W, package 7.0/6.1 → 5.0 W, missed
+  slots not worse, P-cluster and GPU clocks held when warm; 29.94 instead of 30.00 FPS.

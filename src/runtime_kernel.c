@@ -58,8 +58,9 @@ __attribute__((constructor)) static void remember_start(void) { clock_gettime(CL
  * SPIN_GAP_NS after the previous read (after its sleep, when it slept), resets the streak: a spin
  * reads again within a few us, while loops that do work between reads (time budgets per item)
  * and single reads are never delayed. The wait ends at most one quantum (plus the kernel's
- * wake-up latency) later than the spinning loop would have ended it. Off unless
- * BB_CLOCK_SPIN_US=<us> is set (0 or unset = off, nothing changes). Called at the top of every
+ * wake-up latency) later than the spinning loop would have ended it. BB_CLOCK_SPIN_US=<us>: the
+ * quantum, 100 by default (A B B A on the 720p walk: CPU 5.0/4.3 -> 3.0/3.1 W, missed slots not
+ * worse, 29.94 instead of 30.00 FPS as the overshoot adds up); 0 = off, nothing changes. Called at the top of every
  * guest-facing wall or monotonic time read: gettimeofday (both NIDs), clock_gettime (all ids),
  * sceKernelClockGettime, sceKernelGetProcessTime(Counter), sceKernelReadTsc. */
 #define SPIN_STREAK 16
@@ -73,7 +74,7 @@ static uint64_t spin_clock(void) {
 }
 __attribute__((constructor)) static void clock_spin_configure(void) {
     const char *env=getenv("BB_CLOCK_SPIN_US");
-    long us=env ? atol(env) : 0;
+    long us=env && *env ? atol(env) : 100;
     if (us<=0) return;
     if (us>10000) us=10000;
     spin_quantum_ns=(uint64_t)us*1000;

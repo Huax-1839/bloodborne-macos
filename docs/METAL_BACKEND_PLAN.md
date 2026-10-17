@@ -879,8 +879,32 @@ battery full (not charging), 30 cap; `powerstats.py`, in-game span means and min
   (`image+0x2034ae0`–`b56`: `gettimeofday`, elapsed µs since a stored stamp, as float seconds,
   compared with a target, jump back), with no sleep or yield. At the 30 cap no FPS patch runs
   (`FPS_PRESETS['30'] = []`), so this is the game's own pacing, and on the Air it holds a P core
-  at 4 GHz. Cut in progress: `BB_CLOCK_SPIN_US`, which sleeps a quantum inside the time call once
-  one call site spins.
+  at 4 GHz.
+- The cut (`BB_CLOCK_SPIN_US`, 3476987; the default since 2026-10-17, quantum 100 µs, `=0` off):
+  once a guest thread reads the clock from the same call site 16 times in a row, each read less
+  than 20 µs after the previous one, every further read first sleeps one quantum. The loop still
+  sees time pass and leaves on its own. Quantum test under Rosetta (30-ms waits): 100 µs
+  overshoots by 80 µs on average and 155 µs at worst (the kernel sleeps ~1.5× the request), and
+  the waiting thread uses 1.5% of a core instead of 100%. In game: about 30 episodes a second
+  (one a frame); `main` falls from 98% to 13.5% of a core. Interleaved boots, 720p walk, 30 cap,
+  20 min each (`p11-ab-*`, all four pass the M3 rule):
+
+| | A1 (off) | B1 (100 µs) | B2 (100 µs) | A2 (off) |
+|---|---|---|---|---|
+| CPU / GPU / package W | 5.02 / 1.80 / 6.96 | 3.02 / 1.80 / 4.99 | 3.13 / 1.72 / 5.02 | 4.26 / 1.74 / 6.11 |
+| P cluster active, MHz in minutes 15–20 | 99.7%, 3054 | 54%, 3994 | 54%, 3994 | 99.8%, 3087 |
+| GPU MHz in minutes 0–5 → 15–20 | 1048 → 763 | 834 → 796 | 837 → 804 | 976 → 713 |
+| `rec_busy_ms` p95 in minutes 0–5 → 15–20 | 6.7 → 15.9 | 6.5 → 6.6 | 6.7 → 6.7 | 6.5 → 9.6 |
+| FPS mean, missed slots, worst frame | 30.00, 1.20%, 83 ms | 29.94, 0.89%, 67 ms | 29.93, 1.07%, 67 ms | 30.00, 0.94%, 100 ms |
+| CPU % guest / port / other | 136 / 45 / 11 | 43 / 41 / 10 | 43 / 40 / 10 | 139 / 47 / 12 |
+
+  CPU power falls by 1.6 W (−35%), against an A/A spread of 0.76 W, and the package by 1.5 W.
+  Missed slots do not get worse (0.89–1.07% vs 0.94–1.20%). These runs (noon) were warmer than the
+  morning baseline. Without the cut the P cluster throttled to ~3.05 GHz in minutes 15–20 and the
+  recording tail doubled; with it the package stays at ~5 W, and CPU and GPU keep their clocks.
+  The cost: 29.94 instead of 30.00 FPS. The game paces each frame from the end of the previous
+  wait, so the overshoot adds up (~67 µs a frame). Option, not built: wake at a learned
+  deadline instead of by quanta.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -1110,7 +1134,12 @@ commit (kept privately, not in this repository):
     - [x] tooling (fd79710 in game, df8788f bench; Vulkan bench + screenshot clean)
     - [x] AC-full baseline at 540p, 720p, 1080p (results below, "P11 results")
     - [ ] 720p while charging and on battery (the user)
-  - [ ] P11.2 CPU power cuts where the baseline points (A B B A on the 720p walk)
+  - [x] P11.2 CPU power cuts where the baseline points (A B B A on the 720p walk): C1–C4 not
+    needed (their counters read 0 in play); the game's 30-FPS limiter spins on `gettimeofday`
+    (`BB_GUEST_PROFILE`, 8f67fbd); `BB_CLOCK_SPIN_US` (3476987) kept as the default: CPU −1.6 W
+    (−35%), missed slots not worse, 29.94 FPS mean; default checked in game (main 13% of a
+    core); Vulkan 32.7 FPS uncapped (no spin there: 0 episodes), title 50.6 dB (only the
+    animated tiles of row 34), clinic 43.8 dB (42.2 before the cut)
   - [ ] P11.3 advice for players (Low Power Mode, charging), in HANDOFF and README
   - [ ] P11.4 M4 uncapped option (added 2026-10-17, §1): 20-min uncapped walks at 540p/720p with
     powermetrics; thresholds with the user; the rule in a script; gameplay check; AC run passes
@@ -1323,3 +1352,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-17 | New phase P11 (power and heat on the fanless Air): P11.1 measurement tooling (`powermetrics` next to a run, per-thread CPU time and thermal pressure in the game) and a baseline at 540p/720p/1080p at the 30 cap, P11.2 CPU power cuts only where the baseline points, P11.3 measured advice for players; no milestone change. The game logs the thermal pressure level through `notify_get_state` (`kOSThermalNotificationPressureLevelName`, public C API) instead of `ProcessInfo.thermalState`: C, both backends, no Objective-C outside `renderer_metal/`, the same levels as `powermetrics` | lever 3 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`: heat cost the GPU 20–25% before P9.1/P10.1, charging 3.5 FPS by minute 14; the power log holds `pmset` data only; candidates re-verified in the code (`SpinLock` on macOS in the page and region managers, small-timer yield loop, `pthread_once` and copy yields) | P11, `docs/metal/power_budget_design.md` |
 | 2026-10-17 | P11.2: the review's CPU cuts C1–C4 (`SpinLock` in the page and region managers, the small-timer yield loop, `pthread_once` and copy yields) are not built; P11.2 turns to the game's `main` thread, which holds a P core at ~98% at the 30 cap, starting with a guest-PC sampler (`BB_GUEST_PROFILE`) to tell spinning from compute | P11.1 AC baseline: CPU 78–81% of the package at 540p/720p; the counters on every candidate read 0 in every 10-s interval of play in all three 20-min runs; per-thread CPU: guest 132% of a core, `main` 98%, the port's threads 38–40% | P11.2, `docs/metal/power_budget_design.md` |
 | 2026-10-17 | New milestone M4: uncapped play (`BB_PROFILE=m4air BB_FPS=uncap`, 540p) as a supported option, clearly faster than the 30 cap for 20 min by an automated rule like M3's, its FPS thresholds set from the first 20-min uncapped measurements and confirmed by the user, plus a gameplay check at high FPS; task P11.4 (user's decision, the recommended option) | at the 30 cap the game's limiter busy-waits on the clock (P11.2), and the user asked for uncapped play as an option with a milestone; the uncap and sprint-fix patches exist (`scripts/patches.py` `FPS_PRESETS`), but no 20-min uncapped run, power measurement or gameplay check was ever made | §1, P11, `m3stats.py` |
+| 2026-10-17 | P11.2: `BB_CLOCK_SPIN_US` is the default (quantum 100 µs; `=0` off): a guest thread that reads the clock from one call site 16 times in a row, each read less than 20 µs after the previous one, sleeps a quantum before each further read. Kept although mean FPS at the cap falls from 30.00 to 29.94 (the overshoot adds up) | guest-PC sampler: the game's 30-FPS limiter busy-waits on `gettimeofday` (~85% of the main thread); A B B A on the 720p walk: CPU 5.02/4.26 → 3.02/3.13 W (A/A spread 0.76), package 6.96/6.11 → 4.99/5.02 W, missed slots 1.20/0.94 → 0.89/1.07%, P-cluster and GPU clocks held in minutes 15–20; all four runs pass the M3 rule | P11.2, M3, kernel emulation (both backends) |

@@ -116,7 +116,11 @@ measured (needs `sudo powermetrics`).
 ## 3. Thermal budget: CPU vs GPU power never measured
 
 Status (2026-10-17): in the plan as P11 (plan §5 P11), design in
-`docs/metal/power_budget_design.md`; results in plan §8 "P11 results" as measured.
+`docs/metal/power_budget_design.md`; results in plan §8 "P11 results". Measured: at the 30 cap
+the CPU burns ~80% of the ~7-W package (GPU 1.2–1.4 W at 540p/720p), most of it in the game's
+own frame limiter, which busy-waits on `gettimeofday`; the review's lock and yield candidates
+never fire in play. Kept: `BB_CLOCK_SPIN_US` (sleep inside the clock while the game spins on it),
+CPU −1.6 W (−35%) at 720p, missed slots not worse.
 
 Evidence:
 - The Air is fanless; CPU and GPU share one thermal budget. The GPU's frame time rises 20–25%
