@@ -18,7 +18,10 @@ jobs:
       - name: Rosetta (x86-64 unit tests)
         run: softwareupdate --install-rosetta --agree-to-license || true
       - name: Build tools
-        run: brew install cmake ninja pkgconf glslang
+        run: |
+          brew install cmake ninja pkgconf glslang boost
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
       - name: Cache x86-64 dependencies
         uses: actions/cache@v4
         with:
