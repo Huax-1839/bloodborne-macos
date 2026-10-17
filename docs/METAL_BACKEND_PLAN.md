@@ -855,8 +855,15 @@ battery full (not charging), 30 cap; `powerstats.py`, in-game span means and min
 - The CPU's power is the game's own `main` thread: ~98% of a P core at the 30 cap. That is
   three quarters of the guest share, and the game reaches 55+ FPS uncapped. `sample` (10 s, 540p)
   puts 72% of its samples in translated game code, 19% in `pthread_cond_wait`, and none in runtime
-  time or status calls. Next: a guest-PC sampler (`BB_GUEST_PROFILE`), to tell whether it spins
-  or computes.
+  time or status calls. The guest-PC sampler (`BB_GUEST_PROFILE`, 8f67fbd; Mach thread
+  suspension, since a SIGPROF version crashed the game while loading) settles it: **the game's
+  30-FPS limiter busy-waits on the clock**. ~85% of the main thread's samples are in
+  `gettimeofday` (71% in `mach_absolute_time` under it), called from one guest loop
+  (`image+0x2034ae0`–`b56`: `gettimeofday`, elapsed µs since a stored stamp, as float seconds,
+  compared with a target, jump back), with no sleep or yield. At the 30 cap no FPS patch runs
+  (`FPS_PRESETS['30'] = []`), so this is the game's own pacing, and on the Air it holds a P core
+  at 4 GHz. Cut in progress: `BB_CLOCK_SPIN_US`, which sleeps a quantum inside the time call once
+  one call site spins.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):

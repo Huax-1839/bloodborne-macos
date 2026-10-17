@@ -50,6 +50,58 @@ static int32_t fail_posix(int e) { *runtime_errno()=runtime_guest_errno(e); retu
 /* ---- clocks and sleeping ---- */
 static struct timespec process_start;
 __attribute__((constructor)) static void remember_start(void) { clock_gettime(CLOCK_MONOTONIC,&process_start); }
+/* bbport (P11, docs/METAL_BACKEND_PLAN.md §8): the game's own 30-FPS limiter busy-waits on
+ * gettimeofday (one guest loop, no sleep, no yield) and keeps a performance core at ~4 GHz. A guest
+ * thread that reads the clock from the same call site over and over is spinning: after SPIN_STREAK
+ * such reads, each further read first sleeps one quantum, so the loop still sees time pass and
+ * leaves on its own, but the CPU idles in between. A read from another call site, or more than
+ * SPIN_GAP_NS after the previous read (after its sleep, when it slept), resets the streak: a spin
+ * reads again within a few us, while loops that do work between reads (time budgets per item)
+ * and single reads are never delayed. The wait ends at most one quantum (plus the kernel's
+ * wake-up latency) later than the spinning loop would have ended it. Off unless
+ * BB_CLOCK_SPIN_US=<us> is set (0 or unset = off, nothing changes). Called at the top of every
+ * guest-facing wall or monotonic time read: gettimeofday (both NIDs), clock_gettime (all ids),
+ * sceKernelClockGettime, sceKernelGetProcessTime(Counter), sceKernelReadTsc. */
+#define SPIN_STREAK 16
+#define SPIN_GAP_NS 20000u
+static uint64_t spin_quantum_ns;                 /* 0 = off; written once at startup */
+static _Atomic uint64_t spin_episodes, spin_sleeps, spin_slept_ns;
+static _Thread_local struct { const void *site; uint64_t last_ns; uint32_t streak; } spin_state;
+static uint64_t spin_clock(void) {
+    struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
+    return (uint64_t)t.tv_sec*1000000000u+(uint64_t)t.tv_nsec;
+}
+__attribute__((constructor)) static void clock_spin_configure(void) {
+    const char *env=getenv("BB_CLOCK_SPIN_US");
+    long us=env ? atol(env) : 0;
+    if (us<=0) return;
+    if (us>10000) us=10000;
+    spin_quantum_ns=(uint64_t)us*1000;
+    printf("Runtime: clock spin sleep %ld us (BB_CLOCK_SPIN_US)\n",us); fflush(stdout);
+}
+void runtime_clock_spin_check(const void *site) {
+    const uint64_t quantum=spin_quantum_ns;
+    if (!quantum) return;
+    const uint64_t now=spin_clock();
+    if (site==spin_state.site && now-spin_state.last_ns<SPIN_GAP_NS) {
+        if (spin_state.streak<SPIN_STREAK) {
+            if (++spin_state.streak==SPIN_STREAK) atomic_fetch_add_explicit(&spin_episodes,1,memory_order_relaxed);
+        }
+        if (spin_state.streak>=SPIN_STREAK) {
+            struct timespec t={.tv_sec=0,.tv_nsec=(long)quantum};
+            if (nanosleep(&t,NULL)) return;      /* EINTR: just read the time */
+            const uint64_t woke=spin_clock();
+            atomic_fetch_add_explicit(&spin_sleeps,1,memory_order_relaxed);
+            atomic_fetch_add_explicit(&spin_slept_ns,woke-now,memory_order_relaxed);
+            spin_state.last_ns=woke;
+            return;
+        }
+    } else {
+        spin_state.site=site; spin_state.streak=1;
+    }
+    spin_state.last_ns=now;
+}
+#define clock_spin_check() runtime_clock_spin_check(__builtin_return_address(0))
 static int host_clock(uint32_t id,clockid_t *out) {
     switch (id) {
     case 0: case 9: case 10: *out=CLOCK_REALTIME; return 1;            /* REALTIME(_PRECISE/_FAST) */
@@ -70,9 +122,11 @@ static int clock_read(uint32_t id,GuestTimespec *ts) {
     ts->sec=t.tv_sec; ts->nsec=t.tv_nsec; return 0;
 }
 static ABI int32_t kernel_clock_gettime(uint32_t id,GuestTimespec *ts) {
+    clock_spin_check();
     int e=clock_read(id,ts); return e ? ERR(runtime_guest_errno(e)) : 0;
 }
 static ABI int32_t posix_clock_gettime(uint32_t id,GuestTimespec *ts) {
+    clock_spin_check();
     int e=clock_read(id,ts); return e ? fail_posix(e) : 0;
 }
 static ABI int32_t posix_clock_getres(uint32_t id,GuestTimespec *ts) {
@@ -82,16 +136,18 @@ static ABI int32_t posix_clock_getres(uint32_t id,GuestTimespec *ts) {
     if (ts) { ts->sec=t.tv_sec; ts->nsec=t.tv_nsec; }
     return 0;
 }
-static ABI uint64_t process_time(void) {
+static uint64_t process_time_read(void) {
     struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
     return (uint64_t)(t.tv_sec-process_start.tv_sec)*1000000+(uint64_t)((t.tv_nsec-process_start.tv_nsec)/1000);
 }
-static ABI uint64_t process_time_counter(void) {
+static uint64_t process_time_counter_read(void) {
     struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
     return (uint64_t)(t.tv_sec-process_start.tv_sec)*1000000000+(uint64_t)(t.tv_nsec-process_start.tv_nsec);
 }
+static ABI uint64_t process_time(void) { clock_spin_check(); return process_time_read(); }
+static ABI uint64_t process_time_counter(void) { clock_spin_check(); return process_time_counter_read(); }
 static ABI uint64_t process_time_frequency(void) { return 1000000000; }
-static ABI uint64_t read_tsc(void) { return __rdtsc(); }
+static ABI uint64_t read_tsc(void) { clock_spin_check(); return __rdtsc(); }
 static uint64_t tsc_hz;
 static ABI uint64_t tsc_frequency(void) {
     if (!tsc_hz) {
@@ -105,8 +161,8 @@ static ABI uint64_t tsc_frequency(void) {
     return tsc_hz;
 }
 /* Shared with the GPU library so flip/label timestamps use the guest's clock. */
-uint64_t runtime_process_time_us(void) { return process_time(); }
-uint64_t runtime_process_time_counter(void) { return process_time_counter(); }
+uint64_t runtime_process_time_us(void) { return process_time_read(); }
+uint64_t runtime_process_time_counter(void) { return process_time_counter_read(); }
 uint64_t runtime_tsc_frequency(void) { return tsc_frequency(); }
 /* bbport (frame stats): how often and how long the game sleeps (it polls GPU labels that way). */
 static _Atomic uint64_t sleep_calls, sleep_total_ns;
@@ -117,11 +173,14 @@ void runtime_sleep_stats(uint64_t *calls, uint64_t *ns) {
 _Atomic uint64_t runtime_guest_yields;          /* sched_yield/scePthreadYield calls by the game (runtime_thread.c) */
 static _Atomic uint64_t once_yields;            /* thread_once waiters yielding */
 static _Atomic uint64_t short_sleeps, short_sleep_ns; /* guest sleeps requested under 2 ms, and their summed request */
-void runtime_poll_counters(uint64_t out[4]) {
+void runtime_poll_counters(uint64_t out[7]) {
     out[0]=atomic_load_explicit(&once_yields,memory_order_relaxed);
     out[1]=atomic_load_explicit(&runtime_guest_yields,memory_order_relaxed);
     out[2]=atomic_load_explicit(&short_sleeps,memory_order_relaxed);
     out[3]=atomic_load_explicit(&short_sleep_ns,memory_order_relaxed);
+    out[4]=atomic_load_explicit(&spin_episodes,memory_order_relaxed);   /* clock spin streaks that reached SPIN_STREAK */
+    out[5]=atomic_load_explicit(&spin_sleeps,memory_order_relaxed);
+    out[6]=atomic_load_explicit(&spin_slept_ns,memory_order_relaxed);
 }
 static int sleep_ns(uint64_t ns) {
     if (ns<2000000) {
@@ -157,16 +216,21 @@ static ABI int32_t kernel_gettimezone(GuestTimezone *tz) {
     tz->minuteswest=(int32_t)(-local.tm_gmtoff/60); tz->dsttime=0;
     return 0;
 }
-static ABI int32_t posix_gettimeofday(GuestTimeval *tv,GuestTimezone *tz) {
+static int32_t gettimeofday_read(GuestTimeval *tv,GuestTimezone *tz) {
     struct timeval t;
     gettimeofday(&t,NULL);
     if (tv) { tv->sec=t.tv_sec; tv->usec=t.tv_usec; }
     if (tz) kernel_gettimezone(tz);
     return 0;
 }
+static ABI int32_t posix_gettimeofday(GuestTimeval *tv,GuestTimezone *tz) {
+    clock_spin_check();
+    return gettimeofday_read(tv,tz);
+}
 static ABI int32_t kernel_gettimeofday(GuestTimeval *tv) {
+    clock_spin_check();
     if (!tv) return ERR(22);
-    return posix_gettimeofday(tv,NULL);
+    return gettimeofday_read(tv,NULL);
 }
 static ABI int64_t posix_time(int64_t *out) { int64_t t=(int64_t)time(NULL); if (out) *out=t; return t; }
 
@@ -333,7 +397,7 @@ static const RuntimeExport exports[]={
 uintptr_t runtime_kernel_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
 #else
 uintptr_t runtime_kernel_resolve(const char *name) { (void)name; return 0; }
-void runtime_poll_counters(uint64_t out[4]) { out[0]=out[1]=out[2]=out[3]=0; }
+void runtime_poll_counters(uint64_t out[7]) { out[0]=out[1]=out[2]=out[3]=0; }
 int32_t runtime_guest_errno(int e) { return e ? 5 : 0; }
 void runtime_thread_keys_cleanup(void) {}
 #endif

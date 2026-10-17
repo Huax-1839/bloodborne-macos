@@ -52,6 +52,10 @@ uintptr_t runtime_sema_resolve(const char *name);
 void runtime_sema_report(void);
 unsigned runtime_sema_waiters(uint32_t id);
 uintptr_t runtime_time_resolve(const char *name);
+#ifndef _WIN32
+/* bbport (P11): a guest thread that spins on the clock sleeps briefly inside the time call (BB_CLOCK_SPIN_US); `site` is the export's return address. */
+void runtime_clock_spin_check(const void *site);
+#endif
 void runtime_content_configure(const uint32_t values[5]);
 uintptr_t runtime_content_resolve(const char *name);
 void runtime_content_report(void);

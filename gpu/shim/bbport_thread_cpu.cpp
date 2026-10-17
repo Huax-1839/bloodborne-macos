@@ -21,8 +21,9 @@
 extern "C" {
 // runtime_thread.c: OS thread ids of the live game threads.
 size_t runtime_thread_guest_ids(uint64_t* out, size_t max);
-// runtime_kernel.c: cumulative once yields, guest sched_yields, short sleeps, their requested ns.
-void runtime_poll_counters(uint64_t out[4]);
+// runtime_kernel.c: cumulative once yields, guest sched_yields, short sleeps, their requested ns,
+// clock spin episodes, spin sleeps, ns slept.
+void runtime_poll_counters(uint64_t out[7]);
 }
 
 namespace BbThreadCpu {
@@ -48,12 +49,12 @@ struct Totals {
 };
 
 struct Counters {
-    std::uint64_t v[11]{};
+    std::uint64_t v[14]{};
 };
 
 Counters ReadCounters() {
     Counters c;
-    std::uint64_t runtime[4];
+    std::uint64_t runtime[7];
     runtime_poll_counters(runtime);
     c.v[0] = poll.spin_contended.load(std::memory_order_relaxed);
     c.v[1] = poll.spin_ns.load(std::memory_order_relaxed);
@@ -66,6 +67,9 @@ Counters ReadCounters() {
     c.v[8] = runtime[1];
     c.v[9] = runtime[2];
     c.v[10] = runtime[3];
+    c.v[11] = runtime[4];
+    c.v[12] = runtime[5];
+    c.v[13] = runtime[6];
     return c;
 }
 
@@ -230,11 +234,13 @@ private:
         std::printf("Poll counters (%.1f s): spinlock %llu contended, %.1f ms spun; "
                     "smalltimer %llu waits, %llu yields, %.1f ms; once %llu yields; "
                     "copy idle %llu / run %llu yields; guest sched_yield %llu, "
-                    "short sleeps %llu (%.1f ms requested)\n",
+                    "short sleeps %llu (%.1f ms requested) ; clock spin %llu episodes, %llu sleeps, "
+                    "%.1f ms slept\n",
                     elapsed_s, (unsigned long long)d(0), d(1) / 1e6, (unsigned long long)d(2),
                     (unsigned long long)d(3), d(4) / 1e6, (unsigned long long)d(7),
                     (unsigned long long)d(5), (unsigned long long)d(6), (unsigned long long)d(8),
-                    (unsigned long long)d(9), d(10) / 1e6);
+                    (unsigned long long)d(9), d(10) / 1e6, (unsigned long long)d(11),
+                    (unsigned long long)d(12), d(13) / 1e6);
         std::fflush(stdout);
         if (csv_) {
             const double epoch = Epoch();
