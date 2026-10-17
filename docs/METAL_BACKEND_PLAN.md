@@ -906,6 +906,15 @@ battery full (not charging), 30 cap; `powerstats.py`, in-game span means and min
   wait, so the overshoot adds up (~67 µs a frame). Option, not built: wake at a learned
   deadline instead of by quanta.
 
+- Trade-off T1, the frame's host threads at user-interactive QoS (b0a3d62), measured with the
+  clock-spin default: interleaved boots, 720p walk, 30 cap (`p11-qos-*`, all pass the M3 rule).
+  A (QoS on, the default) vs B (`BB_PIPELINE_QOS=0`): CPU 3.04 / 3.00 vs 3.01 / 3.01 W, package
+  4.95 / 4.83 vs 4.90 / 4.91 W, P cluster 52–53% active at ~4.07 GHz in all four, GPU MHz
+  818 / 800 vs 813 / 811, missed slots 1.02 / 0.95 vs 1.04 / 1.04%, `rec_busy_ms` p95 6.6–6.8
+  in all. No difference: the QoS costs no watts, so it stays. With the spin gone the runs are
+  far steadier (A/A spread 0.04 W against 0.76 W before). T2 (the scheduler's bounded spins) and
+  T3 (the `bb:Copy` thread count) are not measured: the port's threads use ~40% of a core in
+  total, and the poll counters see no copy yields in play.
 - Uncapped (P11.4, M4; `BB_FPS=uncap`, before the clock-spin default, which does not act there:
   no limiter, 0 episodes), 20-min walks on AC with the battery full, against the capped baseline:
 
@@ -1160,7 +1169,7 @@ commit (kept privately, not in this repository):
     (`BB_GUEST_PROFILE`, 8f67fbd); `BB_CLOCK_SPIN_US` (3476987) kept as the default: CPU −1.6 W
     (−35%), missed slots not worse, 29.94 FPS mean; default checked in game (main 13% of a
     core); Vulkan 32.7 FPS uncapped (no spin there: 0 episodes), title 50.6 dB (only the
-    animated tiles of row 34), clinic 43.8 dB (42.2 before the cut)
+    animated tiles of row 34), clinic 43.8 dB (42.2 before the cut); trade-off T1 (pipeline QoS) measured A B B A: no difference in W or missed slots, kept
   - [ ] P11.3 advice for players (Low Power Mode, charging), in HANDOFF and README
   - [ ] P11.4 M4 uncapped option (added 2026-10-17, §1): 20-min uncapped walks at 540p/720p with
     powermetrics (f9d8183); thresholds with the user (≥ 45 mean, ≥ 40 every minute); the rule in
