@@ -35,8 +35,14 @@ final class AppModel: ObservableObject {
         runtime = Result { try Runtime.locate() }
         library = GameLibrary(file: dirs.gamesFile)
         profiles = ProfileStore(dir: dirs.profilesDir)
-        state = LauncherState.load(dirs.stateFile)
+        var setAside: [URL] = []
+        state = LauncherState.load(dirs.stateFile, setAside: &setAside)
+        setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
         try? dirs.create()
+        if !setAside.isEmpty {
+            let names = setAside.map(\.lastPathComponent).joined(separator: "\n")
+            errorMessage = String(localized: "These launcher files could not be read and were kept aside in the data folder (readable games were taken from them):\n\(names)")
+        }
     }
 
     var activeGame: Game? { library.game(state.activeGame) ?? library.games.first }

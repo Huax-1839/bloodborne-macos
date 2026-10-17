@@ -5,13 +5,17 @@ import Foundation
 public struct ProfileStore: Sendable {
     public let dir: URL
     public private(set) var custom: [Profile] = []
+    /// Profile files that could not be read, kept aside under a new name.
+    public private(set) var setAside: [URL] = []
 
     public init(dir: URL) {
         self.dir = dir
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        var setAside: [URL] = []
         custom = files.filter { $0.pathExtension == "json" }
-            .compactMap { try? JSONDecoder.lantern.decode(Profile.self, from: Data(contentsOf: $0)) }
+            .compactMap { DataFile.load(Profile.self, from: $0, setAside: &setAside) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        self.setAside = setAside
     }
 
     public var all: [Profile] { Profile.builtins + custom }

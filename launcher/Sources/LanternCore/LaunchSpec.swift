@@ -15,6 +15,16 @@ public struct LauncherSettings: Codable, Equatable, Sendable {
     public var skipNetworkChoice: Bool = true
 
     public init() {}
+
+    /// Every field has a default: a missing or unreadable one keeps it (another version's file).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fullscreen = c.decode(.fullscreen, or: false)
+        display = c.decodeLenient(.display)
+        gamepad = c.decodeLenient(.gamepad)
+        gameLanguage = c.decodeLenient(.gameLanguage)
+        skipNetworkChoice = c.decode(.skipNetworkChoice, or: true)
+    }
 }
 
 /// One launch: the pipeline steps that prepare the game image, then the game process (D5). Built

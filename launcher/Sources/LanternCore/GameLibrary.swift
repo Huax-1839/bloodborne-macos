@@ -37,6 +37,16 @@ public struct Game: Codable, Identifiable, Equatable, Sendable {
         self.added = added
     }
 
+    /// The folder and its check are required; `managed`, `added` and the thorough check keep
+    /// their defaults when another version did not write them.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(id: try c.decode(String.self, forKey: .id), path: try c.decode(URL.self, forKey: .path),
+                  check: try c.decode(GameCheck.self, forKey: .check), managed: c.decode(.managed, or: false),
+                  added: c.decode(.added, or: Date.distantPast))
+        thorough = c.decodeLenient(.thorough)
+    }
+
     /// sce_sys/pic1.png (background) and icon0.png (cover): the user's own artwork, read at run
     /// time, never copied (D17).
     public var backgroundImage: URL { path.appendingPathComponent("sce_sys/pic1.png") }
@@ -48,11 +58,19 @@ public struct Game: Codable, Identifiable, Equatable, Sendable {
 public struct GameLibrary: Sendable {
     public let file: URL
     public private(set) var games: [Game] = []
+    /// games.json could not be read as a whole: where it was kept aside (the readable entries
+    /// were taken from it).
+    public private(set) var setAside: URL?
 
     public init(file: URL) {
         self.file = file
-        if let data = try? Data(contentsOf: file), let games = try? JSONDecoder.lantern.decode([Game].self, from: data) {
+        var setAside: [URL] = []
+        if let games = DataFile.load([Game].self, from: file, setAside: &setAside) {
             self.games = games
+        } else if let moved = setAside.first {
+            self.setAside = moved
+            let entries = (try? Data(contentsOf: moved)).flatMap { try? JSONDecoder.lantern.decode([Lossy<Game>].self, from: $0) }
+            games = entries?.compactMap(\.value) ?? []
         }
     }
 

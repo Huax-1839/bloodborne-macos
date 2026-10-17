@@ -77,6 +77,27 @@ public struct Profile: Codable, Identifiable, Equatable, Sendable {
 }
 
 extension Profile {
+    /// Only the id and the name are required: a field another version did not write (or wrote
+    /// differently) keeps its default, so a profile never vanishes from the list.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(id: try c.decode(String.self, forKey: .id), name: try c.decode(String.self, forKey: .name))
+        builtin = c.decode(.builtin, or: false)
+        unmeasured = c.decode(.unmeasured, or: false)
+        frameRate = c.decode(.frameRate, or: .fps30)
+        renderer = c.decode(.renderer, or: .automatic)
+        renderResolution = c.decodeLenient(.renderResolution)
+        effects = c.decode(.effects, or: [:])
+        modelLOD = c.decode(.modelLOD, or: 0)
+        iniValues = c.decode(.iniValues, or: [:])
+        patches = c.decode(.patches, or: [:])
+        mods = c.decodeLenient(.mods)
+        ownSaves = c.decode(.ownSaves, or: false)
+        environment = c.decode(.environment, or: [:])
+    }
+}
+
+extension Profile {
     /// "MacBook Air": run.sh's BB_PROFILE=m4air (measured on an M4 Air, 10-core GPU): the scene at
     /// 960x540, upscaled to 1080p, 30 FPS, the four costliest effects off, one model LOD lower.
     public static let air: Profile = {

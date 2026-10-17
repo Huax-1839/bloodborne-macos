@@ -12,8 +12,20 @@ public struct LauncherState: Codable, Equatable, Sendable {
 
     public init() {}
 
-    public static func load(_ url: URL) -> LauncherState {
-        (try? JSONDecoder.lantern.decode(LauncherState.self, from: Data(contentsOf: url))) ?? LauncherState()
+    /// Every field has a default: a missing or unreadable one keeps it (another version's file).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        activeGame = c.decodeLenient(.activeGame)
+        activeProfile = c.decode(.activeProfile, or: Profile.air.id)
+        settings = c.decode(.settings, or: LauncherSettings())
+        firstRunDone = c.decode(.firstRunDone, or: false)
+        pkgToolPath = c.decodeLenient(.pkgToolPath)
+    }
+
+    /// The saved state, else the defaults; a file that cannot be read is kept aside
+    /// (appended to `setAside`) instead of being overwritten by the next save.
+    public static func load(_ url: URL, setAside: inout [URL]) -> LauncherState {
+        DataFile.load(LauncherState.self, from: url, setAside: &setAside) ?? LauncherState()
     }
 
     public func save(_ url: URL) throws {
