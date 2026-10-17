@@ -46,7 +46,7 @@ Targets (MacBook Air M4, 10-core GPU, Iosefka's clinic, the bench save):
 | M1 parity | Same image as Vulkan (within the diff threshold, §6) at the same settings |
 | M2 faster | ≥ Vulkan FPS at the same settings in the M2 protocol (`macos/bench/m2.sh`: m4air uncapped and capped, native 1080p at 30 FPS) — met 2026-10-15 (+10% in each); the original 36 FPS at 540p uncapped was dropped (§9) |
 | M3 goal | 540p internal (`BB_PROFILE=m4air`, MetalFX to 1080p) at a stable 30 FPS for 20 min on the Air, on power and battery; first 720p, changed 2026-10-15 (§9: at 720p the warm Air's GPU needs 42–45 ms a frame) |
-| M4 uncapped | Uncapped play as a supported option (added 2026-10-17 by the user, §9): `BB_PROFILE=m4air BB_FPS=uncap` (540p) clearly faster than the 30 cap for 20 min on the Air, by an automated rule like M3's (§5 P11.4); the mean-FPS and minute thresholds are set from the first 20-min uncapped measurements and confirmed by the user; plus a gameplay check that high FPS breaks nothing |
+| M4 uncapped | Uncapped play as a supported option (added 2026-10-17 by the user, §9): `BB_PROFILE=m4air BB_FPS=uncap` (540p) clearly faster than the 30 cap for 20 min on the Air, by an automated rule like M3's (§5 P11.4); mean ≥ 45 FPS and every 60-s stretch ≥ 40 FPS (set 2026-10-17 by the user from the first 20-min uncapped runs: 53.1 / 47.5 at 540p), with M3's duration, error, hitch and condition rules (`m3stats.py --milestone m4`); plus a gameplay check that high FPS breaks nothing |
 | Stretch | 1080p internal at 30 FPS, or 60 FPS presented with MetalFX frame interpolation |
 
 **M3 acceptance rule** (set 2026-10-16 after review finding 7, by the user's choice of the
@@ -1163,7 +1163,12 @@ commit (kept privately, not in this repository):
     animated tiles of row 34), clinic 43.8 dB (42.2 before the cut)
   - [ ] P11.3 advice for players (Low Power Mode, charging), in HANDOFF and README
   - [ ] P11.4 M4 uncapped option (added 2026-10-17, §1): 20-min uncapped walks at 540p/720p with
-    powermetrics; thresholds with the user; the rule in a script; gameplay check; AC run passes
+    powermetrics (f9d8183); thresholds with the user (≥ 45 mean, ≥ 40 every minute); the rule in
+    `m3stats.py --milestone m4`; **the AC run passes** (`p11-uncap-540`: 53.4 FPS, slowest minute
+    48.0, p99.9 34.0 ms, 1 flip over 100 ms; 720p passes too, 51.3 / 47.0)
+    - [ ] gameplay check at high FPS: a route recorded by hand (`record_route.sh`, none yet) and
+      replayed uncapped (`route_check.py`); sprint, a cutscene, falling objects by eye (the user)
+    - [ ] battery run (`m3stats.py --milestone m4 --expect battery`)
 
 Results (filled in as measured):
 
@@ -1374,3 +1379,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-17 | P11.2: the review's CPU cuts C1–C4 (`SpinLock` in the page and region managers, the small-timer yield loop, `pthread_once` and copy yields) are not built; P11.2 turns to the game's `main` thread, which holds a P core at ~98% at the 30 cap, starting with a guest-PC sampler (`BB_GUEST_PROFILE`) to tell spinning from compute | P11.1 AC baseline: CPU 78–81% of the package at 540p/720p; the counters on every candidate read 0 in every 10-s interval of play in all three 20-min runs; per-thread CPU: guest 132% of a core, `main` 98%, the port's threads 38–40% | P11.2, `docs/metal/power_budget_design.md` |
 | 2026-10-17 | New milestone M4: uncapped play (`BB_PROFILE=m4air BB_FPS=uncap`, 540p) as a supported option, clearly faster than the 30 cap for 20 min by an automated rule like M3's, its FPS thresholds set from the first 20-min uncapped measurements and confirmed by the user, plus a gameplay check at high FPS; task P11.4 (user's decision, the recommended option) | at the 30 cap the game's limiter busy-waits on the clock (P11.2), and the user asked for uncapped play as an option with a milestone; the uncap and sprint-fix patches exist (`scripts/patches.py` `FPS_PRESETS`), but no 20-min uncapped run, power measurement or gameplay check was ever made | §1, P11, `m3stats.py` |
 | 2026-10-17 | P11.2: `BB_CLOCK_SPIN_US` is the default (quantum 100 µs; `=0` off): a guest thread that reads the clock from one call site 16 times in a row, each read less than 20 µs after the previous one, sleeps a quantum before each further read. Kept although mean FPS at the cap falls from 30.00 to 29.94 (the overshoot adds up) | guest-PC sampler: the game's 30-FPS limiter busy-waits on `gettimeofday` (~85% of the main thread); A B B A on the 720p walk: CPU 5.02/4.26 → 3.02/3.13 W (A/A spread 0.76), package 6.96/6.11 → 4.99/5.02 W, missed slots 1.20/0.94 → 0.89/1.07%, P-cluster and GPU clocks held in minutes 15–20; all four runs pass the M3 rule | P11.2, M3, kernel emulation (both backends) |
+| 2026-10-17 | M4 thresholds: mean ≥ 45 FPS and every 60-s stretch ≥ 40 FPS over 20 min at 540p uncapped, plus M3's duration, error, hitch and condition rules; no 30-FPS slot rules (p99/p99.9 reported) (user's decision, the recommended option) | first 20-min uncapped runs on AC: 540p 53.1 FPS mean, slowest minute 47.5; 720p 50.8 / 46.5; about 15% margin for warmer rooms, battery and run-to-run spread | §1 M4, `m3stats.py` |
