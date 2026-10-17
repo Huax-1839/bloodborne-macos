@@ -14,10 +14,11 @@ How to use this file:
 ## Checklist
 
 Batch A, data safety (first, each with a test):
-- [ ] R1 backup restore deletes the backup it restores
-- [ ] R2 a missing JSON field loses profiles, games and settings
-- [ ] R5 orphaned multi-GB folders in the data folder
-- [ ] R18 automatic backups rotate even when nothing changed
+- [x] R1 backup restore deletes the backup it restores (`2799574`)
+- [x] R2 a missing JSON field loses profiles, games and settings (`68e9b42`)
+- [x] R5 orphaned multi-GB folders in the data folder (`15b5ebe`)
+- [x] R18 automatic backups rotate even when nothing changed (`2799574`; the optional
+  one-per-day retention was not done)
 
 Batch B, correctness and UX:
 - [ ] R3 PKG tool run on every redraw, on the main thread
