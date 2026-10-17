@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# A tag vX.Y.Z builds the runtime and the launcher, runs the tests, packs the DMG, signs the
+# Sparkle appcast and publishes a GitHub Release (docs/LAUNCHER_PLAN.md D13, D15).
+# Secret SPARKLE_ED_KEY: the base64 Ed25519 seed whose public half is SUPublicEDKey in
+# launcher/build.sh.
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Rosetta (x86-64 unit tests)
+        run: softwareupdate --install-rosetta --agree-to-license || true
+      - name: Build tools
+        run: brew install cmake ninja pkgconf glslang
+      - name: Cache x86-64 dependencies
+        uses: actions/cache@v4
+        with:
+          path: macos/deps
+          key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            launcher/.build
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ hashFiles('launcher/Package.swift', 'launcher/Package.resolved') }}
+      - run: bash macos/build-deps.sh
+      - run: bash macos/build.sh
+      - name: Tests (GPU library, launcher, Python)
+        run: bash macos/test.sh
+      - name: DMG
+        run: |
+          export LANTERN_VERSION=${GITHUB_REF_NAME#v}
+          bash launcher/package.sh
+      - name: Appcast
+        env:
+          SPARKLE_ED_KEY: ${{ secrets.SPARKLE_ED_KEY }}
+        run: bash launcher/packaging/appcast.sh launcher/build "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/"
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "Hunter's Lantern ${GITHUB_REF_NAME#v}" --generate-notes \
+            launcher/build/HuntersLantern-*.dmg launcher/build/appcast.xml

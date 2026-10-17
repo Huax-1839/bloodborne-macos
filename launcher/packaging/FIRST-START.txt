@@ -1,0 +1,31 @@
+Hunter's Lantern — first start
+==============================
+
+1. Drag "Hunter's Lantern" onto "Applications".
+2. Open it from Applications. macOS says it cannot check the app for malicious software (the
+   app is not notarized: it is signed ad hoc). Click "Done", then open
+   System Settings › Privacy & Security, scroll down and click "Open Anyway" next to
+   "Hunter's Lantern", and confirm. This is needed once.
+3. Hunter's Lantern asks for your own copy of the game: a game folder (Bloodborne with update
+   1.09), the base game and the update as two folders, or the two PKG files (this needs an
+   external PKG tool, see the Game page). The app contains no game files.
+4. If macOS asks to install Rosetta, agree: the game runs under Rosetta 2.
+
+Source code and help: https://github.com/Huax-1839/bloodborne-macos
+
+
+Hunter's Lantern — erster Start
+===============================
+
+1. Ziehe „Hunter's Lantern“ auf „Programme“.
+2. Öffne es aus dem Programme-Ordner. macOS meldet, dass die App nicht auf Schadsoftware
+   geprüft werden kann (sie ist nicht notarisiert, nur ad hoc signiert). Klicke auf „Fertig“,
+   öffne Systemeinstellungen › Datenschutz & Sicherheit, scrolle nach unten und klicke neben
+   „Hunter's Lantern“ auf „Trotzdem öffnen“ und bestätige. Das ist nur einmal nötig.
+3. Hunter's Lantern fragt nach deiner eigenen Kopie des Spiels: ein Spielordner (Bloodborne mit
+   Update 1.09), Basisspiel und Update als zwei Ordner oder die beiden PKG-Dateien (dafür
+   braucht es ein externes PKG-Werkzeug, siehe die Seite „Spiel“). Die App enthält keine
+   Spieldateien.
+4. Fragt macOS nach der Installation von Rosetta, stimme zu: Das Spiel läuft unter Rosetta 2.
+
+Quellcode und Hilfe: https://github.com/Huax-1839/bloodborne-macos

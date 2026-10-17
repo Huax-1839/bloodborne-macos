@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Builds the runtime and the launcher and runs every test (docs/LAUNCHER_PLAN.md D15).
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    # macos-14 retires on 2026-11-02; macos-15 is arm64 with Rosetta available.
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Rosetta (x86-64 unit tests)
+        run: softwareupdate --install-rosetta --agree-to-license || true
+      - name: Build tools
+        run: brew install cmake ninja pkgconf glslang
+      - name: Cache x86-64 dependencies
+        uses: actions/cache@v4
+        with:
+          path: macos/deps
+          key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            launcher/.build
+            ~/Library/Caches/org.swift.swiftpm
+          key: swiftpm-${{ hashFiles('launcher/Package.swift', 'launcher/Package.resolved') }}
+      - run: bash macos/build-deps.sh
+      - run: bash macos/build.sh
+      - name: Tests (GPU library, launcher, Python)
+        run: bash macos/test.sh
+      - name: Launcher app
+        run: bash launcher/build.sh --bundle
