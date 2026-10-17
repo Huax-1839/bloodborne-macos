@@ -72,6 +72,18 @@ class GameCheckTests(unittest.TestCase):
         with mock.patch.object(game_check, 'SUPPORTED_IMAGE', game_check.image_sha256(game)):
             self.assertIsNone(game_check.problem(game))
 
+    def test_quick_check_for_the_launcher(self):
+        game = self.game('CUSA03173', '01.00')
+        result = game_check.quick(game)
+        self.assertEqual((result['problem'], result['title'], result['version']),
+                         ('missing_update', 'CUSA03173', '01.00'))
+        self.assertEqual(result['image_sha256'], game_check.image_sha256(game))
+        with mock.patch.object(game_check, 'SUPPORTED_IMAGE', result['image_sha256']):
+            self.assertIsNone(game_check.quick(game)['problem'])
+        self.assertEqual(game_check.quick(self.game('CUSA03173', '01.09', b'junk'))['problem'], 'unreadable')
+        (game / 'eboot.bin').unlink()
+        self.assertEqual(game_check.quick(game)['problem'], 'not_a_game')
+
     def shaders(self, game, data):
         folder = game / game_check.CHECKED_FOLDER
         folder.mkdir(parents=True, exist_ok=True)

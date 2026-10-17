@@ -41,8 +41,9 @@ public protocol Pipeline: Sendable {
     /// The scene and output size run.sh derives from bbport.ini when no render size is given
     /// (patches.py --print-scaled): nil for a 1080p output.
     func scaledSizes(settings: URL) async throws -> ScaledSizes?
-    /// Runs one launch step, its output appended to `log`.
-    func run(_ step: LaunchSpec.Step, log: FileHandle?) async throws
+    /// Runs one launch step with the launch's environment (patches.py reads BB_* variables),
+    /// its output appended to `log`.
+    func run(_ step: LaunchSpec.Step, environment: [String: String], log: FileHandle?) async throws
 }
 
 public struct PipelineError: Error, CustomStringConvertible, Sendable {

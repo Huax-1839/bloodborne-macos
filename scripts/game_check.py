@@ -10,9 +10,12 @@ around it differ). The shaders must also unpack: an extraction tool that leaves
 parts of compressed sectors stale (LibOrbisPkg PkgTool on .NET 6 or newer, issue #81) makes the
 game hang while it loads them, with no error. BB_SKIP_GAME_CHECK=1 skips both.
 
-Run as a script, it checks every .dcx file of a game folder: game_check.py GAME_DIR
+Run as a script, it checks every .dcx file of a game folder: game_check.py GAME_DIR. The launcher
+(launcher/) runs it with --quick --json (problem() only: title, version, image hash) or --json
+(every .dcx, progress as JSON lines).
 """
 import hashlib
+import json
 import os
 import struct
 import sys
@@ -117,21 +120,56 @@ def explain(kind, title, version):
     }[kind]
 
 
+def quick(game):
+    """The launcher's quick check as a dict: problem (a problem() kind, 'not_a_game' or None),
+    title, version, image_sha256 (None when unreadable)."""
+    from prepare import sfo
+    root = Path(game)
+    if not (root / 'eboot.bin').is_file() or not (root / 'sce_sys/param.sfo').is_file():
+        return {'problem': 'not_a_game', 'title': '?', 'version': '?', 'image_sha256': None}
+    try:
+        info = sfo((root / 'sce_sys/param.sfo').read_bytes())
+    except (OSError, ValueError, IndexError):
+        info = {}
+    try:
+        image_hash = image_sha256(game)
+    except (OSError, ValueError, IndexError, StopIteration, KeyError):
+        image_hash = None
+    found = problem(game, image_hash) if image_hash else ('unreadable', None, None)
+    return {'problem': found[0] if found else None, 'title': info.get('TITLE_ID', '?'),
+            'version': info.get('APP_VER', '?'), 'image_sha256': image_hash}
+
+
 def main(argv):
-    """game_check.py GAME_DIR: every .dcx file of the game, those that do not unpack listed."""
-    if len(argv) != 2:
-        print('Usage: game_check.py GAME_DIR', file=sys.stderr)
+    """game_check.py [--json] GAME_DIR: every .dcx file of the game, those that do not unpack
+    listed; game_check.py --quick --json GAME_DIR: the quick check as one JSON object."""
+    args = argv[1:]
+    as_json = '--json' in args
+    quick_only = '--quick' in args
+    args = [a for a in args if a not in ('--json', '--quick')]
+    if len(args) != 1 or (quick_only and not as_json):
+        print('Usage: game_check.py [--json] GAME_DIR | game_check.py --quick --json GAME_DIR', file=sys.stderr)
         return 2
-    game = Path(argv[1])
+    game = Path(args[0])
+    if quick_only:
+        result = quick(game)
+        print(json.dumps(result))
+        return 0 if result['problem'] is None else 1
     files = sorted((game / 'dvdroot_ps4').rglob('*.dcx'))
     broken = []
     for number, path in enumerate(files, 1):
         if dcx_broken(path):
             broken.append(path)
-            print(f'damaged: {path.relative_to(game)}')
-        if number % 1000 == 0:
+            if not as_json:
+                print(f'damaged: {path.relative_to(game)}')
+        if as_json and (number % 200 == 0 or number == len(files)):
+            print(json.dumps({'checked': number, 'total': len(files)}), flush=True)
+        elif not as_json and number % 1000 == 0:
             print(f'{number} of {len(files)} checked', file=sys.stderr)
-    print(f'{len(broken)} of {len(files)} .dcx files do not unpack')
+    if as_json:
+        print(json.dumps({'broken': [str(p.relative_to(game)) for p in broken], 'total': len(files)}))
+    else:
+        print(f'{len(broken)} of {len(files)} .dcx files do not unpack')
     return 1 if broken else 0
 
 
