@@ -1,1906 +1,1966 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "%@ (changed in game)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (im Spiel geändert)"
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ (changed in game)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (im Spiel geändert)"
           }
         }
       }
     },
-    "%@ (copy)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (Kopie)"
+    "%@ (copy)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (Kopie)"
           }
         }
       }
     },
-    "%@ (recommended for this Mac)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (empfohlen für diesen Mac)"
+    "%@ (recommended for this Mac)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (empfohlen für diesen Mac)"
           }
         }
       }
     },
-    "%@ (unmeasured)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (nicht gemessen)"
+    "%@ (unmeasured)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (nicht gemessen)"
           }
         }
       }
     },
-    "%@ (unmeasured, recommended for this Mac)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (nicht gemessen, empfohlen für diesen Mac)"
+    "%@ (unmeasured, recommended for this Mac)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (nicht gemessen, empfohlen für diesen Mac)"
           }
         }
       }
     },
-    "30" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30"
+    "30": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30"
           }
         }
       }
     },
-    "30 FPS" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "30 FPS"
+    "30 FPS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 FPS"
           }
         }
       }
     },
-    "60" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "60"
+    "60": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "60"
           }
         }
       }
     },
-    "60 FPS" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "60 FPS"
+    "60 FPS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "60 FPS"
           }
         }
       }
     },
-    "90" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "90"
+    "90": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "90"
           }
         }
       }
     },
-    "90 FPS" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "90 FPS"
+    "90 FPS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "90 FPS"
           }
         }
       }
     },
-    "A controller's name (or part of it) or its number. Leave empty to use the first one found." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name des Controllers (oder ein Teil davon) oder seine Nummer. Leer lassen, um den ersten gefundenen zu verwenden."
+    "A controller's name (or part of it) or its number. Leave empty to use the first one found.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name des Controllers (oder ein Teil davon) oder seine Nummer. Leer lassen, um den ersten gefundenen zu verwenden."
           }
         }
       }
     },
-    "A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Profil ist ein vollständiger Satz Einstellungen für einen Start: Bildrate, Renderer, Auflösung, Effekte und mehr. „Spielen“ verwendet das ausgewählte Profil."
+    "A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Profil ist ein vollständiger Satz Einstellungen für einen Start: Bildrate, Renderer, Auflösung, Effekte und mehr. „Spielen“ verwendet das ausgewählte Profil."
           }
         }
       }
     },
-    "About" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Info"
+    "About": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Info"
           }
         }
       }
     },
-    "Active" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktiv"
+    "Active": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv"
           }
         }
       }
     },
-    "Add" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hinzufügen"
+    "Add": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hinzufügen"
           }
         }
       }
     },
-    "Add a game" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel hinzufügen"
+    "Add a game": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel hinzufügen"
           }
         }
       }
     },
-    "Add a game…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel hinzufügen…"
+    "Add a game…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel hinzufügen…"
           }
         }
       }
     },
-    "Add game folder…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spielordner hinzufügen…"
+    "Add game folder…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielordner hinzufügen…"
           }
         }
       }
     },
-    "Add mods from folders or ZIP files, put them in order, switch them on and off and see which files they replace. The mod set belongs to the profile." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mods aus Ordnern oder ZIP-Dateien hinzufügen, ihre Reihenfolge festlegen, sie ein- und ausschalten und sehen, welche Dateien sie ersetzen. Die Mod-Auswahl gehört zum Profil."
+    "Add mods from folders or ZIP files, put them in order, switch them on and off and see which files they replace. The mod set belongs to the profile.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mods aus Ordnern oder ZIP-Dateien hinzufügen, ihre Reihenfolge festlegen, sie ein- und ausschalten und sehen, welche Dateien sie ersetzen. Die Mod-Auswahl gehört zum Profil."
           }
         }
       }
     },
-    "Add your copy of the game: a ready game folder, the base game with its update, or PKG files." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Füge deine Kopie des Spiels hinzu: einen fertigen Spielordner, das Basisspiel mit seinem Update oder PKG-Dateien."
+    "Add your copy of the game: a ready game folder, the base game with its update, or PKG files.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füge deine Kopie des Spiels hinzu: einen fertigen Spielordner, das Basisspiel mit seinem Update oder PKG-Dateien."
           }
         }
       }
     },
-    "Advanced" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erweitert"
+    "Advanced": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erweitert"
           }
         }
       }
     },
-    "Ambient occlusion" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umgebungsverdeckung (SSAO)"
+    "Ambient occlusion": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umgebungsverdeckung (SSAO)"
           }
         }
       }
     },
-    "Anti-aliasing" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kantenglättung"
+    "Anti-aliasing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kantenglättung"
           }
         }
       }
     },
-    "Automatic" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatisch"
+    "Automatic": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch"
           }
         }
       }
     },
-    "Automatic (Metal)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatisch (Metal)"
+    "Automatic (Metal)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch (Metal)"
           }
         }
       }
     },
-    "Automatic (Vulkan)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatisch (Vulkan)"
+    "Automatic (Vulkan)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch (Vulkan)"
           }
         }
       }
     },
-    "Automatic backups before each start, named snapshots, restoring and exporting or importing a save." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatische Sicherungen vor jedem Start, benannte Schnappschüsse, Wiederherstellen sowie Export und Import eines Spielstands."
+    "Automatic backups before each start, named snapshots, restoring and exporting or importing a save.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Sicherungen vor jedem Start, benannte Schnappschüsse, Wiederherstellen sowie Export und Import eines Spielstands."
           }
         }
       }
     },
-    "Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatisch: Die Voreinstellung des Upscalers bestimmt die Szenenauflösung. Der Upscaler lässt sich auch im Menü des Spiels ändern."
+    "Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch: Die Voreinstellung des Upscalers bestimmt die Szenenauflösung. Der Upscaler lässt sich auch im Menü des Spiels ändern."
           }
         }
       }
     },
-    "Backing up saves" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Speicherstände werden gesichert"
+    "Backing up saves": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicherstände werden gesichert"
           }
         }
       }
     },
-    "Base game PKG" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PKG des Basisspiels"
+    "Base game PKG": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Basisspiels"
           }
         }
       }
     },
-    "Base game folder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner des Basisspiels"
+    "Base game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner des Basisspiels"
           }
         }
       }
     },
-    "Bring your own copy of the game to begin. The app contains no game files." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bring deine eigene Kopie des Spiels mit, um zu beginnen. Die App enthält keine Spieldateien."
+    "Bring your own copy of the game to begin. The app contains no game files.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bring deine eigene Kopie des Spiels mit, um zu beginnen. Die App enthält keine Spieldateien."
           }
         }
       }
     },
-    "Built-in" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mitgeliefert"
+    "Built-in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgeliefert"
           }
         }
       }
     },
-    "Cancel" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abbrechen"
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
           }
         }
       }
     },
-    "Changes are saved in this profile." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Änderungen werden in diesem Profil gespeichert."
+    "Changes are saved in this profile.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Änderungen werden in diesem Profil gespeichert."
           }
         }
       }
     },
-    "Checking every file…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Dateien werden geprüft…"
+    "Checking every file…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Dateien werden geprüft…"
           }
         }
       }
     },
-    "Checking the game" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel wird geprüft"
+    "Checking the game": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel wird geprüft"
           }
         }
       }
     },
-    "Checking the game…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel wird geprüft…"
+    "Checking the game…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel wird geprüft…"
           }
         }
       }
     },
-    "Choose" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auswählen"
+    "Choose": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswählen"
           }
         }
       }
     },
-    "Choose a profile file" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Profildatei auswählen"
+    "Choose a profile file": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profildatei auswählen"
           }
         }
       }
     },
-    "Choose another tool…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anderes Werkzeug auswählen…"
+    "Choose another tool…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderes Werkzeug auswählen…"
           }
         }
       }
     },
-    "Choose the PKG tool's executable" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Programmdatei des PKG-Werkzeugs auswählen"
+    "Choose the PKG tool's executable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Programmdatei des PKG-Werkzeugs auswählen"
           }
         }
       }
     },
-    "Choose the base game PKG" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PKG des Basisspiels auswählen"
+    "Choose the base game PKG": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Basisspiels auswählen"
           }
         }
       }
     },
-    "Choose the base game folder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner des Basisspiels auswählen"
+    "Choose the base game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner des Basisspiels auswählen"
           }
         }
       }
     },
-    "Choose the base game's .pkg and the full 1.09 update's .pkg. A delta update does not work." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle die .pkg des Basisspiels und die .pkg des vollständigen 1.09-Updates. Ein Delta-Update funktioniert nicht."
+    "Choose the base game's .pkg and the full 1.09 update's .pkg. A delta update does not work.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle die .pkg des Basisspiels und die .pkg des vollständigen 1.09-Updates. Ein Delta-Update funktioniert nicht."
           }
         }
       }
     },
-    "Choose the folder of the base game and the folder of the 1.09 update. The update's files replace the base game's; both folders stay unchanged." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wähle den Ordner des Basisspiels und den Ordner des 1.09-Updates. Die Dateien des Updates ersetzen die des Basisspiels; beide Ordner bleiben unverändert."
+    "Choose the folder of the base game and the folder of the 1.09 update. The update's files replace the base game's; both folders stay unchanged.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle den Ordner des Basisspiels und den Ordner des 1.09-Updates. Die Dateien des Updates ersetzen die des Basisspiels; beide Ordner bleiben unverändert."
           }
         }
       }
     },
-    "Choose the game folder (for example CUSA03173)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spielordner auswählen (zum Beispiel CUSA03173)"
+    "Choose the game folder (for example CUSA03173)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielordner auswählen (zum Beispiel CUSA03173)"
           }
         }
       }
     },
-    "Choose the tool…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Werkzeug auswählen…"
+    "Choose the tool…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Werkzeug auswählen…"
           }
         }
       }
     },
-    "Choose the update PKG" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PKG des Updates auswählen"
+    "Choose the update PKG": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Updates auswählen"
           }
         }
       }
     },
-    "Choose the update folder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner des Updates auswählen"
+    "Choose the update folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner des Updates auswählen"
           }
         }
       }
     },
-    "Choose…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auswählen…"
+    "Choose…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswählen…"
           }
         }
       }
     },
-    "Chromatic aberration" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chromatische Aberration"
+    "Chromatic aberration": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chromatische Aberration"
           }
         }
       }
     },
-    "Coming in this version" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kommt in dieser Version"
+    "Coming in this version": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommt in dieser Version"
           }
         }
       }
     },
-    "Controller" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Controller"
+    "Controller": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controller"
           }
         }
       }
     },
-    "Custom" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Benutzerdefiniert"
+    "Custom": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzerdefiniert"
           }
         }
       }
     },
-    "Custom size" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eigene Größe"
+    "Custom size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Größe"
           }
         }
       }
     },
-    "Damaged files: %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beschädigte Dateien: %lld"
+    "Damaged files: %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschädigte Dateien: %lld"
           }
         }
       }
     },
-    "Data folder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datenordner"
+    "Data folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenordner"
           }
         }
       }
     },
-    "Default" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Standard"
+    "Default": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
           }
         }
       }
     },
-    "Default (English)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Standard (Englisch)"
+    "Default (English)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard (Englisch)"
           }
         }
       }
     },
-    "Delete" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Löschen"
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
           }
         }
       }
     },
-    "Delete the profile “%@”?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Profil „%@“ löschen?"
+    "Delete the profile “%@”?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Profil „%@“ löschen?"
           }
         }
       }
     },
-    "Delete…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Löschen…"
+    "Delete…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen…"
           }
         }
       }
     },
-    "Depth of field" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tiefenschärfe"
+    "Depth of field": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiefenschärfe"
           }
         }
       }
     },
-    "Dismiss" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schließen"
+    "Dismiss": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
           }
         }
       }
     },
-    "Display" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anzeige"
+    "Display": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeige"
           }
         }
       }
     },
-    "Display number: %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bildschirmnummer: %lld"
+    "Display number: %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildschirmnummer: %lld"
           }
         }
       }
     },
-    "Duplicate" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duplizieren"
+    "Duplicate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplizieren"
           }
         }
       }
     },
-    "Duplicate the profile to add variables. Built-in profiles cannot be changed." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dupliziere das Profil, um Variablen hinzuzufügen. Mitgelieferte Profile lassen sich nicht ändern."
+    "Duplicate the profile to add variables. Built-in profiles cannot be changed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dupliziere das Profil, um Variablen hinzuzufügen. Mitgelieferte Profile lassen sich nicht ändern."
           }
         }
       }
     },
-    "Duplicate to edit" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zum Bearbeiten duplizieren"
+    "Duplicate to edit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zum Bearbeiten duplizieren"
           }
         }
       }
     },
-    "Dynamic shadows" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dynamische Schatten"
+    "Dynamic shadows": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dynamische Schatten"
           }
         }
       }
     },
-    "Effects" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effekte"
+    "Effects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effekte"
           }
         }
       }
     },
-    "Enter the size as width and height, for example 1280x720." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gib die Größe als Breite und Höhe an, zum Beispiel 1280x720."
+    "Enter the size as width and height, for example 1280x720.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib die Größe als Breite und Höhe an, zum Beispiel 1280x720."
           }
         }
       }
     },
-    "Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umgebungsvariablen für das Spiel, die als Letztes gesetzt werden. Nur für Fortgeschrittene: Ein falscher Wert kann verhindern, dass das Spiel startet."
+    "Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umgebungsvariablen für das Spiel, die als Letztes gesetzt werden. Nur für Fortgeschrittene: Ein falscher Wert kann verhindern, dass das Spiel startet."
           }
         }
       }
     },
-    "Expert variables (profile “%@”)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expertenvariablen (Profil „%@“)"
+    "Expert variables (profile “%@”)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expertenvariablen (Profil „%@“)"
           }
         }
       }
     },
-    "Export the profile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Profil exportieren"
+    "Export the profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil exportieren"
           }
         }
       }
     },
-    "Export…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exportieren…"
+    "Export…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportieren…"
           }
         }
       }
     },
-    "FSR 3.1" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FSR 3.1"
+    "FSR 3.1": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FSR 3.1"
           }
         }
       }
     },
-    "First controller found" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erster gefundener Controller"
+    "First controller found": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erster gefundener Controller"
           }
         }
       }
     },
-    "Frame rate" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bildrate"
+    "Frame rate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
           }
         }
       }
     },
-    "Game" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel"
+    "Game": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel"
           }
         }
       }
     },
-    "Game language" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spielsprache"
+    "Game language": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielsprache"
           }
         }
       }
     },
-    "Game runtime" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spiel-Laufzeit"
+    "Game runtime": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel-Laufzeit"
           }
         }
       }
     },
-    "Graphics" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grafik"
+    "Graphics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grafik"
           }
         }
       }
     },
-    "Highest" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Am höchsten"
+    "Highest": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am höchsten"
           }
         }
       }
     },
-    "Home" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start"
+    "Home": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
           }
         }
       }
     },
-    "Hunter's Lantern" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hunter's Lantern"
+    "Hunter's Lantern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hunter's Lantern"
           }
         }
       }
     },
-    "Import" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importieren"
+    "Import": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importieren"
           }
         }
       }
     },
-    "Import from PKG files" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus PKG-Dateien importieren"
+    "Import from PKG files": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus PKG-Dateien importieren"
           }
         }
       }
     },
-    "Import from PKG files…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus PKG-Dateien importieren…"
+    "Import from PKG files…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus PKG-Dateien importieren…"
           }
         }
       }
     },
-    "Import…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Importieren…"
+    "Import…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importieren…"
           }
         }
       }
     },
-    "Keep the game's setting" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einstellung des Spiels beibehalten"
+    "Keep the game's setting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellung des Spiels beibehalten"
           }
         }
       }
     },
-    "Language" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sprache"
+    "Language": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprache"
           }
         }
       }
     },
-    "Last run" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Letzter Start"
+    "Last run": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzter Start"
           }
         }
       }
     },
-    "Licence: GPL-2.0-or-later" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lizenz: GPL-2.0-or-later"
+    "Licence: GPL-2.0-or-later": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lizenz: GPL-2.0-or-later"
           }
         }
       }
     },
-    "Low Power Mode is on and lowers the frame rate. Turn it off in System Settings under Battery." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Energiesparmodus ist aktiv und senkt die Bildrate. Schalte ihn in den Systemeinstellungen unter „Batterie“ aus."
+    "Low Power Mode is on and lowers the frame rate. Turn it off in System Settings under Battery.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Energiesparmodus ist aktiv und senkt die Bildrate. Schalte ihn in den Systemeinstellungen unter „Batterie“ aus."
           }
         }
       }
     },
-    "Lower" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Niedriger"
+    "Lower": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niedriger"
           }
         }
       }
     },
-    "Lowest" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Am niedrigsten"
+    "Lowest": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am niedrigsten"
           }
         }
       }
     },
-    "Merge" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zusammenführen"
+    "Merge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusammenführen"
           }
         }
       }
     },
-    "Merge base game and update" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basisspiel und Update zusammenführen"
+    "Merge base game and update": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basisspiel und Update zusammenführen"
           }
         }
       }
     },
-    "Merge base game and update…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basisspiel und Update zusammenführen…"
+    "Merge base game and update…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basisspiel und Update zusammenführen…"
           }
         }
       }
     },
-    "Metal" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metal"
+    "Metal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metal"
           }
         }
       }
     },
-    "Metal needs macOS 15 or newer. On this Mac the game uses Vulkan." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metal benötigt macOS 15 oder neuer. Auf diesem Mac verwendet das Spiel Vulkan."
+    "Metal needs macOS 15 or newer. On this Mac the game uses Vulkan.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metal benötigt macOS 15 oder neuer. Auf diesem Mac verwendet das Spiel Vulkan."
           }
         }
       }
     },
-    "MetalFX" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MetalFX"
+    "MetalFX": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MetalFX"
           }
         }
       }
     },
-    "Model detail" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modelldetails"
+    "Model detail": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelldetails"
           }
         }
       }
     },
-    "Mods" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mods"
+    "Mods": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mods"
           }
         }
       }
     },
-    "Motion blur" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bewegungsunschärfe"
+    "Motion blur": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bewegungsunschärfe"
           }
         }
       }
     },
-    "Name" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
+    "Name": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
           }
         }
       }
     },
-    "Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Namen beginnen mit BB_, MVK_ oder ROSETTA_ und bestehen aus Großbuchstaben, Ziffern und Unterstrichen."
+    "Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Namen beginnen mit BB_, MVK_ oder ROSETTA_ und bestehen aus Großbuchstaben, Ziffern und Unterstrichen."
           }
         }
       }
     },
-    "Network" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Netzwerk"
+    "Network": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netzwerk"
           }
         }
       }
     },
-    "No PKG tool was found on this Mac. The launcher does not bundle or download one: install ps4-pkg-tools (recommended), then choose its executable here." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auf diesem Mac wurde kein PKG-Werkzeug gefunden. Der Launcher bringt keines mit und lädt auch keines herunter: Installiere ps4-pkg-tools (empfohlen) und wähle hier seine Programmdatei aus."
+    "No PKG tool was found on this Mac. The launcher does not bundle or download one: install ps4-pkg-tools (recommended), then choose its executable here.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Mac wurde kein PKG-Werkzeug gefunden. Der Launcher bringt keines mit und lädt auch keines herunter: Installiere ps4-pkg-tools (empfohlen) und wähle hier seine Programmdatei aus."
           }
         }
       }
     },
-    "No game added yet. Use one of the three ways below." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noch kein Spiel hinzugefügt. Nutze einen der drei Wege unten."
+    "No game added yet. Use one of the three ways below.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch kein Spiel hinzugefügt. Nutze einen der drei Wege unten."
           }
         }
       }
     },
-    "No game yet" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noch kein Spiel"
+    "No game yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch kein Spiel"
           }
         }
       }
     },
-    "Nothing chosen yet" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noch nichts ausgewählt"
+    "Nothing chosen yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nichts ausgewählt"
           }
         }
       }
     },
-    "OK" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "OK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
     },
-    "Off" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus"
+    "Off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus"
           }
         }
       }
     },
-    "On battery power the game runs slower. Plug in the charger." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Im Akkubetrieb läuft das Spiel langsamer. Schließe das Ladegerät an."
+    "On battery power the game runs slower. Plug in the charger.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Akkubetrieb läuft das Spiel langsamer. Schließe das Ladegerät an."
           }
         }
       }
     },
-    "Open log" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protokoll öffnen"
+    "Open log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokoll öffnen"
           }
         }
       }
     },
-    "Own saves for this profile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eigene Spielstände für dieses Profil"
+    "Own saves for this profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Spielstände für dieses Profil"
           }
         }
       }
     },
-    "PKG tool" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PKG-Werkzeug"
+    "PKG tool": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG-Werkzeug"
           }
         }
       }
     },
-    "Patches" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Patches"
+    "Patches": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patches"
           }
         }
       }
     },
-    "Performance" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leistung"
+    "Performance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leistung"
           }
         }
       }
     },
-    "Play" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spielen"
+    "Play": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielen"
           }
         }
       }
     },
-    "Preparing (%@)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vorbereiten (%@)"
+    "Preparing (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorbereiten (%@)"
           }
         }
       }
     },
-    "Profile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Profil"
+    "Profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil"
           }
         }
       }
     },
-    "Profiles" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Profile"
+    "Profiles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile"
           }
         }
       }
     },
-    "Recommended for this Mac" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Empfohlen für diesen Mac"
+    "Recommended for this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empfohlen für diesen Mac"
           }
         }
       }
     },
-    "Reflections (experimental)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reflexionen (experimentell)"
+    "Reflections (experimental)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reflexionen (experimentell)"
           }
         }
       }
     },
-    "Remove" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entfernen"
+    "Remove": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
           }
         }
       }
     },
-    "Remove “%@” from the list?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "„%@“ aus der Liste entfernen?"
+    "Remove “%@” from the list?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ aus der Liste entfernen?"
           }
         }
       }
     },
-    "Remove…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entfernen…"
+    "Remove…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen…"
           }
         }
       }
     },
-    "Rename" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umbenennen"
+    "Rename": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umbenennen"
           }
         }
       }
     },
-    "Rename the profile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Profil umbenennen"
+    "Rename the profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil umbenennen"
           }
         }
       }
     },
-    "Rename…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Umbenennen…"
+    "Rename…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umbenennen…"
           }
         }
       }
     },
-    "Renderer" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Renderer"
+    "Renderer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renderer"
           }
         }
       }
     },
-    "Restarting" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neustart"
+    "Restarting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neustart"
           }
         }
       }
     },
-    "Running" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Läuft"
+    "Running": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Läuft"
           }
         }
       }
     },
-    "Saves" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spielstände"
+    "Saves": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielstände"
           }
         }
       }
     },
-    "Scene size" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Szenenauflösung"
+    "Scene size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Szenenauflösung"
           }
         }
       }
     },
-    "Set active" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktivieren"
+    "Set active": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivieren"
           }
         }
       }
     },
-    "Settings are locked while the game runs or is being prepared." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Einstellungen sind gesperrt, solange das Spiel läuft oder vorbereitet wird."
+    "Settings are locked while the game runs or is being prepared.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Einstellungen sind gesperrt, solange das Spiel läuft oder vorbereitet wird."
           }
         }
       }
     },
-    "Settings you changed in the game were saved in the profile “%@”." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einstellungen, die du im Spiel geändert hast, wurden im Profil „%@“ gespeichert."
+    "Settings you changed in the game were saved in the profile “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen, die du im Spiel geändert hast, wurden im Profil „%@“ gespeichert."
           }
         }
       }
     },
-    "Show in Finder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Im Finder zeigen"
+    "Show in Finder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Finder zeigen"
           }
         }
       }
     },
-    "Skip the online/offline choice at start" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Online-/Offline-Auswahl beim Start überspringen"
+    "Skip the online/offline choice at start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Online-/Offline-Auswahl beim Start überspringen"
           }
         }
       }
     },
-    "Something went wrong" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Etwas ist schiefgelaufen"
+    "Something went wrong": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etwas ist schiefgelaufen"
           }
         }
       }
     },
-    "Source code" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quellcode"
+    "Source code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quellcode"
           }
         }
       }
     },
-    "Start in fullscreen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Im Vollbild starten"
+    "Start in fullscreen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Vollbild starten"
           }
         }
       }
     },
-    "Stop" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopp"
+    "Stop": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopp"
           }
         }
       }
     },
-    "Switch the built-in and external game patches on or off. The frame rate patches follow the profile's frame rate." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schalte die mitgelieferten und externen Spiel-Patches ein oder aus. Die Bildraten-Patches folgen der Bildrate des Profils."
+    "Switch the built-in and external game patches on or off. The frame rate patches follow the profile's frame rate.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schalte die mitgelieferten und externen Spiel-Patches ein oder aus. Die Bildraten-Patches folgen der Bildrate des Profils."
           }
         }
       }
     },
-    "The Mac is hot and slows the game down. Let it cool down first." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Mac ist heiß und bremst das Spiel. Lass ihn zuerst abkühlen."
+    "The Mac is hot and slows the game down. Let it cool down first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Mac ist heiß und bremst das Spiel. Lass ihn zuerst abkühlen."
           }
         }
       }
     },
-    "The game crashed (%@)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel ist abgestürzt (%@)"
+    "The game crashed (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist abgestürzt (%@)"
           }
         }
       }
     },
-    "The game ended normally" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel wurde normal beendet"
+    "The game ended normally": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel wurde normal beendet"
           }
         }
       }
     },
-    "The game failed (exit status %lld)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel ist fehlgeschlagen (Beendigungsstatus %lld)"
+    "The game failed (exit status %lld)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist fehlgeschlagen (Beendigungsstatus %lld)"
           }
         }
       }
     },
-    "The game is your own copy. This app contains no game files and downloads none." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel ist deine eigene Kopie. Diese App enthält keine Spieldateien und lädt keine herunter."
+    "The game is your own copy. This app contains no game files and downloads none.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist deine eigene Kopie. Diese App enthält keine Spieldateien und lädt keine herunter."
           }
         }
       }
     },
-    "The game restarted" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel wurde neu gestartet"
+    "The game restarted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel wurde neu gestartet"
           }
         }
       }
     },
-    "The game runtime was not found, so the game cannot start." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Spiel-Laufzeit wurde nicht gefunden, daher kann das Spiel nicht starten."
+    "The game runtime was not found, so the game cannot start.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Spiel-Laufzeit wurde nicht gefunden, daher kann das Spiel nicht starten."
           }
         }
       }
     },
-    "The game was stopped" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Spiel wurde angehalten"
+    "The game was stopped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel wurde angehalten"
           }
         }
       }
     },
-    "The game's files stay where they are." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Dateien des Spiels bleiben, wo sie sind."
+    "The game's files stay where they are.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Dateien des Spiels bleiben, wo sie sind."
           }
         }
       }
     },
-    "The language the game uses for its texts. Languages the game does not contain fall back to English." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Sprache, in der das Spiel seine Texte anzeigt. Sprachen, die das Spiel nicht enthält, fallen auf Englisch zurück."
+    "The language the game uses for its texts. Languages the game does not contain fall back to English.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Sprache, in der das Spiel seine Texte anzeigt. Sprachen, die das Spiel nicht enthält, fallen auf Englisch zurück."
           }
         }
       }
     },
-    "The launcher never downloads a game. Use your own copy, dumped from your console." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Launcher lädt nie ein Spiel herunter. Verwende deine eigene Kopie, von deiner Konsole gesichert."
+    "The launcher never downloads a game. Use your own copy, dumped from your console.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Launcher lädt nie ein Spiel herunter. Verwende deine eigene Kopie, von deiner Konsole gesichert."
           }
         }
       }
     },
-    "The port has no PlayStation Network. With this on, the game starts offline without asking." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Port hat kein PlayStation Network. Ist dies aktiviert, startet das Spiel ohne Nachfrage offline."
+    "The port has no PlayStation Network. With this on, the game starts offline without asking.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Port hat kein PlayStation Network. Ist dies aktiviert, startet das Spiel ohne Nachfrage offline."
           }
         }
       }
     },
-    "The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Profil führt eigene Spielstände, getrennt von den anderen Profilen. Der Shader-Cache bleibt gemeinsam."
+    "The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Profil führt eigene Spielstände, getrennt von den anderen Profilen. Der Shader-Cache bleibt gemeinsam."
           }
         }
       }
     },
-    "The thorough check reads every shader file and takes a few minutes." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die gründliche Prüfung liest jede Shader-Datei und dauert einige Minuten."
+    "The thorough check reads every shader file and takes a few minutes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die gründliche Prüfung liest jede Shader-Datei und dauert einige Minuten."
           }
         }
       }
     },
-    "This cannot be undone." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das lässt sich nicht rückgängig machen."
+    "This cannot be undone.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das lässt sich nicht rückgängig machen."
           }
         }
       }
     },
-    "This is a built-in profile and cannot be changed. Duplicate it to make your own." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dies ist ein mitgeliefertes Profil und lässt sich nicht ändern. Dupliziere es, um ein eigenes zu erstellen."
+    "This is a built-in profile and cannot be changed. Duplicate it to make your own.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dies ist ein mitgeliefertes Profil und lässt sich nicht ändern. Dupliziere es, um ein eigenes zu erstellen."
           }
         }
       }
     },
-    "Thorough check" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gründliche Prüfung"
+    "Thorough check": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gründliche Prüfung"
           }
         }
       }
     },
-    "Thorough check on %@: all files are fine" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gründliche Prüfung am %@: alle Dateien sind in Ordnung"
+    "Thorough check on %@: all files are fine": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gründliche Prüfung am %@: alle Dateien sind in Ordnung"
           }
         }
       }
     },
-    "Thorough check on %@: damaged files found" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gründliche Prüfung am %@: beschädigte Dateien gefunden"
+    "Thorough check on %@: damaged files found": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gründliche Prüfung am %@: beschädigte Dateien gefunden"
           }
         }
       }
     },
-    "Title" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Titel"
+    "Title": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel"
           }
         }
       }
     },
-    "Uncapped" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unbegrenzt"
+    "Uncapped": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbegrenzt"
           }
         }
       }
     },
-    "Unmeasured" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nicht gemessen"
+    "Unmeasured": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht gemessen"
           }
         }
       }
     },
-    "Update PKG" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PKG des Updates"
+    "Update PKG": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Updates"
           }
         }
       }
     },
-    "Update folder" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordner des Updates"
+    "Update folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordner des Updates"
           }
         }
       }
     },
-    "Upscaler" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Upscaler"
+    "Upscaler": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upscaler"
           }
         }
       }
     },
-    "Upscaler at start" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Upscaler beim Start"
+    "Upscaler at start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upscaler beim Start"
           }
         }
       }
     },
-    "Use a specific display" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestimmten Bildschirm verwenden"
+    "Use a specific display": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestimmten Bildschirm verwenden"
           }
         }
       }
     },
-    "Use this if the base game and the 1.09 update are in two folders. The launcher merges them into one game folder; on the same disk this takes almost no extra space." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nutze dies, wenn das Basisspiel und das 1.09-Update in zwei Ordnern liegen. Der Launcher führt sie zu einem Spielordner zusammen; auf demselben Laufwerk braucht das fast keinen zusätzlichen Platz."
+    "Use this if the base game and the 1.09 update are in two folders. The launcher merges them into one game folder; on the same disk this takes almost no extra space.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutze dies, wenn das Basisspiel und das 1.09-Update in zwei Ordnern liegen. Der Launcher führt sie zu einem Spielordner zusammen; auf demselben Laufwerk braucht das fast keinen zusätzlichen Platz."
           }
         }
       }
     },
-    "Use this if you already have a ready game folder with update 1.09 applied (it contains eboot.bin and sce_sys). The folder stays where it is." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nutze dies, wenn du bereits einen fertigen Spielordner mit angewendetem Update 1.09 hast (er enthält eboot.bin und sce_sys). Der Ordner bleibt, wo er ist."
+    "Use this if you already have a ready game folder with update 1.09 applied (it contains eboot.bin and sce_sys). The folder stays where it is.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutze dies, wenn du bereits einen fertigen Spielordner mit angewendetem Update 1.09 hast (er enthält eboot.bin und sce_sys). Der Ordner bleibt, wo er ist."
           }
         }
       }
     },
-    "Use this if you have the base game and the 1.09 update as .pkg files. An external PKG tool unpacks them; the launcher then merges the result." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nutze dies, wenn du das Basisspiel und das 1.09-Update als .pkg-Dateien hast. Ein externes PKG-Werkzeug entpackt sie; der Launcher führt das Ergebnis anschließend zusammen."
+    "Use this if you have the base game and the 1.09 update as .pkg files. An external PKG tool unpacks them; the launcher then merges the result.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutze dies, wenn du das Basisspiel und das 1.09-Update als .pkg-Dateien hast. Ein externes PKG-Werkzeug entpackt sie; der Launcher führt das Ergebnis anschließend zusammen."
           }
         }
       }
     },
-    "Value" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wert"
+    "Value": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wert"
           }
         }
       }
     },
-    "Version" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version"
+    "Version": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
           }
         }
       }
     },
-    "Version %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@"
+    "Version %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@"
           }
         }
       }
     },
-    "Vulkan (MoltenVK)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vulkan (MoltenVK)"
+    "Vulkan (MoltenVK)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vulkan (MoltenVK)"
           }
         }
       }
     },
-    "Width×Height" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breite×Höhe"
+    "Width×Height": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breite×Höhe"
           }
         }
       }
     },
-    "Window" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fenster"
+    "Window": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fenster"
           }
         }
       }
     },
-    "Your games" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine Spiele"
+    "Your games": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Spiele"
           }
         }
       }
     },
-    "github.com/Huax-1839/bloodborne-macos" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "github.com/Huax-1839/bloodborne-macos"
+    "github.com/Huax-1839/bloodborne-macos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "github.com/Huax-1839/bloodborne-macos"
           }
         }
       }
     },
-    "ps4-pkg-tools on GitHub" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ps4-pkg-tools auf GitHub"
+    "ps4-pkg-tools on GitHub": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ps4-pkg-tools auf GitHub"
           }
         }
       }
     },
-    "signal %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signal %lld"
+    "signal %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signal %lld"
+          }
+        }
+      }
+    },
+    "Merging the base game and the update…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basisspiel und Update werden zusammengeführt…"
+          }
+        }
+      }
+    },
+    "Preparing the import…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import wird vorbereitet…"
+          }
+        }
+      }
+    },
+    "Extracting the base game PKG…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Basisspiels wird entpackt…"
+          }
+        }
+      }
+    },
+    "Extracting the update PKG…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PKG des Updates wird entpackt…"
+          }
+        }
+      }
+    },
+    "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game page.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein PKG-Werkzeug gefunden. Installiere ps4-pkg-tools und wähle das Programm auf der Seite „Spiel“ aus."
+          }
+        }
+      }
+    },
+    "The launcher made this folder (merged or extracted): it goes to the Trash.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Ordner hat der Launcher angelegt (zusammengeführt oder entpackt): Er wird in den Papierkorb gelegt."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

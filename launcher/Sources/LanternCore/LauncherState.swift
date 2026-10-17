@@ -7,6 +7,8 @@ public struct LauncherState: Codable, Equatable, Sendable {
     public var activeProfile: String = Profile.air.id
     public var settings = LauncherSettings()
     public var firstRunDone = false
+    /// The PKG tool the user chose (when it is not found on its own).
+    public var pkgToolPath: String?
 
     public init() {}
 

@@ -65,31 +65,125 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Import path (b): base game and update folders merged with APFS clones (D6). Filled in
-    /// with GameImporter (L2.2).
+    /// Import path (b): base game and update folders merged with APFS clones into the data
+    /// folder's games/ (D6).
     func importBaseAndUpdate(base: URL, update: URL) async {
-        errorMessage = "Not implemented yet (L2.2)"
+        await runImport { runtime in
+            let pipeline = PythonPipeline(runtime: runtime)
+            guard let baseFolder = GameFolder.locate(base) else { throw ImportError.notAGameFolder(base) }
+            guard let updateFolder = GameFolder.locate(update) else { throw ImportError.notAGameFolder(update) }
+            let title = try await pipeline.quickCheck(game: baseFolder).title
+            try FileManager.default.createDirectory(at: self.dirs.gamesDir, withIntermediateDirectories: true)
+            let destination = Self.uniqueFolder(self.dirs.gamesDir.appendingPathComponent("\(title)-1.09"))
+            self.importStatus = (String(localized: "Merging the base game and the update…"), 0)
+            try await GameImporter.merge(base: baseFolder, update: updateFolder, into: destination) { done, total in
+                Task { @MainActor in self.importStatus = (String(localized: "Merging the base game and the update…"), total > 0 ? Double(done) / Double(total) : nil) }
+            }
+            self.importStatus = (String(localized: "Checking the game…"), nil)
+            return (destination, try await pipeline.quickCheck(game: destination))
+        }
     }
 
-    /// Import path (c): base and update PKG through the external PKG tool, then (b) (L2.3).
+    /// Import path (c): base and update PKG through the external PKG tool, then (b).
     func importPKGs(base: URL, update: URL) async {
-        errorMessage = "Not implemented yet (L2.3)"
+        guard let tool = pkgTool else {
+            errorMessage = String(localized: "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game page.")
+            return
+        }
+        await runImport { runtime in
+            let imported = try await GameImporter.importPKGs(base: base, update: update, tool: tool, dirs: self.dirs,
+                                                             pipeline: PythonPipeline(runtime: runtime)) { phase, fraction in
+                Task { @MainActor in self.importStatus = (Self.text(for: phase), fraction) }
+            }
+            return (imported.folder, imported.check)
+        }
+    }
+
+    /// The PKG tool: the one the user chose, else one found on this Mac.
+    var pkgTool: PkgTool? {
+        if let path = state.pkgToolPath, case .success(let tool) = PkgTool.validate(URL(fileURLWithPath: path)) { return tool }
+        return PkgTool.detect()
     }
 
     /// The PKG tool found on this Mac (nil: none; the Game page explains how to get one).
-    var pkgToolDescription: String? { nil }
+    var pkgToolDescription: String? {
+        pkgTool.map { "\($0.kind.displayName) – \($0.executable.path)" }
+    }
 
-    /// Lets the user pick the PKG tool's executable (L2.3).
-    func choosePKGTool(_ url: URL) {}
+    /// Lets the user pick the PKG tool's executable.
+    func choosePKGTool(_ url: URL) {
+        switch PkgTool.validate(url) {
+        case .success(let tool): state.pkgToolPath = tool.executable.path
+        case .failure(let error): errorMessage = error.localizedDescription
+        }
+    }
 
-    /// The thorough check (every .dcx) in the background; the result goes into the game's entry
-    /// (L2.4). `thoroughProgress` while it runs.
-    func runThoroughCheck(_ game: Game) async {}
+    /// The thorough check (every .dcx) in the background; the result goes into the game's entry.
+    func runThoroughCheck(_ game: Game) async {
+        guard case .success(let runtime) = runtime, thoroughProgress == nil else { return }
+        thoroughProgress = 0
+        defer { thoroughProgress = nil }
+        do {
+            let updated = try await Game.ThoroughCheck.runThorough(game: game, pipeline: PythonPipeline(runtime: runtime)) { done, total in
+                Task { @MainActor in if self.thoroughProgress != nil { self.thoroughProgress = total > 0 ? Double(done) / Double(total) : 0 } }
+            }
+            try library.update(updated)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
     @Published private(set) var thoroughProgress: Double?
 
-    func cancelImport() {}
+    private var importTask: Task<Void, Never>?
 
+    func cancelImport() { importTask?.cancel() }
+
+    /// Runs an import (b or c) as a cancellable task and registers the folder it made.
+    private func runImport(_ work: @escaping @MainActor (Runtime) async throws -> (URL, GameCheck)) async {
+        guard case .success(let runtime) = runtime else { return showRuntimeError() }
+        guard importTask == nil else { return }
+        importStatus = (String(localized: "Preparing the import…"), nil)
+        let task = Task { @MainActor in
+            do {
+                let (folder, check) = try await work(runtime)
+                let game = Game(path: folder, check: check, managed: true)
+                try library.add(game)
+                state.activeGame = game.id
+                if !check.ok { errorMessage = GameCheckText.problem(check) }
+            } catch is CancellationError {
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+        importTask = task
+        await task.value
+        importTask = nil
+        importStatus = nil
+    }
+
+    private static func text(for phase: GameImporter.Phase) -> String {
+        switch phase {
+        case .extractingBase: String(localized: "Extracting the base game PKG…")
+        case .extractingUpdate: String(localized: "Extracting the update PKG…")
+        case .merging: String(localized: "Merging the base game and the update…")
+        case .checking: String(localized: "Checking the game…")
+        }
+    }
+
+    private static func uniqueFolder(_ url: URL) -> URL {
+        var candidate = url
+        var counter = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent)-\(counter)")
+            counter += 1
+        }
+        return candidate
+    }
+
+    /// Removes the game from the list; a folder the launcher made (merged or extracted) goes to
+    /// the Trash, a folder the user registered stays where it is.
     func removeGame(_ game: Game) {
+        if game.managed { try? FileManager.default.trashItem(at: game.path, resultingItemURL: nil) }
         try? library.remove(game.id)
         if state.activeGame == game.id { state.activeGame = library.games.first?.id }
     }
@@ -149,6 +243,11 @@ final class AppModel: ObservableObject {
         guard !isBusy, let game = activeGame else { return }
         guard case .success(let runtime) = runtime else { return showRuntimeError() }
         let launcher = Launcher(dirs: dirs, runtime: runtime)
+        // The save backup before each launch (D11), one history per save root.
+        let backups = dirs.backupsDir
+        launcher.backup = { userRoot in
+            try BackupStore(dir: backups.appendingPathComponent(userRoot.lastPathComponent)).backUpBeforeLaunch(userRoot: userRoot)
+        }
         self.launcher = launcher
         let profile = activeProfile
         let settings = state.settings

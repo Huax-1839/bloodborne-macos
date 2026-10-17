@@ -9,6 +9,16 @@ import AppKit
 enum Snapshot {
     static func runIfRequested(_ model: AppModel) async {
         let environment = ProcessInfo.processInfo.environment
+        // LANTERN_IMPORT_BASE/LANTERN_IMPORT_UPDATE (integration tests): imports base + update
+        // (two folders, or two .pkg files) as the Game page would.
+        if let base = environment["LANTERN_IMPORT_BASE"], let update = environment["LANTERN_IMPORT_UPDATE"] {
+            let baseURL = URL(fileURLWithPath: base), updateURL = URL(fileURLWithPath: update)
+            if baseURL.pathExtension.lowercased() == "pkg" {
+                await model.importPKGs(base: baseURL, update: updateURL)
+            } else {
+                await model.importBaseAndUpdate(base: baseURL, update: updateURL)
+            }
+        }
         if environment["LANTERN_AUTOPLAY"] == "1" {
             try? await Task.sleep(for: .seconds(1))
             model.play()

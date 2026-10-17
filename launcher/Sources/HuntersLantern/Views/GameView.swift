@@ -38,7 +38,11 @@ struct GameView: View {
             }
             Button("Cancel", role: .cancel) { removing = nil }
         } message: {
-            Text("The game's files stay where they are.")
+            if removing?.managed == true {
+                Text("The launcher made this folder (merged or extracted): it goes to the Trash.")
+            } else {
+                Text("The game's files stay where they are.")
+            }
         }
     }
 
