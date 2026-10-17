@@ -85,6 +85,42 @@ final class LauncherTests: XCTestCase {
         }
     }
 
+    /// R6: while one launcher's game runs, a second launcher on the same data folder fails before
+    /// it backs up, writes the ini or prepares.
+    func testSecondLauncherStopsBeforeTouchingTheIni() async throws {
+        let fake = try fakeGame("while [[ ! -f \"$(dirname \"$0\")/stop\" ]]; do sleep 0.05; done; exit 0")
+        let first = Launcher(dirs: fake.dirs, runtime: fake.runtime, pipeline: FakePipeline())
+        let running = LockedBox(false)
+        let task = Task {
+            try await first.launch(game: fake.game, profile: .vanilla, settings: LauncherSettings()) { phase in
+                if phase == .running { running.mutate { $0 = true } }
+            }
+        }
+        defer { FileManager.default.createFile(atPath: fake.root.appendingPathComponent("stop").path, contents: nil) }
+        for _ in 0..<200 where !running.value { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertTrue(running.value)
+        let ini = try Data(contentsOf: fake.dirs.iniFile)
+
+        let second = Launcher(dirs: fake.dirs, runtime: fake.runtime, pipeline: FakePipeline())
+        let backups = LockedBox(0)
+        second.backup = { _ in backups.mutate { $0 += 1 } }
+        do {
+            _ = try await second.launch(game: fake.game, profile: .max, settings: LauncherSettings()) { _ in }
+            XCTFail("the second launch started")
+        } catch let error as GameProcessError {
+            guard case .alreadyRunning = error else { return XCTFail("\(error)") }
+        }
+        XCTAssertEqual(backups.value, 0)
+        XCTAssertEqual(try Data(contentsOf: fake.dirs.iniFile), ini)
+
+        FileManager.default.createFile(atPath: fake.root.appendingPathComponent("stop").path, contents: nil)
+        let result = try await task.value
+        XCTAssertEqual(result.outcome, .finished)
+        // The lock is free again after the launch.
+        _ = try await second.launch(game: fake.game, profile: .max, settings: LauncherSettings()) { _ in }
+        XCTAssertEqual(try IniFile.load(fake.dirs.iniFile)["upscaler"], "metalfx")
+    }
+
     /// R11: cancelling the launch while a pipeline step runs ends the step and the launch
     /// (outcome .cancelled, no error), and the game is not started.
     func testCancellingDuringPreparationStopsTheLaunch() async throws {

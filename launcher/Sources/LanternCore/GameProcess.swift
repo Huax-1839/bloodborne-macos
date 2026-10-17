@@ -49,10 +49,10 @@ public enum GameProcessError: Error, Equatable, CustomStringConvertible {
 /// The game process: started from a LaunchSpec, stdout and stderr in logs/run-<time>.log (the
 /// last 10 kept), one instance at a time (a lock file plus a running-process check). Task L1.4.
 ///
-/// Locking: start() takes an exclusive non-blocking flock on the lock file (opened O_CLOEXEC, so
-/// the game does not inherit it) and keeps it until the process ended or start() failed; the
-/// game's pid is written into the file. The process check looks for any process whose executable
-/// is named `bb-probe`.
+/// Locking: start() takes the one-game lock (`GameLock`) and keeps it until the process ended or
+/// start() failed; the game's pid is written into the file. A lock the caller already holds
+/// (Launcher holds it across the whole launch, R6) is used instead and stays with the caller. The
+/// process check looks for any process whose executable is named `bb-probe`.
 ///
 /// wait() may be called any number of times, from any thread or the main actor: every awaiter
 /// gets the same outcome, and a call after the end returns at once. Calling it before start()
@@ -70,6 +70,8 @@ public final class GameProcess: @unchecked Sendable {
     private let spec: LaunchSpec
     private let logsDir: URL
     private let lockFile: URL
+    /// A lock the caller holds; nil: start() takes its own.
+    private let heldLock: GameLock?
     private let killGrace: TimeInterval
     private let probeName: String
 
@@ -77,7 +79,8 @@ public final class GameProcess: @unchecked Sendable {
     // All below under `mutex`.
     private var started = false
     private var process: Process?
-    private var lockFD: Int32 = -1
+    /// The lock while the game runs (taken by start() or the caller's).
+    private var lock: GameLock?
     private var exited = false
     private var cancelled = false
     private var outcome: GameOutcome?
@@ -87,6 +90,17 @@ public final class GameProcess: @unchecked Sendable {
         self.spec = spec
         self.logsDir = logsDir
         self.lockFile = lockFile
+        self.heldLock = nil
+        self.killGrace = Self.defaultKillGrace
+        self.probeName = Self.gameProcessName
+    }
+
+    /// A game started under a lock the caller holds (and releases).
+    public init(spec: LaunchSpec, logsDir: URL, lock: GameLock) {
+        self.spec = spec
+        self.logsDir = logsDir
+        self.lockFile = lock.url
+        self.heldLock = lock
         self.killGrace = Self.defaultKillGrace
         self.probeName = Self.gameProcessName
     }
@@ -96,6 +110,7 @@ public final class GameProcess: @unchecked Sendable {
         self.spec = spec
         self.logsDir = logsDir
         self.lockFile = lockFile
+        self.heldLock = nil
         self.killGrace = killGrace
         self.probeName = probeName
     }
@@ -119,21 +134,16 @@ public final class GameProcess: @unchecked Sendable {
         defer { mutex.unlock() }
         if started { throw GameProcessError.alreadyStarted }
 
-        let fm = FileManager.default
         do {
-            try fm.createDirectory(at: lockFile.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try fm.createDirectory(at: logsDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
         } catch {
             throw GameProcessError.setupFailed(error.localizedDescription)
         }
 
-        let fd = try Self.takeLock(lockFile)
+        let lock = try heldLock ?? GameLock.acquire(lockFile)
         var succeeded = false
         defer {
-            if !succeeded {
-                flock(fd, LOCK_UN)
-                close(fd)
-            }
+            if !succeeded && heldLock == nil { lock.release() }
         }
         if let other = Self.findProcess(named: probeName) {
             throw GameProcessError.externalGameRunning(pid: other)
@@ -161,10 +171,8 @@ public final class GameProcess: @unchecked Sendable {
         started = true
         succeeded = true
         self.process = process
-        self.lockFD = fd
-        let pidText = "\(process.processIdentifier)\n"
-        ftruncate(fd, 0)
-        _ = pidText.withCString { pwrite(fd, $0, strlen($0), 0) }
+        self.lock = lock
+        lock.write(pid: process.processIdentifier)
 
         Self.pruneLogs(in: logsDir, keeping: logURL)
         return logURL
@@ -233,10 +241,9 @@ public final class GameProcess: @unchecked Sendable {
             }
         }
         outcome = result
-        if lockFD >= 0 {
-            flock(lockFD, LOCK_UN)
-            close(lockFD)
-            lockFD = -1
+        if let lock {
+            if heldLock == nil { lock.release() } else { lock.write(pid: nil) }
+            self.lock = nil
         }
         let pending = waiters
         waiters = []
@@ -245,24 +252,6 @@ public final class GameProcess: @unchecked Sendable {
     }
 
     // MARK: - Helpers
-
-    /// Opens the lock file and takes the exclusive lock without blocking.
-    private static func takeLock(_ url: URL) throws -> Int32 {
-        let fd = open(url.path, O_RDWR | O_CREAT | O_CLOEXEC, 0o644)
-        if fd < 0 { throw GameProcessError.setupFailed("lock file: \(String(cString: strerror(errno)))") }
-        if flock(fd, LOCK_EX | LOCK_NB) != 0 {
-            let reason = errno
-            var buffer = [UInt8](repeating: 0, count: 32)
-            let count = pread(fd, &buffer, buffer.count, 0)
-            close(fd)
-            if reason == EWOULDBLOCK {
-                let text = count > 0 ? String(decoding: buffer[0..<count], as: UTF8.self) : ""
-                throw GameProcessError.alreadyRunning(pid: Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)))
-            }
-            throw GameProcessError.setupFailed("lock file: \(String(cString: strerror(reason)))")
-        }
-        return fd
-    }
 
     /// The pid of a process whose executable is called `name` (libproc, no pgrep).
     static func findProcess(named name: String) -> Int32? {
@@ -321,5 +310,62 @@ public final class GameProcess: @unchecked Sendable {
         }
         logs.sort { $0.date != $1.date ? $0.date > $1.date : $0.url.lastPathComponent > $1.url.lastPathComponent }
         for old in logs.dropFirst(keptLogs - 1) { try? fm.removeItem(at: old.url) }
+    }
+}
+
+/// The one-game lock: an exclusive non-blocking flock on the lock file (opened O_CLOEXEC, so the
+/// game does not inherit it), with the running game's pid in the file. Released by `release()` or
+/// when the object goes away.
+public final class GameLock: @unchecked Sendable {
+    public let url: URL
+    private let mutex = NSLock()
+    private var fd: Int32
+
+    private init(url: URL, fd: Int32) {
+        self.url = url
+        self.fd = fd
+    }
+
+    deinit { release() }
+
+    /// Takes the lock without blocking; `GameProcessError.alreadyRunning` when it is held.
+    public static func acquire(_ url: URL) throws -> GameLock {
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        } catch {
+            throw GameProcessError.setupFailed(error.localizedDescription)
+        }
+        let fd = open(url.path, O_RDWR | O_CREAT | O_CLOEXEC, 0o644)
+        if fd < 0 { throw GameProcessError.setupFailed("lock file: \(String(cString: strerror(errno)))") }
+        if flock(fd, LOCK_EX | LOCK_NB) != 0 {
+            let reason = errno
+            var buffer = [UInt8](repeating: 0, count: 32)
+            let count = pread(fd, &buffer, buffer.count, 0)
+            close(fd)
+            if reason == EWOULDBLOCK {
+                let text = count > 0 ? String(decoding: buffer[0..<count], as: UTF8.self) : ""
+                throw GameProcessError.alreadyRunning(pid: Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+            }
+            throw GameProcessError.setupFailed("lock file: \(String(cString: strerror(reason)))")
+        }
+        return GameLock(url: url, fd: fd)
+    }
+
+    /// The running game's pid into the file (nil empties it: between restarts).
+    func write(pid: Int32?) {
+        mutex.withLock {
+            guard fd >= 0 else { return }
+            ftruncate(fd, 0)
+            if let pid { _ = "\(pid)\n".withCString { pwrite(fd, $0, strlen($0), 0) } }
+        }
+    }
+
+    public func release() {
+        mutex.withLock {
+            guard fd >= 0 else { return }
+            flock(fd, LOCK_UN)
+            close(fd)
+            fd = -1
+        }
     }
 }

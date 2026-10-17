@@ -77,6 +77,10 @@ public final class Launcher: @unchecked Sendable {
     private func run(game: Game, profile: Profile, settings: LauncherSettings,
                      onPhase: @escaping @Sendable (LaunchPhase) -> Void) async throws -> LaunchResult {
         try dirs.create()
+        // One game at a time, taken before anything is written (the ini, the prepared folder, the
+        // backup) and held across restarts: a second launcher on the same data folder stops here (R6).
+        let gameLock = try GameLock.acquire(dirs.lockFile)
+        defer { gameLock.release() }
         onPhase(.checking)
         let check = try await pipeline.quickCheck(game: game.path)
         guard check.ok else { throw LaunchError(GameCheckText.problem(check), check: check) }
@@ -112,7 +116,7 @@ public final class Launcher: @unchecked Sendable {
             try await prepare(spec, prepared: prepared, game: game, onPhase: onPhase)
             if isCancelled { return Self.cancelledResult }
 
-            let process = GameProcess(spec: spec, logsDir: dirs.logsDir, lockFile: dirs.lockFile)
+            let process = GameProcess(spec: spec, logsDir: dirs.logsDir, lock: gameLock)
             let log = try process.start()
             // A Stop between start() and here found no process to end: it is done now.
             let stopNow = lock.withLock {
