@@ -35,6 +35,10 @@ stands and what is open). The native launcher "Hunter's Lantern" (SwiftUI app, D
   `BB_RENDERER` explicit, default vulkan).
 - Unit tests: `macos/test.sh` (builds and runs every `*-test` target of `gpu/CMakeLists.txt`,
   logs in `macos/out/test-logs/`), or `macos/test.sh <target>...`.
+- Launcher: `launcher/build.sh [--dev|--bundle]` (app in `launcher/build/`), `launcher/test.sh`
+  (swift test, also run by `macos/test.sh`), `launcher/package.sh` (DMG). UI checks without
+  screen capture: `LANTERN_DATA_DIR=<scratch> LANTERN_SNAPSHOT=<dir> <app>/Contents/MacOS/HuntersLantern`
+  renders every page to PNG; never use the real data dir (`~/Library/Application Support/HuntersLantern`).
 - Bench: `macos/bench/bench.sh <name> [ENV=VAL…]` (data in `~/Games/Bloodborne/bench`, results in
   its `runs/results.tsv`); image comparison `macos/bench/imgdiff.py A.png B.png`.
 - Only **one game instance at a time** (`pkill -f bb-probe` before starting); benchmarks need an

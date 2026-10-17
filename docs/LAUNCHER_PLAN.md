@@ -466,16 +466,63 @@ Exit: every spike reported in §8, D3/D4/D6/D11/D13 updated, decisions logged in
 
 ## 8. Status and results
 
-**Start here (next session).** The plan was made on 2026-10-17; no launcher code exists yet.
-1. Read §0, §1, §3 and §5 L0. The decisions in §9 are the user's and are fixed (§0).
-2. Start L0 in this order:
-   - L0.1 (shared groundwork the others build on, O);
-   - then L0.2, L0.3, L0.4, L0.6 as porter spikes. Their file sets are disjoint, so they can run
-     in parallel with worktrees as `CLAUDE.md` describes.
-3. L0.5 (PKG) needs a Bloodborne base PKG and update PKG from the user. Ask for them first; if
-   there are none, defer L0.5 and go on.
-4. Spikes write their result into this section (numbers, what broke) and update the decision
-   they concern; then L1.
+**Start here (next session).** State on 2026-10-17 (evening): L0–L2 done, L-M1 met; L3–L6
+implemented except what needs the user (below). Read §0, §1 and the checklist below; the
+decisions in §9 are fixed.
+1. What is open and needs the user:
+   - **L6.5 acceptance (L-M3)** on a fresh macOS user account (no Homebrew, no Command Line
+     Tools in PATH): open the DMG, import, play, mod, backup, update. Creating that account is
+     the user's.
+   - **Sparkle's private key** as the GitHub Actions secret `SPARKLE_ED_KEY` (the base64 seed in
+     the maintainer's `~/.config/hunters-lantern/sparkle-ed25519.key`; its public half is in
+     `launcher/build.sh`), then a first tag `v0.9.0` for a release (the user decides when).
+   - **Per-character save import** (L0.6, L5.2) is marked experimental until a character
+     imported into another slot has been loaded in the game.
+   - **Own saves per profile** (L4.4): two profiles with different saves, one shader cache — to
+     be checked in the game.
+2. Developer path: `launcher/build.sh --dev` (uses this checkout's `macos/out` and scripts),
+   `launcher/test.sh`, `launcher/package.sh` (DMG). Dev hooks for checks without UI access:
+   `LANTERN_DATA_DIR` (a scratch data dir), `LANTERN_SNAPSHOT=<dir>` (renders each page to PNG
+   in-process and quits; `LANTERN_SNAPSHOT_PAGES=home,game`), `LANTERN_AUTOPLAY=1` (presses Play),
+   `LANTERN_IMPORT_BASE/UPDATE` (runs an import). Screen capture does not work from the agent
+   shell; the snapshots do.
+
+Results (2026-10-17):
+- **L0.1** `run.sh --print-env`; the overlay's restart exits 75 and run.sh starts the game again
+  (tested on Metal and Vulkan with `BB_MENU_KEYS_FILE` token `restart`; on Vulkan the scripted
+  keys only work while the overlay is visible, e.g. `show_fps=1`: a pre-existing limit).
+- **L0.2** nested game app (`launcher/packaging/make-game-app.sh`): runs from outside the repo on
+  Metal and Vulkan (D3).
+- **L0.3** embedded Python: see D4 (27 MB pruned, byte-identical outputs, `-E -s -B`).
+- **L0.4** Sparkle: see D13 (2.10.0, ad hoc → ad hoc works, EdDSA is the gate).
+- **L0.5** PKG: see D6 (ps4-pkg-tools `45baeda`, 157 s for the 31 GB base; merged folder equals
+  the known-good one).
+- **L0.6** saves: see D11 (plain files, per-slot records; per-character export feasible).
+- **L1** LanternCore (data dirs, runtime locator, profiles with presets, IniFile with
+  `BbSettings::Save` rules, LaunchSpec tested against `run.sh --print-env` for a matrix,
+  GameProcess with lock and restart code, Launcher orchestration), SwiftUI app. **L-M1**: from
+  the app the game started on Metal and on Vulkan, the app hid itself, the menu's restart
+  started it again from the cached image, the outcome card showed the end.
+- **L2** import: (a) folder; (b) merge with per-file `clonefile` (29 GB base in < 5 s, no extra
+  space; base never written); (c) PKG via the external tool (the user's PKGs imported in 148 s,
+  check passed); thorough check cached by .dcx count/size/mtime. **L2.5**: `link_libc.py` left
+  the run path (boot-linked.bin byte-identical); the launcher's image steps are skipped while
+  eboot and scripts are unchanged (only `patches.py` runs on later launches).
+- **L3** profiles (JSON, presets, duplicate/import/export), hardware suggestion (GPU cores:
+  ≤10 Air, ≤20 Pro, else Max), Graphics/Advanced pages, in-game changes back into the profile
+  (`LauncherTests`), patches page (L3.5, see below).
+- **L4.1** mods from run.sh (`BB_MODS_*` as docs/MODS.md says) and from the launcher (the
+  profile's mod set); the overlay feeds only `/app0` and `patches.py`, the image steps read the
+  game's eboot (keeps the cache). A mod's file was opened from the mod folder in the game
+  (`BB_MOD_TRACE`).
+- **L5.1** backups before each launch (APFS clones, 10 kept), snapshots, restore.
+- **L6** `launcher/build.sh` (`--dev`, `--bundle`: nested game app, embedded Python, pipeline,
+  Sparkle, ad-hoc signing inside-out; 94 MB), `package.sh` (DMG with a bilingual first-start
+  note), `packaging/appcast.sh`, GitHub Actions (CI on push, release on tag), first-run
+  assistant, Diagnostics page, README sections DE/EN. **L-M2 (partial)**: the bundle, started
+  with an empty environment from outside the repo, prepared and ran the game with its own
+  Python and runtime (no repo or Homebrew path in any log); the clean-account check is L6.5.
+  Sparkle: a 0.9.0 bundle updated itself to 0.9.1 from a signed local appcast.
 
 Sources from the 2026-10-17 research (checked that day, recheck before relying on them):
 - PKG tools:
@@ -502,20 +549,23 @@ Sources from the 2026-10-17 research (checked that day, recheck before relying o
   - `macos-14` retires on 2026-11-02;
   - the cache limit is 10 GB per repository.
 
-- [ ] L0.1–L0.6 spikes and groundwork
-- [ ] L1 skeleton and dev launcher → L-M1
-- [ ] L2 game import
-- [ ] L3 profiles and settings
-- [ ] L4 mods
-- [ ] L5 saves
-- [ ] L6 packaging, release, first run → L-M2, L-M3
+- [x] L0.1–L0.6 spikes and groundwork
+- [x] L1 skeleton and dev launcher → L-M1 (met 2026-10-17)
+- [x] L2 game import
+- [x] L3 profiles and settings
+- [x] L4 mods (L4.4 own saves: in-game check open)
+- [x] L5 saves (per-character import experimental until checked in the game)
+- [ ] L6 packaging, release, first run → L-M2 (partial: clean account open), L-M3 (L6.5, the
+  user's acceptance run; the release secret and first tag are the user's)
 
 Found during the inventory (fix when the task touching the file comes up):
 - `live_resolution` has no runtime reader; the comment in `bbport_settings.cpp` (Save) says
   run.sh reads it, which is false (run.sh reads `BB_LIVE_RES`).
 - `patches.py --output-res` is parsed but never used.
-- `docs/MODS.md` documents `BB_MODS_*` for run.sh, which does not implement them (L4.1).
-- `macos/test.sh` does not run the Python tests in `tests/` (§6).
+- ~~`docs/MODS.md` documents `BB_MODS_*` for run.sh, which does not implement them~~ (fixed in
+  L4.1).
+- ~~`macos/test.sh` does not run the Python tests in `tests/`~~ (it does now, with the
+  launcher's).
 - Env overrides read by `BbSettings::Load` are written into the ini by the next Save.
 
 ## 9. Decision log
@@ -537,3 +587,12 @@ Found during the inventory (fix when the task touching the file comes up):
 - 2026-10-17 (user): online/co-op is not part of v1.0 and goes to the backlog (L7), after the
   inventory showed the network module is not built on macOS. Removed: phase "Online", spike
   L0.7, the online page in v1; phases after it renumbered (packaging is now L6, the backlog L7).
+- 2026-10-17 (orchestrator, L0/L1 evidence): no Xcode project — the app is a SwiftPM executable
+  assembled by `launcher/build.sh` (D2; reviewable files, String Catalogs compile with
+  `swift build`). Python runs with `-E -s -B`, not `-I` (D4). ps4-pkg-tools is the recommended
+  PKG tool, identified by name and usage text (no version flag) (D6). Per-character save export
+  is feasible (no checksums), import experimental until confirmed in the game (D11). Sparkle
+  2.10.0 via SwiftPM, the EdDSA key made with OpenSSL and read with `--ed-key-file`, no Keychain
+  (D13). The mod overlay feeds only `/app0` and `patches.py`; the image steps read the game's
+  own eboot so the prepared-image cache survives mods (D9, D10). `link_libc.py` left the run
+  path (L2.5): boot-linked.bin is byte-identical without it.

@@ -12,9 +12,13 @@ Build: `bash macos/build-deps.sh` (once), `bash macos/build.sh`; run: `bash maco
 `BB_PROFILE=m4air bash macos/run.sh` (960x540 scene, MetalFX to 1080p). Renderer: Metal by default
 on Apple silicon with macOS 15+, `BB_RENDERER=vulkan` for the Vulkan backend on MoltenVK (the
 reference). The repository is macOS only: the Linux build (top-level `build.sh`/`run.sh`,
-`shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17. A
-native macOS launcher ("Hunter's Lantern", SwiftUI, DMG) is planned in `docs/LAUNCHER_PLAN.md`
-(2026-10-17, no code yet).
+`shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17. The
+native macOS launcher "Hunter's Lantern" (SwiftUI, DMG, `launcher/`) was built the same day
+(`docs/LAUNCHER_PLAN.md`, its §8 is the state): L-M1 met, L-M2 partly (the clean-account run and
+the L-M3 acceptance are the user's), first release waiting for the Sparkle key secret.
+- run.sh changes from the launcher work (2026-10-17): `--print-env` dry run; the overlay's restart
+  exits 75 and run.sh loops (no more exec of run.sh from bb-probe on macOS); `link_libc.py` left
+  the run path; mods via `BB_MODS_DIR`/`BB_MODS_CONFIG`/`BB_MODS_ENABLED` (docs/MODS.md).
 
 ## State
 
