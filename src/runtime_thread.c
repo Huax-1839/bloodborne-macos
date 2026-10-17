@@ -79,6 +79,21 @@ size_t runtime_thread_guest_ids(uint64_t *out,size_t max) {
     return n;
 }
 
+/* Host pthreads, OS thread ids and names of the live game threads (BB_GUEST_PROFILE, runtime_profile.c);
+ * returns how many were stored (at most `max`). A pthread_t is stored as a uintptr_t. */
+size_t runtime_thread_guest_hosts(uintptr_t *hosts,uint64_t *tids,char (*names)[32],size_t max) {
+    size_t n=0;
+    pthread_mutex_lock(&lock);
+    for (GuestThread *t=threads;t && n<max;t=t->next)
+        if (t->tid && !t->finished && t->host) {
+            hosts[n]=(uintptr_t)t->host; tids[n]=t->tid;
+            snprintf(names[n],32,"%s",t->name);
+            ++n;
+        }
+    pthread_mutex_unlock(&lock);
+    return n;
+}
+
 void runtime_set_main_tls(const void *data,uint64_t filesz,uint64_t memsz,uint64_t align) {
     tls_template=data; tls_filesz=filesz; tls_memsz=memsz; tls_align=align ? align : 16;
 }
@@ -422,5 +437,6 @@ uintptr_t runtime_thread_resolve(const char *name) { (void)name; return 0; }
 void runtime_thread_report(void) {}
 void runtime_thread_attach_main(void) {}
 size_t runtime_thread_guest_ids(uint64_t *out,size_t max) { (void)out;(void)max; return 0; }
+size_t runtime_thread_guest_hosts(uintptr_t *h,uint64_t *t,char (*n)[32],size_t max) { (void)h;(void)t;(void)n;(void)max; return 0; }
 void runtime_set_main_tls(const void *d,uint64_t f,uint64_t m,uint64_t a) { (void)d;(void)f;(void)m;(void)a; }
 #endif

@@ -34,6 +34,7 @@ typedef struct { uint64_t target, kind, value, addend; } Reloc;
 static char (*names)[128];
 static uint64_t import_count;
 static unsigned char *image;
+static size_t image_size;
 static size_t page_size;
 typedef struct { uint64_t base, size, init, tls_address, tls_memsz, tls_filesz, tls_module; } LinkedModule;
 static LinkedModule modules[16];
@@ -383,6 +384,7 @@ static void start_game(const GameStart *start) {
         }
         runtime_set_main_tls(image+main_tls[0],main_tls[1],main_tls[2],main_tls[3]);
         runtime_thread_attach_main();
+        runtime_profile_start(image,image_size);
         runtime_set_procparam(image+procparam);
         /* Dependencies start in link order (libc first), as the PS4 dynamic linker does. */
         for (uint64_t m=0;m<module_count;++m) {
@@ -584,6 +586,7 @@ int main(int argc, char **argv) {
         }
     }
     image = allocate(round_page(size));
+    image_size = round_page(size);
     /* The GPU library's hooks and the patches address the image at 0x800000000. */
     if ((uintptr_t)image != UINT64_C(0x800000000))
         fprintf(stderr, "WARNING: the image is at %p, not at 0x800000000: game hooks will not match\n", (void *)image);

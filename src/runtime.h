@@ -120,4 +120,9 @@ void runtime_savedata_configure(const char *title);
 uintptr_t runtime_savedata_resolve(const char *name);
 void runtime_savedata_report(void);
 void runtime_thread_attach_host(const char *name);
+/* Live game threads: host pthread (as uintptr_t), OS thread id and name; returns the count. */
+size_t runtime_thread_guest_hosts(uintptr_t *hosts, uint64_t *tids, char (*names)[32], size_t max);
+/* BB_GUEST_PROFILE=<seconds> (runtime_profile.c): starts the guest program-counter sampler; call
+ * once the main thread is attached. `image` is the guest image, `size` its mapped size. */
+void runtime_profile_start(const void *image, size_t size);
 #endif
