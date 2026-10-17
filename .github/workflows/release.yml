@@ -47,6 +47,10 @@ jobs:
           key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
       - run: bash macos/build.sh
       - name: Tests (GPU library, launcher, Python)
+        # The runner is a virtual machine: its paravirtual GPU cannot create the Metal device's
+        # residency set, so the Metal tests run on real Macs only (macos/test.sh there).
+        env:
+          BB_TEST_SKIP: '^mtl-'
         run: bash macos/test.sh
       - name: Test logs
         if: failure()

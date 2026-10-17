@@ -5,7 +5,8 @@
 # prints one line per target. Needs a configured build (bash macos/build.sh). Exit 1 if any failed.
 # Without arguments it also runs the launcher's tests (launcher/test.sh, swift test) and the Python
 # tests in tests/ (test_game_check, test_patches, test_prepare, test_content, test_link_libc,
-# test_mods); with targets only those GPU targets run.
+# test_mods); with targets only those GPU targets run. BB_TEST_SKIP=<regex> skips the GPU targets
+# it matches (CI: '^mtl-', a virtual machine's paravirtual GPU cannot run the Metal tests).
 set -uo pipefail
 cd -- "$(dirname -- "$0")/.."
 out=macos/out/gpu
@@ -19,6 +20,9 @@ else
 fi
 failed=0
 for t in "${targets[@]}"; do
+    if [[ -n ${BB_TEST_SKIP:-} && $t =~ $BB_TEST_SKIP ]]; then
+        echo "skip $t (BB_TEST_SKIP)"; continue
+    fi
     if ! ninja -C "$out" "$t" > "$logs/$t.build.log" 2>&1; then
         echo "BUILD FAIL $t (see $logs/$t.build.log)"; failed=1; continue
     fi

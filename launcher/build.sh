@@ -90,6 +90,23 @@ for lproj in "$bin"/HuntersLantern_HuntersLantern.bundle/Contents/Resources/*.lp
 done
 shopt -u nullglob
 
+# Older toolchains (Xcode 26's swift build) copy String Catalogs instead of compiling them: compile
+# what SwiftPM left uncompiled, so a release built anywhere has its German strings.
+compile_catalogs() { # <target> <resources dir...>
+    local target=$1 catalog table dir; shift
+    for catalog in "$here/Sources/$target/Resources"/*.xcstrings; do
+        table=$(basename -- "$catalog" .xcstrings)
+        for dir in "$@"; do
+            [[ -f $dir/de.lproj/$table.strings ]] || xcrun xcstringstool compile "$catalog" --output-directory "$dir"
+            rm -f -- "$dir/$table.xcstrings"
+        done
+    done
+}
+compile_catalogs HuntersLantern "$app/Contents/Resources" \
+    "$app/Contents/Resources/HuntersLantern_HuntersLantern.bundle/Contents/Resources"
+compile_catalogs LanternCore "$app/Contents/Resources/HuntersLantern_LanternCore.bundle/Contents/Resources"
+[[ -f $app/Contents/Resources/de.lproj/Localizable.strings ]] || { echo "No German strings in the app." >&2; exit 1; }
+
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
