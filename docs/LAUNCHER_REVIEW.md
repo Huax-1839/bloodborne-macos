@@ -21,14 +21,19 @@ Batch A, data safety (first, each with a test):
   one-per-day retention was not done)
 
 Batch B, correctness and UX:
-- [ ] R3 PKG tool run on every redraw, on the main thread
-- [ ] R11 Stop does not stop a launch that is preparing
-- [ ] R10 a removed game comes back after its thorough check
-- [ ] R12 "Add game folder" does not find the app folder inside the chosen one
-- [ ] R14 stale import progress updates
-- [ ] R13 `FileHandle.write(_:)` crashes on a write error
-- [ ] R15 pipe handlers spin at end of output
-- [ ] R9 profile ini keys carry over to the next profile
+- [x] R3 PKG tool run on every redraw, on the main thread (`9e34e05`; the help run writes to a
+  file, not through `ProcessRunner`: a child of the tool could hold a pipe open past the kill)
+- [x] R11 Stop does not stop a launch that is preparing (`9e34e05`)
+- [x] R10 a removed game comes back after its thorough check (`9e34e05`; `GameLibrary.update`
+  no longer falls back to `add`)
+- [x] R12 "Add game folder" does not find the app folder inside the chosen one (`9e34e05`)
+- [x] R14 stale import progress updates (`9e34e05`; numbered per import, older ones dropped)
+- [x] R13 `FileHandle.write(_:)` crashes on a write error (`9e34e05`)
+- [x] R15 pipe handlers spin at end of output (`9e34e05`)
+- [x] R9 profile ini keys carry over to the next profile (`9e34e05`; every preset sets `upscaler`
+  and `preset`, Vanilla the game's fsr3/0; the optional removal of keys the last launch wrote
+  was not done. Changing the preset in the game now also makes a "(changed in game)" copy of
+  Air, Pro and Vanilla, as it already did for Max)
 
 Batch C, hardening before the first release tag:
 - [ ] R4 imported profiles can set any environment variable
