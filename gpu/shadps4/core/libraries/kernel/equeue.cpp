@@ -11,6 +11,7 @@
 #include <vector>
 #include <magic_enum/magic_enum.hpp>
 
+#include "bbport_thread_cpu.h"
 #include "common/assert.h"
 #include "common/debug.h"
 #include "common/logging/log.h"
@@ -283,6 +284,18 @@ int EqueueInternal::WaitForSmallTimer(OrbisKernelEvent* ev, int num, u32 micros)
     ASSERT(num >= 1);
 
     auto curr_clock = std::chrono::steady_clock::now();
+    // bbport: polling counters (BB_THREAD_CPU_LOG).
+    BbThreadCpu::poll.small_timer_calls.fetch_add(1, std::memory_order_relaxed);
+    struct PollTime {
+        std::chrono::steady_clock::time_point start;
+        ~PollTime() {
+            BbThreadCpu::poll.small_timer_ns.fetch_add(
+                static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                     std::chrono::steady_clock::now() - start)
+                                     .count()),
+                std::memory_order_relaxed);
+        }
+    } poll_time{curr_clock};
     const auto wait_end_us = (micros == 0) ? std::chrono::steady_clock::time_point::max()
                                            : curr_clock + std::chrono::microseconds{micros};
     int count = 0;
@@ -304,6 +317,7 @@ int EqueueInternal::WaitForSmallTimer(OrbisKernelEvent* ev, int num, u32 micros)
             if (count > 0)
                 return count;
         }
+        BbThreadCpu::poll.small_timer_yields.fetch_add(1, std::memory_order_relaxed);
         std::this_thread::yield();
     } while (curr_clock < wait_end_us);
 

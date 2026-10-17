@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "bbport_thread_cpu.h"
 #include "bbport_toggles.h"
 #include "common/thread.h"
 
@@ -91,6 +92,7 @@ public:
             if (task.run) {
                 RunAsync(task);
             } else {
+                BbThreadCpu::poll.copy_idle_yields.fetch_add(1, std::memory_order_relaxed);
                 std::this_thread::yield();
             }
         }
@@ -109,6 +111,7 @@ public:
         Work(*job);
         // Workers only call the task for indices below count, all done before this returns.
         while (job->done.load(std::memory_order_acquire) < count) {
+            BbThreadCpu::poll.copy_run_yields.fetch_add(1, std::memory_order_relaxed);
             std::this_thread::yield();
         }
         std::scoped_lock lk{mutex};

@@ -548,6 +548,16 @@ void VideoOutDriver::Flip(const Request& req) {
         }();
         if (frame_log) {
             static const auto log_start = now;
+            // bbport: wall-clock time of t_s = 0 (the frame log's first row), for joining it with
+            // the power and thread logs (BB_THREAD_CPU_LOG).
+            [[maybe_unused]] static const bool epoch_printed = [] {
+                const auto wall = std::chrono::system_clock::now() -
+                                  (std::chrono::steady_clock::now() - log_start);
+                std::printf("Frame log: t_s=0 at epoch %.3f\n",
+                            std::chrono::duration<double>(wall.time_since_epoch()).count());
+                std::fflush(stdout);
+                return true;
+            }();
             static u64 log_twf, log_tick, log_present, log_compiles, log_rf, log_preupload;
             static u64 log_alloc, log_free, log_camera_frames, log_gpu_busy, log_gnm_wait;
             static u64 log_rec_cycles, log_rec_gpu_wait, log_rec_replay_wait, log_tsc, log_tsc_ns, log_find;

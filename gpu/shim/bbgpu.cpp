@@ -8,6 +8,7 @@
 #include "bbport_copy.h"
 #include <sys/resource.h>
 #include "bbport_free_check.h"
+#include "bbport_thread_cpu.h"
 #include "bbport_toggles.h"
 #include <algorithm>
 #include <atomic>
@@ -269,6 +270,7 @@ extern "C" int bbgpu_init(const BbGpuConfig* config) {
 #ifdef BB_PGO_GENERATE
     StartProfileWriter();
 #endif
+    BbThreadCpu::Start();
     g_sdk_version = config->sdk_version;
     if (config->user_dir) setenv("BB_GPU_USER_DIR", config->user_dir, 0);
     Core::Emulator::FillElfInfo(*config);

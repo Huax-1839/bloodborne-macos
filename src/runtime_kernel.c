@@ -113,7 +113,21 @@ static _Atomic uint64_t sleep_calls, sleep_total_ns;
 void runtime_sleep_stats(uint64_t *calls, uint64_t *ns) {
     *calls=atomic_exchange(&sleep_calls,0); *ns=atomic_exchange(&sleep_total_ns,0);
 }
+/* bbport (BB_THREAD_CPU_LOG): cumulative polling counters for the thread log; relaxed, slow paths only. */
+_Atomic uint64_t runtime_guest_yields;          /* sched_yield/scePthreadYield calls by the game (runtime_thread.c) */
+static _Atomic uint64_t once_yields;            /* thread_once waiters yielding */
+static _Atomic uint64_t short_sleeps, short_sleep_ns; /* guest sleeps requested under 2 ms, and their summed request */
+void runtime_poll_counters(uint64_t out[4]) {
+    out[0]=atomic_load_explicit(&once_yields,memory_order_relaxed);
+    out[1]=atomic_load_explicit(&runtime_guest_yields,memory_order_relaxed);
+    out[2]=atomic_load_explicit(&short_sleeps,memory_order_relaxed);
+    out[3]=atomic_load_explicit(&short_sleep_ns,memory_order_relaxed);
+}
 static int sleep_ns(uint64_t ns) {
+    if (ns<2000000) {
+        atomic_fetch_add_explicit(&short_sleeps,1,memory_order_relaxed);
+        atomic_fetch_add_explicit(&short_sleep_ns,ns,memory_order_relaxed);
+    }
     struct timespec t={.tv_sec=(time_t)(ns/1000000000),.tv_nsec=(long)(ns%1000000000)}, a, b;
     clock_gettime(CLOCK_MONOTONIC,&a);
     int result=0;
@@ -159,7 +173,10 @@ static ABI int64_t posix_time(int64_t *out) { int64_t t=(int64_t)time(NULL); if 
 /* ---- process ---- */
 static ABI int32_t get_pagesize(void) { return PAGE; }
 static ABI int32_t get_pid(void) { return 1000; }
-static ABI int32_t yield(void) { sched_yield(); return 0; }
+static ABI int32_t yield(void) {
+    atomic_fetch_add_explicit(&runtime_guest_yields,1,memory_order_relaxed);
+    sched_yield(); return 0;
+}
 static ABI __attribute__((noreturn)) void hard_exit(int status) {
     printf("Runtime: guest requested _exit(%d)\n",status);
     runtime_report();
@@ -238,6 +255,7 @@ static ABI int32_t thread_once(int32_t *once,void (ABI *routine)(void)) {
             __atomic_store_n(once,1,__ATOMIC_RELEASE);
             return 0;
         }
+        atomic_fetch_add_explicit(&once_yields,1,memory_order_relaxed);
         sched_yield();
     }
 }
@@ -315,6 +333,7 @@ static const RuntimeExport exports[]={
 uintptr_t runtime_kernel_resolve(const char *name) { return RUNTIME_LOOKUP(exports,name); }
 #else
 uintptr_t runtime_kernel_resolve(const char *name) { (void)name; return 0; }
+void runtime_poll_counters(uint64_t out[4]) { out[0]=out[1]=out[2]=out[3]=0; }
 int32_t runtime_guest_errno(int e) { return e ? 5 : 0; }
 void runtime_thread_keys_cleanup(void) {}
 #endif

@@ -4,6 +4,7 @@
  * keeps FS. Priorities/affinity are recorded, not enforced by a PS4 scheduler. */
 #define _GNU_SOURCE
 #include "runtime.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +42,7 @@ typedef struct GuestThread {
     void *argument, *result;
     ThreadAttr attr;
     char name[32];
+    uint64_t tid; /* OS thread id while this is a live game thread (BB_THREAD_CPU_LOG); 0 otherwise */
     int detached, finished, joined, host_owned;
     jmp_buf exit_jump;
     struct GuestThread *next;
@@ -54,6 +56,28 @@ static _Thread_local int32_t guest_errno;
 static const unsigned char *tls_template;
 static uint64_t tls_filesz, tls_memsz, tls_align=16;
 static size_t created, joined_count, exited;
+extern _Atomic uint64_t runtime_guest_yields; /* runtime_kernel.c */
+static uint64_t os_thread_id(void) {
+#ifdef __APPLE__
+    uint64_t id=0; pthread_threadid_np(NULL,&id); return id;
+#else
+    return (uint64_t)syscall(SYS_gettid);
+#endif
+}
+/* Marks the calling thread as a game thread for the GPU library's per-thread CPU log. */
+static void register_guest(GuestThread *t) {
+    uint64_t id=os_thread_id();
+    pthread_mutex_lock(&lock); t->tid=id; pthread_mutex_unlock(&lock);
+}
+/* OS thread ids of the live game threads (those created by the game or the runtime, and the one
+ * that runs the game's entry); returns how many were stored (at most `max`). */
+size_t runtime_thread_guest_ids(uint64_t *out,size_t max) {
+    size_t n=0;
+    pthread_mutex_lock(&lock);
+    for (GuestThread *t=threads;t && n<max;t=t->next) if (t->tid && !t->finished) out[n++]=t->tid;
+    pthread_mutex_unlock(&lock);
+    return n;
+}
 
 void runtime_set_main_tls(const void *data,uint64_t filesz,uint64_t memsz,uint64_t align) {
     tls_template=data; tls_filesz=filesz; tls_memsz=memsz; tls_align=align ? align : 16;
@@ -124,9 +148,12 @@ void runtime_thread_attach_host(const char *name) {
     GuestThread *t=runtime_thread_current();
     snprintf(t->name,sizeof(t->name),"%s",name ? name : "host");
 }
+static void set_host_name(const char *name);
 void runtime_thread_attach_main(void) {
     GuestThread *t=runtime_thread_current();
     snprintf(t->name,sizeof(t->name),"main");
+    register_guest(t);
+    set_host_name(t->name); /* named in the per-thread CPU log (BB_THREAD_CPU_LOG) */
 }
 static GuestThread *find_thread(void *handle) {
     GuestThread *found=NULL;
@@ -241,6 +268,7 @@ static void set_host_name(const char *name) {
 static void *host_start(void *p) {
     GuestThread *t=p;
     attach(t);
+    register_guest(t);
     set_host_name(t->name);
     if (!setjmp(t->exit_jump)) t->result=t->entry(t->argument);
     runtime_thread_keys_cleanup();
@@ -304,7 +332,10 @@ static ABI __attribute__((noreturn)) void thread_exit(void *value) {
     /* No host unwinder: guest frames have no registered FDEs. */
     longjmp(t->exit_jump,1);
 }
-static ABI int32_t thread_yield(void) { sched_yield(); return 0; }
+static ABI int32_t thread_yield(void) {
+    atomic_fetch_add_explicit(&runtime_guest_yields,1,memory_order_relaxed);
+    sched_yield(); return 0;
+}
 static ABI int32_t thread_get_prio(GuestThread *t,int *prio) {
     if (!find_thread(t)) return ERR(3);
     if (!prio) return ERR(22);
@@ -390,5 +421,6 @@ void runtime_thread_report(void) {
 uintptr_t runtime_thread_resolve(const char *name) { (void)name; return 0; }
 void runtime_thread_report(void) {}
 void runtime_thread_attach_main(void) {}
+size_t runtime_thread_guest_ids(uint64_t *out,size_t max) { (void)out;(void)max; return 0; }
 void runtime_set_main_tls(const void *d,uint64_t f,uint64_t m,uint64_t a) { (void)d;(void)f;(void)m;(void)a; }
 #endif

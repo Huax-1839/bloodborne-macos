@@ -323,6 +323,10 @@ add_executable(settings-test EXCLUDE_FROM_ALL ../tests/test_settings.cpp shim/bb
 target_compile_options(settings-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 target_include_directories(settings-test PRIVATE .. shim)
 
+add_executable(thread-cpu-test EXCLUDE_FROM_ALL ../tests/test_thread_cpu.cpp)
+target_compile_options(thread-cpu-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+target_include_directories(thread-cpu-test PRIVATE shim)
+
 if (APPLE)
     # bbport: index expansion for topologies Metal lacks (renderer_metal/mtl_index_expand, P4.3d);
     # plain C++, no Metal device.
