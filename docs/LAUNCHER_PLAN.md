@@ -490,6 +490,9 @@ decisions in §9 are fixed.
    in-process and quits; `LANTERN_SNAPSHOT_PAGES=home,game`), `LANTERN_AUTOPLAY=1` (presses Play),
    `LANTERN_IMPORT_BASE/UPDATE` (runs an import). Screen capture does not work from the agent
    shell; the snapshots do.
+3. Code review 2026-10-18: `docs/LAUNCHER_REVIEW.md` lists 20 findings (R1–R20) with fixes and
+   tests, in batches. Fix batch A (data safety, R1 backup restore first) before anything else,
+   and batch C before the first tag; tick each finding off there with its commit.
 
 Results (2026-10-17):
 - **L0.1** `run.sh --print-env`; the overlay's restart exits 75 and run.sh starts the game again
