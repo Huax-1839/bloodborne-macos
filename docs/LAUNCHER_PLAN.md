@@ -14,14 +14,16 @@ launcher code existed, and is expected to change with the spikes of L0.
 - the milestones L-M1–L-M3 (§1) and what v1 contains (§1 table);
 - the decisions the user made on 2026-10-17 (§9): public `.app` in a DMG built by GitHub Actions,
   SwiftUI, Apple silicon with macOS 14+, the three import paths, the settings split with the
-  in-game menu, profiles as complete packages, local mods only, the home page + sidebar layout,
-  the name;
+  in-game menu, profiles as complete packages, local mods only, the name; and the visual design
+  of 2026-10-19 (`docs/LAUNCHER_DESIGN.md`: one fixed 960 × 600 window in Victorian gothic,
+  its tokens and states), which replaced the home page + sidebar layout;
 - **no PKG decryption code and no keys in this repository or in the app**: PKGs go through an
   external tool the user installs (D6);
 - **no Sony/FromSoftware artwork, logos or game files in the repository or the app**: artwork
   comes from the user's own game (`sce_sys`), and "Bloodborne" is not part of the app's name;
-- new third-party dependencies other than Sparkle and python-build-standalone (the latter only
-  until the Swift port, L7, removes it);
+- new third-party dependencies other than Sparkle, python-build-standalone (the latter only
+  until the Swift port, L7, removes it) and the four OFL fonts of `docs/LAUNCHER_DESIGN.md`
+  (Cormorant Garamond, IM Fell English SC, EB Garamond, JetBrains Mono; approved 2026-10-19);
 - `macos/run.sh` and `macos/bench/*` keep working as the developer path: the launcher is an
   additional front end, not a replacement for them;
 - the renderer and runtime stay launcher-agnostic: shared-code changes needed for the launcher
@@ -60,7 +62,7 @@ v1 feature set (decided with the user):
 | Saves | automatic backup before each start with rotation, named snapshots, restore, export/import |
 | Updates | Sparkle 2 with EdDSA, appcast from GitHub Releases |
 | Diagnostics | log viewer, last crash, open logs folder, copy system info |
-| UI | German and English; home page with the game's own artwork and a Play button, sidebar settings |
+| UI | German and English; one fixed window in the design of `docs/LAUNCHER_DESIGN.md` (main action, register, settings column), further pages as sheets |
 
 ## 2. Starting point (inventory 2026-10-17)
 
@@ -334,6 +336,8 @@ v1 feature set (decided with the user):
 - **Warnings**: battery power, Low Power Mode, a high thermal state.
 
 **D17 Artwork.**
+- Since 2026-10-19 (§9) the home page shows no game artwork (`docs/LAUNCHER_DESIGN.md` forbids
+  pictures); the points below describe the layout before that and stay for the library code.
 - The home page shows `sce_sys/pic1.png` (background) and `icon0.png` (cover) from the user's
   imported game, read at run time and never copied into the repository or the app.
 - Before a game is imported, a neutral placeholder is shown.
@@ -620,3 +624,10 @@ Found during the inventory (fix when the task touching the file comes up):
   device creation, so the window sets it in-process (unless the user set it) and
   `developerHUDProperties` (`mode` default/disabled) show and hide it; Dear ImGui and the DejaVu
   fonts left the build and the repository.
+- 2026-10-19 (user): new visual design, `docs/LAUNCHER_DESIGN.md`, after mock-ups of a
+  console-style home, four launcher patterns and a reworked library page were rejected as too
+  generic. One fixed 960 × 600 window in Victorian gothic replaces the home page + sidebar
+  layout (a fixed point, changed by the user); choices are register entries, not pop-up menus;
+  no game artwork on the home page (D17); the four fonts are bundled (OFL, approved as a new
+  dependency); implementation stays SwiftUI (D2); pages that do not fit the window become sheets
+  in the same style. The implementation phase is planned when it starts.
