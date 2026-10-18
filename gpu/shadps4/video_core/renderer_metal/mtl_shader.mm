@@ -815,12 +815,14 @@ std::string FirstMetalError(const std::string& text) {
 
 /// `relaxed_math`: MTLMathModeRelaxed instead of Safe (macOS 15 and later; below it the library is
 /// always built without fast math). mathFloatingPointFunctions stays at its default (Fast).
+/// `preserve_invariance`: honour `[[position, invariant]]` (ReadRelaxedVertex).
 MetalObjects BuildLibrary(id<MTLDevice> device, const std::string& msl, const std::string& entry,
-                          std::string_view label, bool relaxed_math) {
+                          std::string_view label, bool relaxed_math, bool preserve_invariance) {
     MetalObjects objects{};
     @autoreleasepool {
         MTLCompileOptions* options = [MTLCompileOptions new];
         options.languageVersion = MTLLanguageVersion3_1;
+        options.preserveInvariance = preserve_invariance;
         if (@available(macOS 15.0, *)) {
             options.mathMode = relaxed_math ? MTLMathModeRelaxed : MTLMathModeSafe;
         } else {
@@ -937,6 +939,16 @@ FloatRules ReadFloatRules() {
                         : relaxed_math ? FloatRules::RelaxedMath : FloatRules::NoContraction;
     }();
     return rules;
+}
+
+bool ReadRelaxedVertex() {
+    // Default on (P13.1, Central Yharnam): GPU busy a frame 21.2 -> 14.6 ms at 540p, G-buffer
+    // vertex time 12.6 -> 4.6 ms; images, temporal residuals and validation as with it off.
+    static const bool relaxed = [] {
+        const char* env = std::getenv("BB_MTL_RELAX_VERTEX");
+        return !(env && env[0] == '0') && ReadFloatRules() != FloatRules::Strict;
+    }();
+    return relaxed;
 }
 
 ShaderCompiler::ShaderCompiler(Device& device_, std::filesystem::path cache_dir_, FloatRules rules_)
@@ -1087,6 +1099,10 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
                               (scan.stage == ShaderStage::Compute ||
                                (scan.stage == ShaderStage::Fragment && !scan.depth_replacing));
 
+    // The MSL cache file is named after the SPIR-V hash and the relaxed vertex shaders have other
+    // SPIR-V (no NoContraction, Invariant position), so the switch never meets a foreign entry.
+    const bool preserve_invariance = scan.stage == ShaderStage::Vertex && ReadRelaxedVertex();
+
     MetalObjects objects{};
     std::string msl;
     bool cached = false;
@@ -1096,7 +1112,8 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
             CompiledShader parsed;
             std::string cached_msl;
             if (ParseCache(text, parsed, cached_msl) && parsed.stage == scan.stage) {
-                objects = BuildLibrary(mtl_device, cached_msl, parsed.entry, label, relaxed_math);
+                objects = BuildLibrary(mtl_device, cached_msl, parsed.entry, label, relaxed_math,
+                                       preserve_invariance);
                 if (objects.error.empty()) {
                     shader->entry = std::move(parsed.entry);
                     shader->bindings = std::move(parsed.bindings);
@@ -1138,7 +1155,8 @@ CompileResult ShaderCompiler::Compile(std::span<const u32> spirv, u64 hash, std:
         } catch (const std::exception& e) {
             return fail(CompileStatus::Failed, "SPIRV-Cross: " + FirstLine(e.what()));
         }
-        objects = BuildLibrary(mtl_device, msl, shader->entry, label, relaxed_math);
+        objects = BuildLibrary(mtl_device, msl, shader->entry, label, relaxed_math,
+                               preserve_invariance);
         if (!objects.error.empty()) {
             return fail(CompileStatus::Failed, objects.error);
         }

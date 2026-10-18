@@ -585,6 +585,12 @@ void EmitContext::DefineVertexBlock() {
     const std::array<Id, 8> zero{f32_zero_value, f32_zero_value, f32_zero_value, f32_zero_value,
                                  f32_zero_value, f32_zero_value, f32_zero_value, f32_zero_value};
     output_position = DefineVariable(F32[4], spv::BuiltIn::Position, spv::StorageClass::Output);
+    // bbport (Metal): relaxed vertex shaders (KeepsStrictFloat in emit_spirv_floating_point.cpp,
+    // same condition) keep their position bit-identical across shaders through invariance.
+    if (profile.relaxed_fragment_compute_float && profile.relaxed_vertex_float &&
+        sw_stage == SwStage::Vertex && hw_stage == HwStage::Vertex) {
+        Decorate(output_position, spv::Decoration::Invariant);
+    }
     const bool needs_clip_distance_emulation = sw_stage == SwStage::Vertex &&
                                                hw_stage == HwStage::Vertex &&
                                                profile.needs_clip_distance_emulation;

@@ -97,6 +97,11 @@ const char* FloatRulesName(FloatRules rules);
 /// BB_MTL_STRICT_FLOAT (1: V0, 0: V1 or V2) and BB_MTL_RELAXED_MATH (0: V1, 1: V2); read once.
 /// Default V1.
 FloatRules ReadFloatRules();
+/// BB_MTL_RELAX_VERTEX (default on, =0 off; read once, ignored for FloatRules::Strict; P13.1):
+/// the game's hardware vertex shaders are emitted without NoContraction as well, their position
+/// output is Invariant and their libraries are built with preserveInvariance, so depth-equal
+/// passes still compute identical positions. Tessellation, geometry, ES/LS stay strict.
+bool ReadRelaxedVertex();
 
 /// How a stage is compiled. Plain is the direct pipeline (vertex function, fragment function,
 /// compute kernel); the others are the stages of a tessellated draw, the way MoltenVK builds them

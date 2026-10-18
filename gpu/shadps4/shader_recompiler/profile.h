@@ -64,6 +64,12 @@ struct Profile {
     /// geometry) and depth exports keep it. The Vulkan backend never sets it. Keep it the last
     /// member: the pipeline cache's profile.bin accepts the layout without it (WarmUp).
     bool relaxed_fragment_compute_float{};
+    /// bbport (Metal, BB_MTL_RELAX_VERTEX): additionally the hardware vertex shaders that feed the
+    /// rasterizer directly lose NoContraction, and their Position output is decorated Invariant
+    /// (SPIRV-Cross: [[position, invariant]]; the Metal library needs preserveInvariance) so that
+    /// depth-equal passes still get identical bits. Only meaningful together with
+    /// relaxed_fragment_compute_float. Sits in the padding after it, sizeof(Profile) is unchanged.
+    bool relaxed_vertex_float{};
 
     bool operator==(const Profile&) const = default;
 };

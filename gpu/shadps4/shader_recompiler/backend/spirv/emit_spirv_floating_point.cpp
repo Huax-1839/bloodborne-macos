@@ -10,9 +10,19 @@ namespace Shader::Backend::SPIRV {
 // shaders without depth export and of compute shaders may be contracted. Positions stay strict:
 // depth-equal passes recompute them in different shaders and must get bit-identical results, and
 // a depth export feeds the same comparison.
+//
+// With Profile::relaxed_vertex_float the hardware vertex shaders are relaxed as well. That is the
+// one stage pair (sw Vertex on hw Vertex) whose output goes to the rasterizer unchanged: a vertex
+// shader feeding geometry shader emulation runs as ES, one feeding tessellation as LS, and the
+// tessellation evaluation / geometry stages have their own sw stages; all of them stay strict.
+// Their Position is Invariant (DefineVertexBlock, same condition) instead.
 static bool KeepsStrictFloat(const EmitContext& ctx) {
     if (!ctx.profile.relaxed_fragment_compute_float) {
         return true;
+    }
+    if (ctx.profile.relaxed_vertex_float && ctx.sw_stage == SwStage::Vertex &&
+        ctx.hw_stage == HwStage::Vertex) {
+        return false;
     }
     return !(ctx.sw_stage == SwStage::Compute ||
              (ctx.sw_stage == SwStage::Fragment && !ctx.info.stores.GetAny(IR::Attribute::Depth)));

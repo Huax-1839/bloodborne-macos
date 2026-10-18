@@ -245,6 +245,8 @@ Shader::Profile MakeShaderProfile(Device& device, const VideoCore::BackendLimits
         // P9.1: V1 and V2 emit game fragment/compute shaders without NoContraction; part of the
         // profile, so the disk cache of those rules never meets a strict one.
         .relaxed_fragment_compute_float = ReadFloatRules() != FloatRules::Strict,
+        // P13.1 (BB_MTL_RELAX_VERTEX=0 off): hardware vertex shaders relaxed too, Position Invariant.
+        .relaxed_vertex_float = ReadRelaxedVertex(),
     };
 }
 
@@ -313,17 +315,32 @@ bool GraphicsSerialization::Deserialize(Serialization::Archive& ar) {
     return true;
 }
 
+// The binary archive of relaxed vertex shaders (functions built with preserveInvariance) lives in
+// a subfolder of the MSL cache, so it never serves or receives other pipelines.
+static std::filesystem::path PsoCacheDir(std::filesystem::path msl_cache_dir) {
+    if (!ReadRelaxedVertex()) {
+        return msl_cache_dir;
+    }
+    if (msl_cache_dir.empty()) {
+        msl_cache_dir = ShaderCompiler::DefaultCacheDir();
+    }
+    return msl_cache_dir / "relaxed-vs";
+}
+
 PipelineCache::PipelineCache(Device& device_, const VideoCore::BackendLimits& limits,
                              AmdGpu::Liverpool* liverpool_, u32 sparse_page_shift,
                              std::filesystem::path msl_cache_dir)
     : PipelineCacheCore{liverpool_, MakeShaderProfile(device_, limits), MakePipelineCapabilities(),
                         sparse_page_shift,
                         // V1 and V2 share their SPIR-V; V0 keeps the cache it always had.
-                        ReadFloatRules() == FloatRules::Strict ? "metal" : "metal-relaxed"},
+                        ReadFloatRules() == FloatRules::Strict
+                            ? "metal"
+                            : ReadRelaxedVertex() ? "metal-relaxed-vs" : "metal-relaxed"},
       device{device_}, compiler{device_, msl_cache_dir, ReadFloatRules()},
-      pso_cache{device_, msl_cache_dir, ReadFloatRules() == FloatRules::RelaxedMath},
+      pso_cache{device_, PsoCacheDir(msl_cache_dir), ReadFloatRules() == FloatRules::RelaxedMath},
       pass_through{device_} {
-    std::printf("GPU: Metal float rules %s\n", FloatRulesName(ReadFloatRules()));
+    std::printf("GPU: Metal float rules %s%s\n", FloatRulesName(ReadFloatRules()),
+                ReadRelaxedVertex() ? " + relaxed vertex (invariant position)" : "");
     if (const u32 threads = CompileThreads()) {
         pool = std::make_unique<CompilePool>(threads);
         defer_builds = DeferPsoEnabled();
