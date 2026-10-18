@@ -32,6 +32,15 @@ final class DataDirsTests: ImportTestCase {
         XCTAssertEqual(DataDirs(root: dir.appendingPathComponent("missing")).removeLeftovers(), [])
     }
 
+    func testInstanceLockIsHeldByOneLauncherAtATime() throws {
+        let dirs = DataDirs(root: dir.appendingPathComponent("data"))
+        let first = try XCTUnwrap(dirs.acquireInstanceLock())
+        XCTAssertNil(dirs.acquireInstanceLock())
+        first.release()
+        let again = try XCTUnwrap(dirs.acquireInstanceLock())
+        again.release()
+    }
+
     func testPreparedFolderIsOnlyRemovedWhenNoOtherGameUsesIt() throws {
         let dirs = DataDirs(root: dir.appendingPathComponent("data"))
         var library = GameLibrary(file: dirs.gamesFile)

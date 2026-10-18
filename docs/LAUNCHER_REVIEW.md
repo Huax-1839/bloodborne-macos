@@ -58,6 +58,16 @@ Cleanup:
 - [x] R19 two sources for the launch environment (`733842a`; the game and the pipeline inherit
   the launcher's environment without BB_/MVK_/ROSETTA_)
 
+Follow-up review of the fixes (2026-10-18, `648ac34..b3448ae`; R1–R20 checked against their
+findings, tests and `build.sh --dev` green). Two new findings, fixed together:
+- [x] N1 a second launcher on the data folder deleted the first one's running import: the start
+  cleanup (`DataDirs.removeLeftovers`, R5) ran in every instance. Now only the instance holding
+  `run/launcher.lock` (`DataDirs.acquireInstanceLock`, held for the app's lifetime) cleans up;
+  checked with a snapshot run while another process held the lock (leftover kept) and without
+  (leftover removed).
+- [x] N2 the start-up note about files kept aside said "readable games were taken from them" also
+  when games.json was not among them.
+
 Ruled out during the review (no action):
 - ZIP path traversal in mod and save imports: `ditto -x -k` keeps `../` entries inside the target
   folder and writes symlink entries as regular files (tested with crafted archives).

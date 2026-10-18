@@ -30,6 +30,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var importStatus: (text: String, fraction: Double?)?
 
     private var launcher: Launcher?
+    /// Held for the app's lifetime: only the first launcher on the data folder cleans up at start.
+    private let instanceLock: GameLock?
 
     init() {
         runtime = Result { try Runtime.locate() }
@@ -37,12 +39,16 @@ final class AppModel: ObservableObject {
         profiles = ProfileStore(dir: dirs.profilesDir)
         var setAside: [URL] = []
         state = LauncherState.load(dirs.stateFile, setAside: &setAside)
+        instanceLock = dirs.acquireInstanceLock()
         setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
         try? dirs.create()
-        dirs.removeLeftovers()
+        // Another launcher on this data folder may be importing: its scratch folders stay.
+        if instanceLock != nil { dirs.removeLeftovers() }
         if !setAside.isEmpty {
             let names = setAside.map(\.lastPathComponent).joined(separator: "\n")
-            errorMessage = String(localized: "These launcher files could not be read and were kept aside in the data folder (readable games were taken from them):\n\(names)")
+            errorMessage = library.setAside != nil
+                ? String(localized: "These launcher files could not be read and were kept aside in the data folder (readable games were taken from them):\n\(names)")
+                : String(localized: "These launcher files could not be read and were kept aside in the data folder:\n\(names)")
         }
     }
 

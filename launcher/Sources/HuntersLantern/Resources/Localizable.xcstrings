@@ -1651,6 +1651,16 @@
         }
       }
     },
+    "These launcher files could not be read and were kept aside in the data folder:\n%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Dateien des Launchers ließen sich nicht lesen und wurden im Datenordner beiseitegelegt:\n%@"
+          }
+        }
+      }
+    },
     "These launcher files could not be read and were kept aside in the data folder (readable games were taken from them):\n%@": {
       "localizations": {
         "de": {

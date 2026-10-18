@@ -47,6 +47,17 @@ public struct DataDirs: Sendable, Equatable {
     /// Lock file held while a game runs (one instance at a time, D8).
     public var lockFile: URL { root.appendingPathComponent("game.lock") }
 
+    /// Lock file held by a running launcher on this data folder.
+    public var instanceLockFile: URL { runDir.appendingPathComponent("launcher.lock") }
+
+    /// Takes the launcher's instance lock without blocking; nil when another launcher holds it.
+    /// The first launcher on a data folder cleans up (`removeLeftovers`); a second one (the DMG
+    /// copy next to the one in /Applications) must not delete the first one's running scratch
+    /// folders, so it only cleans up when it got the lock.
+    public func acquireInstanceLock() -> GameLock? {
+        try? GameLock.acquire(instanceLockFile)
+    }
+
     private func dir(_ name: String) -> URL { root.appendingPathComponent(name, isDirectory: true) }
 
     /// The save roots: the shared one and the per-profile ones that exist.
