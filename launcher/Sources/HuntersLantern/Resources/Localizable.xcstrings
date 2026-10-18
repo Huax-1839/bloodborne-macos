@@ -2450,6 +2450,36 @@
           }
         }
       }
+    },
+    "Delete and Keep Its Saves": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen, Spielstände behalten"
+          }
+        }
+      }
+    },
+    "Delete and Move Its Saves to the Trash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen, Spielstände in den Papierkorb"
+          }
+        }
+      }
+    },
+    "This profile has its own saves. If you keep them, they stay in the data folder (%@), but no profile shows them any more.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Profil hat eigene Spielstände. Wenn du sie behältst, bleiben sie im Datenordner (%@), aber kein Profil zeigt sie mehr an."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

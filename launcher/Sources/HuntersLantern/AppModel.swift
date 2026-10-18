@@ -228,8 +228,23 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func deleteProfile(_ profile: Profile) {
-        try? profiles.delete(profile.id)
+    /// The profile's own saves and their backups (D11), when there are any on disk.
+    func ownSaveFolders(_ profile: Profile) -> [URL] {
+        [dirs.profileUserDir(profile.id), dirs.backupsDir.appendingPathComponent(profile.id, isDirectory: true)]
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    /// Deletes a user profile; its own saves and their backups stay in the data folder, or go to
+    /// the Trash with `trashingSaves` (R17).
+    func deleteProfile(_ profile: Profile, trashingSaves: Bool = false) {
+        do {
+            if trashingSaves {
+                for folder in ownSaveFolders(profile) { try FileManager.default.trashItem(at: folder, resultingItemURL: nil) }
+            }
+            try profiles.delete(profile.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         if state.activeProfile == profile.id { state.activeProfile = Profile.air.id }
     }
 

@@ -29,10 +29,21 @@ struct ProfilesView: View {
             }
         }
         .confirmationDialog("Delete the profile “\(model.activeProfile.name)”?", isPresented: $deleting, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { model.deleteProfile(model.activeProfile) }
+            if model.ownSaveFolders(model.activeProfile).isEmpty {
+                Button("Delete", role: .destructive) { model.deleteProfile(model.activeProfile) }
+            } else {
+                Button("Delete and Keep Its Saves") { model.deleteProfile(model.activeProfile) }
+                Button("Delete and Move Its Saves to the Trash", role: .destructive) {
+                    model.deleteProfile(model.activeProfile, trashingSaves: true)
+                }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This cannot be undone.")
+            if let saves = model.ownSaveFolders(model.activeProfile).first {
+                Text("This profile has its own saves. If you keep them, they stay in the data folder (\(saves.path)), but no profile shows them any more.")
+            } else {
+                Text("This cannot be undone.")
+            }
         }
         .confirmationDialog("Import the profile “\(model.pendingImport?.profile.name ?? "")”?", isPresented: importing,
                             titleVisibility: .visible, presenting: model.pendingImport) { pending in
