@@ -210,28 +210,23 @@ void runtime_memory_trap(uintptr_t address, uint64_t size, unsigned reason, int 
 unsigned runtime_memory_trap_reasons(uintptr_t address);
 static sigjmp_buf trap_jump;
 static void trap_fault(int sig) { (void)sig; siglongjmp(trap_jump,1); }
-static int write_faults(volatile unsigned char *p) {
-    struct sigaction action={0}, old;
+/* A protection fault is SIGSEGV on Linux, SIGBUS on macOS: both are caught. */
+static int access_faults(volatile unsigned char *p, int write) {
+    struct sigaction action={0}, old_segv, old_bus;
     action.sa_handler=trap_fault;
     sigemptyset(&action.sa_mask);
-    sigaction(SIGSEGV,&action,&old);
+    sigaction(SIGSEGV,&action,&old_segv);
+    sigaction(SIGBUS,&action,&old_bus);
     int faulted=0;
     if (sigsetjmp(trap_jump,1)) faulted=1;
-    else *p=0x5a;
-    sigaction(SIGSEGV,&old,NULL);
-    return faulted;
-}
-static int read_faults(volatile unsigned char *p) {
-    struct sigaction action={0}, old;
-    action.sa_handler=trap_fault;
-    sigemptyset(&action.sa_mask);
-    sigaction(SIGSEGV,&action,&old);
-    int faulted=0;
-    if (sigsetjmp(trap_jump,1)) faulted=1;
+    else if (write) *p=0x5a;
     else (void)*p;
-    sigaction(SIGSEGV,&old,NULL);
+    sigaction(SIGSEGV,&old_segv,NULL);
+    sigaction(SIGBUS,&old_bus,NULL);
     return faulted;
 }
+static int write_faults(volatile unsigned char *p) { return access_faults(p,1); }
+static int read_faults(volatile unsigned char *p) { return access_faults(p,0); }
 typedef int32_t (ABI *Protect)(const void *, uint64_t, int);
 static void write_traps(void) {
     Allocate alloc=GET(Allocate,"rTXw65xmLIA#p#J");
@@ -319,6 +314,27 @@ static void rw_lifecycle(void) {
     lock=(void *)(uintptr_t)0xdead;
     assert((uint32_t)rw_tryread(&lock)==0x80020016);
 }
+#ifdef __APPLE__
+/* macOS has no pthread barriers: the two-thread rendezvous the fixtures need. */
+#define PTHREAD_BARRIER_SERIAL_THREAD (-1)
+typedef struct { pthread_mutex_t m; pthread_cond_t c; unsigned count, waiting, round; } pthread_barrier_t;
+static int pthread_barrier_init(pthread_barrier_t *b, const void *attr, unsigned count) {
+    (void)attr; b->count=count; b->waiting=0; b->round=0;
+    return pthread_mutex_init(&b->m,NULL) || pthread_cond_init(&b->c,NULL);
+}
+static int pthread_barrier_wait(pthread_barrier_t *b) {
+    pthread_mutex_lock(&b->m);
+    const unsigned round=b->round;
+    int serial=0;
+    if (++b->waiting==b->count) { b->waiting=0; ++b->round; serial=1; pthread_cond_broadcast(&b->c); }
+    else while (round==b->round) pthread_cond_wait(&b->c,&b->m);
+    pthread_mutex_unlock(&b->m);
+    return serial ? PTHREAD_BARRIER_SERIAL_THREAD : 0;
+}
+static int pthread_barrier_destroy(pthread_barrier_t *b) {
+    return pthread_cond_destroy(&b->c) || pthread_mutex_destroy(&b->m);
+}
+#endif
 typedef struct {
     void *lock;
     pthread_barrier_t ready, release, writer_ready;

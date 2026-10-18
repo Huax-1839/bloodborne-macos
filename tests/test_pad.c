@@ -3,8 +3,8 @@
 #include <unistd.h>
 #include "../src/runtime_pad.c"
 
-static int capture;
-int bbgpu_overlay_captures_input(void) { return capture; }
+static int text_input;
+int bbgpu_text_input_active(void) { return text_input; }
 void bbgpu_mouse_take(double *dx, double *dy, int *up, int *down) { *dx=*dy=0; *up=*down=0; }
 int bbgpu_mouse_captured(void) { return 0; }
 void bbgpu_mouse_look_enable(int enabled) { (void)enabled; }
@@ -78,9 +78,9 @@ int main(void) {
     assert(gamepad && data.touch_count==2 && (data.buttons & BTN_TOUCHPAD));
     assert(data.touches[0].x==1439 && data.touches[0].y==471 && data.touches[0].id==2);
     assert(data.touches[1].x==480 && data.touches[1].y==942 && data.touches[1].id==3);
-    capture=1;
+    text_input=1;
     assert(pad_read_state(1,&data)==0 && data.touch_count==0 && data.buttons==0);
-    capture=0;
+    text_input=0;
     assert(SDL_SetJoystickVirtualTouchpad(joystick,0,0,false,0,0,0));
     assert(SDL_SetJoystickVirtualTouchpad(joystick,0,1,false,0,0,0));
     SDL_UpdateJoysticks();
@@ -125,5 +125,5 @@ int main(void) {
     assert(!mouse_key_down(MOUSE_WHEEL_DOWN));
     mouse_wheel_step(1140000,0,0);
     assert(mouse_key_down(MOUSE_WHEEL_DOWN) && wheel_pending[1]==0);
-    puts("PASS: pad ABI, debug camera chord, left/right clicks, SDL touch coordinates, overlay capture, controls, mouse");
+    puts("PASS: pad ABI, debug camera chord, left/right clicks, SDL touch coordinates, text dialog input, controls, mouse");
 }

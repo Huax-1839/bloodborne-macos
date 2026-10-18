@@ -1,12 +1,12 @@
 """Boundary tests for the native loader; uses tiny synthetic x86-64 images."""
-from paths import ROOT
+from paths import OUT
 from pathlib import Path
 import struct
 import subprocess
 import tempfile
 import unittest
 
-EXE = ROOT / 'out/bb-probe'
+EXE = OUT/'bb-probe'
 
 
 def package(code, relocs=(), names=(), capabilities=None):
@@ -33,7 +33,7 @@ def native_package(name='fixture-native', binding_address=4112, binding_kind=1,
             + struct.pack('<8Q',32,1,0,0,40,1,1,0) + image)
 
 
-@unittest.skipUnless(EXE.exists(), 'build native probe first')
+@unittest.skipUnless(EXE.exists(), 'run bash macos/build.sh first')
 class LoaderTests(unittest.TestCase):
     def test_invalid_content_profile_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

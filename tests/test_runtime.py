@@ -1,12 +1,12 @@
-from paths import ROOT
+from paths import OUT
 from pathlib import Path
 import subprocess
 import unittest
 
-EXE = ROOT / 'out/runtime-test'
+EXE = OUT/'runtime-test'
 
 
-@unittest.skipUnless(EXE.exists(), 'run bash build.sh --test first')
+@unittest.skipUnless(EXE.exists(), 'run bash macos/test.sh first')
 class RuntimeTests(unittest.TestCase):
     def run_case(self, *args):
         return subprocess.run([str(EXE.resolve()), *args], capture_output=True, text=True, timeout=10)
