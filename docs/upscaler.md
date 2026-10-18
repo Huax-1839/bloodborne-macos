@@ -46,8 +46,8 @@ display-pass boundary. Presets use `output / scale`, including raster sizes abov
 The explicit `BB_RENDER_RES` compatibility override is retained.
 
 `SceneTargets` resolves and retires old proxies before changing size. FSR resources
-and history are rebuilt for the new input/output, with completion waits for both
-FSR 3 and FSR 4. The 1080p path keeps HDR reconstruction before game post;
+and history are rebuilt for the new input/output, with a completion wait for
+FSR 3. The 1080p path keeps HDR reconstruction before game post;
 other outputs reconstruct tonemapped scene proxies at the first Scaleform pass,
 then draw HUD/menu geometry into the output-size target. The display buffer is
 resized too. Movie shader identification prevents a native-size fullscreen post

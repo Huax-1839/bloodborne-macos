@@ -34,7 +34,9 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
   tools in `tools/` (macos/bench replaces them); PGO, X11 and the Linux branches of
   `gpu/CMakeLists.txt` (it now refuses to configure outside macOS). The runtime's C tests
   (`tests/test_*.c`) and `test_probe`/`test_runtime`/`test_sema` run in `macos/test.sh` again.
-  `docs/MODS.md` is rewritten for macOS. Vulkan bench before/after: same FPS and image.
+  `docs/MODS.md` is rewritten for macOS. Vulkan bench before/after (m4air uncapped, interleaved):
+  24.9/24.9 vs 24.8/25.0 FPS, image PSNR 43–50 dB (two runs of one build: 35.6–36.5 dB); Metal
+  49.2 FPS, image matches Vulkan (the worst tile is the window's traffic lights, focus state).
   Known: `mtl-pipeline-core-test` fails its comparison with the MoltenVK `profile.bin` (before
   this cleanup too; the Metal shader profile drifted from the Vulkan one).
 
