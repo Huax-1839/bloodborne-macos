@@ -351,5 +351,8 @@ final class GameProcessTests: XCTestCase {
         // A second run in the same second gets "-2" and is the newer one.
         try log("run-20261018-171805-2.log", endingAt: start.addingTimeInterval(60))
         XCTAssertEqual(GameProcess.lastSession(logsDir: logsDir)?.log.lastPathComponent, "run-20261018-171805-2.log")
+        XCTAssertEqual(GameProcess.sessions(logsDir: logsDir).map(\.log.lastPathComponent),
+                       ["run-20261018-171805-2.log", "run-20261018-171805.log", "run-20261017-210000.log"])
+        XCTAssertEqual(GameProcess.sessions(logsDir: logsDir, limit: 2).count, 2)
     }
 }

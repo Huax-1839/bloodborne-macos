@@ -5,7 +5,6 @@ import SwiftUI
 /// backdrop. The content is disabled while the launcher is busy when `locked` is set.
 struct PageContainer<Content: View>: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.closePage) private var closePage
     let title: LocalizedStringKey
     var locked = true
     @ViewBuilder var content: Content
@@ -13,15 +12,7 @@ struct PageContainer<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(title).font(Print.display(44))
-                    Spacer()
-                    if let closePage {
-                        Button("close", action: closePage)
-                            .buttonStyle(TextActionStyle(size: 16))
-                            .keyboardShortcut(.cancelAction)
-                    }
-                }
+                Text(title).font(Print.display(44))
                 if locked && model.isBusy {
                     Label("Settings are locked while the game runs or is being prepared.", systemImage: "lock.fill")
                         .font(.callout)

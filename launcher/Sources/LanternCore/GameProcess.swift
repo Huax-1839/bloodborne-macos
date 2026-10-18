@@ -311,9 +311,12 @@ public final class GameProcess: @unchecked Sendable {
     }
 
     /// The newest run in the logs folder (the home page's "last hunt"), nil when there is none.
-    public static func lastSession(logsDir: URL) -> Session? {
+    public static func lastSession(logsDir: URL) -> Session? { sessions(logsDir: logsDir, limit: 1).first }
+
+    /// The runs in the logs folder, newest first, at most `limit`.
+    public static func sessions(logsDir: URL, limit: Int = keptLogs) -> [Session] {
         guard let urls = try? FileManager.default.contentsOfDirectory(
-            at: logsDir, includingPropertiesForKeys: [.contentModificationDateKey], options: []) else { return nil }
+            at: logsDir, includingPropertiesForKeys: [.contentModificationDateKey], options: []) else { return [] }
         let parser = DateFormatter()
         parser.locale = Locale(identifier: "en_US_POSIX")
         parser.dateFormat = "yyyyMMdd-HHmmss"
@@ -327,9 +330,10 @@ public final class GameProcess: @unchecked Sendable {
             let attempt = Int(name.dropFirst(16)) ?? 1
             sessions.append((Session(log: url, start: start, end: end), attempt))
         }
-        return sessions.max {
-            $0.session.start != $1.session.start ? $0.session.start < $1.session.start : $0.attempt < $1.attempt
-        }?.session
+        sessions.sort {
+            $0.session.start != $1.session.start ? $0.session.start > $1.session.start : $0.attempt > $1.attempt
+        }
+        return sessions.prefix(limit).map(\.session)
     }
 
     /// Deletes the oldest run-*.log files so that `keptLogs` remain, `current` among them.

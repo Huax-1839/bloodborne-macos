@@ -51,42 +51,12 @@
         }
       }
     },
-    "%@ · version %@ · check failed": {
+    "%@ · version %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ · Version %2$@ · Prüfung fehlgeschlagen"
-          }
-        }
-      }
-    },
-    "%@ · version %@ · checked": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ · Version %2$@ · geprüft"
-          }
-        }
-      }
-    },
-    "%@, level %lld": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@, Stufe %2$lld"
-          }
-        }
-      }
-    },
-    "%lld of %lld on": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld von %2$lld an"
+            "value": "%1$@ · Version %2$@"
           }
         }
       }
@@ -291,16 +261,6 @@
         }
       }
     },
-    "auto": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "auto"
-          }
-        }
-      }
-    },
     "Automatic": {
       "localizations": {
         "de": {
@@ -411,16 +371,6 @@
         }
       }
     },
-    "built-in": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "eingebaut"
-          }
-        }
-      }
-    },
     "Built-in": {
       "localizations": {
         "de": {
@@ -431,32 +381,12 @@
         }
       }
     },
-    "Built-in profiles stay as they are.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eingebaute Profile sind fest."
-          }
-        }
-      }
-    },
     "Cancel": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Abbrechen"
-          }
-        }
-      }
-    },
-    "change": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ändern"
           }
         }
       }
@@ -521,16 +451,6 @@
         }
       }
     },
-    "choose": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "wählen"
-          }
-        }
-      }
-    },
     "Choose": {
       "localizations": {
         "de": {
@@ -557,16 +477,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anderes Werkzeug auswählen…"
-          }
-        }
-      }
-    },
-    "Choose the folder of your copy under “Game” on the right.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wähle rechts unter „Spiel“ den Ordner deiner Kopie."
           }
         }
       }
@@ -661,6 +571,16 @@
         }
       }
     },
+    "Choose your copy under “Game folder” in the sidebar.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle deine Kopie links unter „Spielordner“."
+          }
+        }
+      }
+    },
     "Choose…": {
       "localizations": {
         "de": {
@@ -711,12 +631,12 @@
         }
       }
     },
-    "copy to change": {
+    "crashed": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "zum Ändern kopieren"
+            "value": "abgestürzt"
           }
         }
       }
@@ -951,16 +871,6 @@
         }
       }
     },
-    "free": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "frei"
-          }
-        }
-      }
-    },
     "FSR 3.1": {
       "localizations": {
         "de": {
@@ -1071,16 +981,6 @@
         }
       }
     },
-    "Graphics…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grafik …"
-          }
-        }
-      }
-    },
     "Highest": {
       "localizations": {
         "de": {
@@ -1101,22 +1001,22 @@
         }
       }
     },
-    "Hunter": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Jäger"
-          }
-        }
-      }
-    },
     "Hunter's Lantern": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Hunter's Lantern"
+          }
+        }
+      }
+    },
+    "Hunters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jäger"
           }
         }
       }
@@ -1181,22 +1081,12 @@
         }
       }
     },
-    "last %@ · %lld kept": {
+    "Last hunts": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "zuletzt %1$@ · %2$lld aufbewahrt"
-          }
-        }
-      }
-    },
-    "Last hunt": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Letzte Jagd"
+            "value": "Letzte Jagden"
           }
         }
       }
@@ -1251,16 +1141,6 @@
         }
       }
     },
-    "Logs and the last crash": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Protokolle und der letzte Absturz"
-          }
-        }
-      }
-    },
     "Looking for the PKG tool…": {
       "localizations": {
         "de": {
@@ -1311,12 +1191,12 @@
         }
       }
     },
-    "manage": {
+    "Manage profiles…": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "verwalten"
+            "value": "Profile verwalten …"
           }
         }
       }
@@ -1401,16 +1281,6 @@
         }
       }
     },
-    "more": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "mehr"
-          }
-        }
-      }
-    },
     "Motion blur": {
       "localizations": {
         "de": {
@@ -1447,16 +1317,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Netzwerk"
-          }
-        }
-      }
-    },
-    "no folder chosen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kein Ordner gewählt"
           }
         }
       }
@@ -1507,16 +1367,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noch kein Spiel"
-          }
-        }
-      }
-    },
-    "none": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "keine"
           }
         }
       }
@@ -1581,12 +1431,12 @@
         }
       }
     },
-    "own": {
+    "Overview": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "eigenes"
+            "value": "Übersicht"
           }
         }
       }
@@ -1661,12 +1511,12 @@
         }
       }
     },
-    "Preparing the hunt…": {
+    "Preparing…": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Jagd wird vorbereitet …"
+            "value": "Vorbereitung …"
           }
         }
       }
@@ -1691,22 +1541,12 @@
         }
       }
     },
-    "Ready · game checked": {
+    "Ready": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bereit · Spiel geprüft"
-          }
-        }
-      }
-    },
-    "recommended": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "empfohlen"
+            "value": "Bereit"
           }
         }
       }
@@ -1821,16 +1661,6 @@
         }
       }
     },
-    "Saved data": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Spielstände"
-          }
-        }
-      }
-    },
     "Saves": {
       "localizations": {
         "de": {
@@ -1861,6 +1691,16 @@
         }
       }
     },
+    "Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen"
+          }
+        }
+      }
+    },
     "Settings are locked while the game runs or is being prepared.": {
       "localizations": {
         "de": {
@@ -1877,6 +1717,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Einstellungen, die du im Spiel geändert hast, wurden im Profil „%@“ gespeichert."
+          }
+        }
+      }
+    },
+    "Settings…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen …"
           }
         }
       }
@@ -2237,16 +2087,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unbegrenzt"
-          }
-        }
-      }
-    },
-    "unmeasured": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ungemessen"
           }
         }
       }
@@ -2997,16 +2837,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Profil hat eigene Spielstände. Wenn du sie behältst, bleiben sie im Datenordner (%@), aber kein Profil zeigt sie mehr an."
-          }
-        }
-      }
-    },
-    "Your saves are backed up before every start.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vor jedem Start werden die Spielstände gesichert."
           }
         }
       }

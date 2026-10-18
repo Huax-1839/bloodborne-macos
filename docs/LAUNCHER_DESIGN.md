@@ -1,10 +1,8 @@
 # Launcher "Hunter's Lantern": visual design
 
 Status: direction chosen by the user on 2026-10-19 (`docs/LAUNCHER_PLAN.md` §9). The window and
-its home page are implemented in SwiftUI (2026-10-19): tokens, type and the components in
-`launcher/Sources/HuntersLantern/Views/Print.swift`, the page in `HomeView.swift`, the fixed window
-and the page sheets in `RootView.swift`. The pages behind the sheets still have their old look
-(§9).
+its overview are implemented in SwiftUI (2026-10-19, layout of §3); the other pages still have
+their old look inside (§9).
 
 ## 1. Direction
 
@@ -49,37 +47,45 @@ Motion: 180 ms hover, 600 ms window fade-in, easing `cubic-bezier(0.2, 0, 0, 1)`
 scale. The main button flickers on hover like a gas lamp: irregular brightness, at most ±4 %;
 off with Reduce Motion.
 
-## 3. Layout (960 × 600, not resizable)
+## 3. Layout (960 × 600, not resizable; revised 2026-10-19 after mock-up F)
 
-- Native title bar, transparent, traffic lights over the content; the window drags by its
+The layout follows the library launchers (a sidebar of pages), set in this design's style, with
+as little text as possible.
+
+- Native title bar, transparent, traffic lights over the sidebar; the window drags by its
   background.
-- Left area (576 px): game title 64, version line in small caps, a brass rule with ❧, a register
-  with dotted leaders (last hunt, hunter level and play time, backups), then at the bottom the
-  main button "Jagd beginnen": a `accent` rectangle, full column width, 72 high, text 28.
-- Right column (384 px, `bg-raised`, 1 px `line` on its left): settings groups with a small-caps
-  heading: Profil, Darstellung (renderer, frame rate), Spiel (game folder, mods).
-- Status bar 32 high, `bg-sunken`, mono 12: readiness on the left (● in `ok` or `danger` + text),
-  version on the right.
+- Sidebar (192 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
+  rule, then Profile, Mods, Patches, Spielstände with small counts in mono `text-muted`; at the
+  bottom Spielordner, Diagnose, Einstellungen. The current page in `text-primary` with ✦ in
+  `brass` before it, the others `text-secondary`, brass on hover. Every page opens in the main
+  area (no sheets).
+- Overview (main area, 768 px):
+  - a plate of the game's own artwork, `sce_sys/pic1.png` of the user's copy, read at run time
+    (never in the repository or the app), full width, 280 high, cropped to fill, a hard edge
+    and a 1 px `line` under it; the artwork carries the game's name, so no title is set in type
+    (without a game or artwork: the name in Cormorant 64 on `bg-sunken`);
+  - under it, inset 48: the title ID and version in small caps and the profile (a text action
+    with ▾ that opens the profile menu) on the left, the main action on the right (`accent`,
+    240 × 72, Cormorant 28, "Jagd beginnen");
+  - one line under that only when there is something to say (an error in `danger`, a hint in
+    `text-secondary`);
+  - at the bottom two short lists, small-caps heading over rows between 1 px rules: Jäger (slot,
+    level, play time) and Letzte Jagden (day, duration, "abgestürzt" in `danger`), two rows each;
+    a row links to its page.
+- Status bar 32 high, `bg-sunken`, mono 12: readiness, or the last error or notice with
+  "schließen" (no modal), on the left; the version (links to About) on the right.
 
-## 4. Choices as register entries
+## 4. Choices
 
-No pop-up menus or boxed fields for choices. Every setting is a register line:
-`label ········ value`.
-- Lists (profiles): one line per option, the chosen one marked with ✦ in `brass` and set in
-  `text-primary`, the others in `text-secondary`; a note at the line's end (e.g. "empfohlen").
-- Short alternatives (renderer, frame rate): the options as words after the leader, the chosen one
-  in `text-primary` with a 1 px `brass` underline.
-- Paths: the label line ends in a text action ("ändern"/"wählen"), the path follows on its own
-  line in mono.
-- They are radio groups (keyboard: arrows inside the group, Tab between groups), focus as a 1 px
-  `brass` outline.
+- The profile is chosen in a menu from the overview (and on the Profiles page).
+- Settings pages use register lines (`label ········ value`) when they are restyled (§9).
 
 ## 5. States
 
-- No game folder: main button disabled (`text-muted` on `bg-raised`), the register hidden, a hint
-  under the button in `text-secondary`; status ● `danger`.
-- Game running: button text "Die Jagd läuft…", button and all settings disabled (D7).
-- Error: one line above the button in `danger`, no modal; the button stays available to retry.
+- No game folder: main button disabled (`text-muted` on `bg-raised`), the plate shows the app's
+  name, a hint points to "Spielordner"; status ● `danger`.
+- Game running: "Die Jagd läuft …", button and the profile menu disabled (D7).
+- Error: one line under the band in `danger`, no modal; the button stays available to retry.
 - Focus: 1 px `brass` outline, visible for keyboard use only.
 
 ## 6. Deviations from the original brief
@@ -88,13 +94,15 @@ No pop-up menus or boxed fields for choices. Every setting is a register line:
 - Input fields use `bg-base`, not `bg-raised`: they sit in the `bg-raised` column and would
   vanish otherwise.
 - The brief allowed Tauri or Electron; the plan fixes SwiftUI (D2).
-- No game artwork on the home page (the brief forbids pictures); D17 changed accordingly.
+- The overview shows the game's own artwork from the user's copy (the user's decision of
+  2026-10-19, after the brief had forbidden pictures); nothing from the game is in the repository
+  or the app.
 
 ## 7. Forbidden
 
 Gradients, glass, blur, drop shadows, pill buttons, card grids, emoji, icon libraries, purple or
-blue, Inter or system fonts for visible text, a centred hero layout, placeholder images, logos
-or artwork from the game.
+blue, Inter or system fonts for visible text, a centred hero layout, placeholder images; logos or
+artwork from the game other than the user's own `sce_sys/pic1.png` on the overview.
 
 ## 8. Self-check before a design change is done
 
@@ -106,19 +114,16 @@ or artwork from the game.
 
 ## 9. Implementation notes and what is open
 
-- The other pages (game, profiles, graphics, mods, patches, saves, advanced, diagnostics, about)
-  are sheets of 880 × 520 over the window, reached from the text actions ("verwalten", "ändern",
-  "mehr"), the register lines (last hunt → diagnostics, hunter and backups → saves), the version
-  in the status bar (about) and the Go menu (⌘1–⌘7, ⌘, for graphics). Their frame
-  (`PageContainer`) has the new title, background and a "schließen" action (Esc); **their content
-  still uses the old cards and system forms**: to be redone in the print style, page by page.
-- Errors: the home page shows them inline (§5); a sheet covers it, so the sheets keep an alert.
-- Built-in profiles are read-only (as on the Graphics page): their renderer and frame-rate words
-  are muted, with "zum Ändern kopieren" next to them.
-- The title is "Bloodborne" for every accepted title ID (all are Bloodborne with update 1.09); the
-  version line names the title ID.
+- Code: tokens, type and the shared styles in `launcher/Sources/HuntersLantern/Views/Print.swift`,
+  the overview in `HomeView.swift`, the window, sidebar, status bar and Go menu (⌘0–⌘7, ⌘, for
+  settings) in `RootView.swift`.
+- **The pages other than the overview still use the old cards and system forms inside**
+  (`PageContainer` has the new title and background): to be redone in this style, page by page.
+  Settings is the old Graphics page; Advanced and About are reached from the Go menu, About also
+  from the status bar's version.
 - The window: `Window` scene, hidden title bar, not resizable, no full screen or zoom, moved by its
-  background; the content leaves out the title bar's height so the window is 960 × 600 in all.
-- Not checked by hand yet: hover, the gas-lamp flicker, keyboard focus outlines, Reduce Motion
-  (the snapshots cannot show them).
+  background; the content leaves out the title bar's height (measured in AppKit) so the window is
+  960 × 600 in all.
+- Not checked by hand yet: hover, the gas-lamp flicker, keyboard focus outlines, Reduce Motion,
+  the profile menu (the snapshots cannot show them).
 - First-run assistant and import progress in the same style.

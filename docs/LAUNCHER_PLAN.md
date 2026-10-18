@@ -336,8 +336,8 @@ v1 feature set (decided with the user):
 - **Warnings**: battery power, Low Power Mode, a high thermal state.
 
 **D17 Artwork.**
-- Since 2026-10-19 (§9) the home page shows no game artwork (`docs/LAUNCHER_DESIGN.md` forbids
-  pictures); the points below describe the layout before that and stay for the library code.
+- Since 2026-10-19 (§9) the overview shows only `sce_sys/pic1.png` as a plate
+  (`docs/LAUNCHER_DESIGN.md` §3); the cover (`icon0.png`) is not shown.
 - The home page shows `sce_sys/pic1.png` (background) and `icon0.png` (cover) from the user's
   imported game, read at run time and never copied into the repository or the app.
 - Before a game is imported, a neutral placeholder is shown.
@@ -495,10 +495,10 @@ decisions in §9 are fixed.
    in-process and quits; `LANTERN_SNAPSHOT_PAGES=home,game`), `LANTERN_AUTOPLAY=1` (presses Play),
    `LANTERN_IMPORT_BASE/UPDATE` (runs an import). Screen capture does not work from the agent
    shell; the snapshots do.
-3. New visual design (2026-10-19, `docs/LAUNCHER_DESIGN.md`): the fixed 960 × 600 window and its
-   home page are implemented; the other pages open as sheets with their old content, to be
-   restyled page by page (`docs/LAUNCHER_DESIGN.md` §9). Snapshots (`LANTERN_SNAPSHOT`) capture a
-   page's sheet.
+3. New visual design (2026-10-19, `docs/LAUNCHER_DESIGN.md`): the fixed 960 × 600 window with a
+   sidebar of pages, the overview with the game's own artwork, and the status bar are
+   implemented; the other pages open in the main area with their old content, to be restyled
+   page by page (`docs/LAUNCHER_DESIGN.md` §9).
 4. Code review 2026-10-18: `docs/LAUNCHER_REVIEW.md` lists 20 findings (R1–R20) with fixes and
    tests, in batches. All are fixed (2026-10-18, commits ticked off there); open from them: a
    hand check of Cmd-Q during play (R7). Its "smaller improvements" are not done.
@@ -635,3 +635,8 @@ Found during the inventory (fix when the task touching the file comes up):
   no game artwork on the home page (D17); the four fonts are bundled (OFL, approved as a new
   dependency); implementation stays SwiftUI (D2); pages that do not fit the window become sheets
   in the same style. The implementation phase is planned when it starts.
+- 2026-10-19 (user): the design's layout moves closer to the library launchers (mock-up F): a
+  sidebar of pages instead of sheets, the overview with the game's own artwork
+  (`sce_sys/pic1.png` of the user's copy, read at run time) as a plate, the profile and the main
+  action under it, two short lists (hunters, last hunts), less text. The settings column and the
+  register on the home page are gone; the style and tokens stay.

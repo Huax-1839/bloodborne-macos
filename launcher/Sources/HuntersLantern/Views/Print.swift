@@ -69,73 +69,6 @@ extension Color {
     }
 }
 
-// MARK: - Ornaments
-
-/// A dotted leader between a register line's label and its value, at the text's baseline.
-struct Leader: View {
-    var body: some View {
-        Line()
-            .stroke(Print.lineStrong, style: StrokeStyle(lineWidth: 1, dash: [1, 3]))
-            .frame(height: 1)
-            .frame(minWidth: 16)
-            .alignmentGuide(.firstTextBaseline) { $0[.bottom] + 4 }
-            .accessibilityHidden(true)
-    }
-
-    private struct Line: Shape {
-        func path(in rect: CGRect) -> Path {
-            Path { $0.move(to: CGPoint(x: rect.minX, y: rect.midY)); $0.addLine(to: CGPoint(x: rect.maxX, y: rect.midY)) }
-        }
-    }
-}
-
-/// ❧ and a thin brass rule.
-struct OrnamentRule: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            Text(verbatim: "❧").font(Print.text(16))
-            Rectangle().frame(height: 1).opacity(0.4)
-        }
-        .foregroundStyle(Print.brass)
-        .accessibilityHidden(true)
-    }
-}
-
-/// A settings group's heading: small caps over a rule, with an optional text action at its end.
-struct SectionHeading<Trailing: View>: View {
-    let title: LocalizedStringKey
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(Print.smallCaps())
-                .tracking(14 * 0.12)
-                .foregroundStyle(Print.textSecondary)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 8)
-            trailing
-        }
-        .padding(.bottom, 4)
-        .overlay(alignment: .bottom) { Rectangle().fill(Print.line).frame(height: 1) }
-        .padding(.bottom, 4)
-    }
-}
-
-extension SectionHeading where Trailing == EmptyView {
-    init(_ title: LocalizedStringKey) {
-        self.title = title
-        trailing = EmptyView()
-    }
-}
-
-extension SectionHeading {
-    init(_ title: LocalizedStringKey, @ViewBuilder trailing: () -> Trailing) {
-        self.title = title
-        self.trailing = trailing()
-    }
-}
-
 // MARK: - Focus
 
 /// The keyboard focus mark: a 1 px brass outline, 4 px out, only while focused.
@@ -157,24 +90,28 @@ extension View {
 
 // MARK: - Buttons
 
-/// A text action ("ändern", "verwalten"): Garamond 14, brass on hover.
+/// A text action ("ändern", "verwalten"): Garamond 14 in the text colour, brass on hover.
 struct TextActionStyle: ButtonStyle {
     var size: CGFloat = 14
+    /// Another face (the status bar's mono).
+    var font: Font?
+    var color = Print.textPrimary
 
     func makeBody(configuration: Configuration) -> some View {
-        Label(configuration: configuration, size: size)
+        Label(configuration: configuration, font: font ?? Print.text(size), color: color)
     }
 
     private struct Label: View {
         let configuration: ButtonStyleConfiguration
-        let size: CGFloat
+        let font: Font
+        let color: Color
         @Environment(\.isEnabled) private var enabled
         @State private var hovering = false
 
         var body: some View {
             configuration.label
-                .font(Print.text(size))
-                .foregroundStyle(!enabled ? Print.textMuted : hovering || configuration.isPressed ? Print.brass : Print.textPrimary)
+                .font(font)
+                .foregroundStyle(!enabled ? Print.textMuted : hovering || configuration.isPressed ? Print.brass : color)
                 .contentShape(Rectangle())
                 .onHover { hovering = $0 }
                 .animation(Print.hover, value: hovering)
@@ -183,8 +120,8 @@ struct TextActionStyle: ButtonStyle {
     }
 }
 
-/// A register line that is also a link (to the page behind it): brass on hover.
-struct RegisterLinkStyle: ButtonStyle {
+/// A list row that is also a link (to the page behind it): its first text turns brass on hover.
+struct RowLinkStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Styled(configuration: configuration)
     }
@@ -195,7 +132,7 @@ struct RegisterLinkStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .environment(\.registerHighlight, hovering || configuration.isPressed)
+                .environment(\.rowHighlight, hovering || configuration.isPressed)
                 .contentShape(Rectangle())
                 .onHover { hovering = $0 }
                 .animation(Print.hover, value: hovering)
@@ -204,38 +141,15 @@ struct RegisterLinkStyle: ButtonStyle {
     }
 }
 
-private struct RegisterHighlightKey: EnvironmentKey {
+private struct RowHighlightKey: EnvironmentKey {
     static let defaultValue = false
 }
 
 extension EnvironmentValues {
-    /// A register line under the pointer: its label turns brass.
-    var registerHighlight: Bool {
-        get { self[RegisterHighlightKey.self] }
-        set { self[RegisterHighlightKey.self] = newValue }
-    }
-}
-
-/// `label ········ value`: the register's line. The label is secondary (brass when it is a link
-/// under the pointer), the value primary.
-struct RegisterLine<Value: View>: View {
-    let label: Text
-    var labelSize: CGFloat = 16
-    @ViewBuilder var value: Value
-    @Environment(\.registerHighlight) private var highlight
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            label
-                .font(Print.text(labelSize))
-                .foregroundStyle(highlight ? Print.brass : Print.textSecondary)
-                .lineLimit(1)
-                .layoutPriority(1)
-            Leader()
-            value
-                .lineLimit(1)
-                .layoutPriority(2)
-        }
+    /// A linked list row under the pointer: its label turns brass.
+    var rowHighlight: Bool {
+        get { self[RowHighlightKey.self] }
+        set { self[RowHighlightKey.self] = newValue }
     }
 }
 
@@ -284,80 +198,36 @@ struct MainActionStyle: ButtonStyle {
     }
 }
 
-/// A choice set as a word (renderer, frame rate): primary with a brass underline when chosen,
-/// secondary otherwise, brass on hover; muted when it cannot be changed.
-struct ChoiceWordStyle: ButtonStyle {
-    let chosen: Bool
+/// A sidebar entry: Garamond 16, 32 high; the current page in the text colour with ✦ in brass
+/// before it, the others secondary, brass on hover.
+struct SidebarItemStyle: ButtonStyle {
+    let current: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        Styled(configuration: configuration, chosen: chosen)
+        Styled(configuration: configuration, current: current)
     }
 
     private struct Styled: View {
         let configuration: ButtonStyleConfiguration
-        let chosen: Bool
-        @Environment(\.isEnabled) private var enabled
-        @State private var hovering = false
-
-        var body: some View {
-            configuration.label
-                .font(Print.text(16))
-                .foregroundStyle(color)
-                .padding(.bottom, 1)
-                .overlay(alignment: .bottom) {
-                    if chosen {
-                        Rectangle().fill(enabled ? Print.brass : Print.lineStrong).frame(height: 1)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onHover { hovering = $0 }
-                .animation(Print.hover, value: hovering)
-                .printFocus()
-        }
-
-        private var color: Color {
-            if chosen { return enabled ? Print.textPrimary : Print.textSecondary }
-            if !enabled { return Print.textMuted }
-            return hovering || configuration.isPressed ? Print.brass : Print.textSecondary
-        }
-    }
-}
-
-/// A choice set as a register line of its own (profiles): ✦ in brass before the chosen one.
-struct ChoiceLineStyle: ButtonStyle {
-    let chosen: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        Styled(configuration: configuration, chosen: chosen)
-    }
-
-    private struct Styled: View {
-        let configuration: ButtonStyleConfiguration
-        let chosen: Bool
-        @Environment(\.isEnabled) private var enabled
+        let current: Bool
         @State private var hovering = false
 
         var body: some View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(verbatim: chosen ? "✦" : "")
-                    .font(Print.text(16))
-                    .foregroundStyle(enabled ? Print.brass : Print.textMuted)
+                Text(verbatim: current ? "✦" : "")
+                    .foregroundStyle(Print.brass)
                     .frame(width: 16, alignment: .leading)
                     .accessibilityHidden(true)
                 configuration.label
-                    .font(Print.text(16))
-                    .foregroundStyle(color)
+                    .foregroundStyle(hovering || configuration.isPressed ? Print.brass
+                                     : current ? Print.textPrimary : Print.textSecondary)
             }
+            .font(Print.text(16))
+            .frame(height: 32)
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
             .animation(Print.hover, value: hovering)
             .printFocus()
-        }
-
-        private var color: Color {
-            if !enabled { return Print.textMuted }
-            if hovering || configuration.isPressed { return Print.brass }
-            return chosen ? Print.textPrimary : Print.textSecondary
         }
     }
 }
