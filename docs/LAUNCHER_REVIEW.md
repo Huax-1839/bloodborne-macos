@@ -36,16 +36,27 @@ Batch B, correctness and UX:
   Air, Pro and Vanilla, as it already did for Max)
 
 Batch C, hardening before the first release tag:
-- [ ] R4 imported profiles can set any environment variable
-- [ ] R6 the one-game lock is taken too late
-- [ ] R7 quitting the launcher while the game runs
-- [ ] R8 no license texts in the app and the DMG
-- [ ] R20 CI hardening, no Sparkle deltas
+- [x] R4 imported profiles can set any environment variable (`887761f`; `ExpertVariables` in
+  LanternCore; the import asks with a confirmation dialog listing the variables)
+- [x] R6 the one-game lock is taken too late (`d20eaf8`; `GameLock`, held by `Launcher` across
+  restarts, `GameProcess(spec:logsDir:lock:)` borrows it)
+- [x] R7 quitting the launcher while the game runs (`88992b9`; app delegate asks "Stop the
+  Game and Quit" / "Keep Running"; Sparkle delegate refuses background checks and postpones the
+  relaunch while a launch runs. Not yet tried by hand: Cmd-Q during play, and the local-appcast
+  check of L6)
+- [x] R8 no license texts in the app and the DMG (`2771f04`; `packaging/collect-licenses.sh`,
+  41 files incl. the Python libraries' texts from the pinned PBS full archive, committed under
+  `packaging/licenses/python/`; refresh them when PBS_TAG changes)
+- [x] R20 CI hardening, no Sparkle deltas (`c355052`; deltas from the latest release's DMG,
+  renamed `HuntersLantern-<new>-<old>.delta`; tested locally with a throwaway key, the real
+  signing is first exercised by the `v0.9.0` → next release)
 
 Cleanup:
-- [ ] R16 English-only and raw error texts
-- [ ] R17 deleting a profile with own saves hides them
-- [ ] R19 two sources for the launch environment
+- [x] R16 English-only and raw error texts (`974d4a9`)
+- [x] R17 deleting a profile with own saves hides them (`f780606`; keep them or move them and
+  their backups to the Trash)
+- [x] R19 two sources for the launch environment (`733842a`; the game and the pipeline inherit
+  the launcher's environment without BB_/MVK_/ROSETTA_)
 
 Ruled out during the review (no action):
 - ZIP path traversal in mod and save imports: `ditto -x -k` keeps `../` entries inside the target
