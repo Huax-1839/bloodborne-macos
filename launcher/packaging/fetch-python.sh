@@ -8,7 +8,9 @@
 # Environment: PBS_CACHE (download cache, default ~/Library/Caches/bbport-launcher),
 #              PBS_PYC=0 skips precompiling (stdlib ships without .pyc: +50 ms per interpreter start).
 # To bump the version: take the tag, file name and hash from the release's SHA256SUMS
-# (https://github.com/astral-sh/python-build-standalone/releases) and edit the three lines below.
+# (https://github.com/astral-sh/python-build-standalone/releases) and edit the three lines below;
+# then refresh packaging/licenses/python/ from that release's *-pgo+lto-full archive
+# (python/licenses/, the libraries python/PYTHON.json lists for the kept extension modules).
 set -euo pipefail
 
 PBS_TAG=20261013

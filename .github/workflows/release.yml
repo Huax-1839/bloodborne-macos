@@ -7,6 +7,8 @@ name: Release
 on:
   push:
     tags: ['v*']
+# This job holds SPARKLE_ED_KEY and a token that can write: third-party actions are pinned by
+# commit (the tag in the comment).
 permissions:
   contents: write
 jobs:
@@ -14,7 +16,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           submodules: recursive
       - name: Rosetta (x86-64 unit tests)
@@ -26,12 +28,12 @@ jobs:
           xcodebuild -version
       - name: Restore x86-64 dependencies
         id: deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: macos/deps
           key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
       - name: Cache SwiftPM
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             launcher/.build
@@ -41,7 +43,7 @@ jobs:
       # Saved right away, so a later failing step does not throw the hour of building away.
       - name: Save x86-64 dependencies
         if: steps.deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: macos/deps
           key: deps-${{ runner.os }}-${{ hashFiles('macos/build-deps.sh') }}
@@ -54,7 +56,7 @@ jobs:
         run: bash macos/test.sh
       - name: Test logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-logs
           path: macos/out/test-logs
@@ -62,13 +64,23 @@ jobs:
         run: |
           export LANTERN_VERSION=${GITHUB_REF_NAME#v}
           bash launcher/package.sh
+      # The latest release's DMG (none before the first release): Sparkle deltas from it.
+      - name: Previous release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --pattern 'HuntersLantern-*.dmg' --dir launcher/build/previous \
+            || echo "No previous release: no deltas."
       - name: Appcast
         env:
           SPARKLE_ED_KEY: ${{ secrets.SPARKLE_ED_KEY }}
-        run: bash launcher/packaging/appcast.sh launcher/build "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/"
+        run: |
+          bash launcher/packaging/appcast.sh launcher/build \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/" launcher/build/previous
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          shopt -s nullglob
           gh release create "$GITHUB_REF_NAME" --title "Hunter's Lantern ${GITHUB_REF_NAME#v}" --generate-notes \
-            launcher/build/HuntersLantern-*.dmg launcher/build/appcast.xml
+            launcher/build/HuntersLantern-*.dmg launcher/build/HuntersLantern-*.delta launcher/build/appcast.xml
