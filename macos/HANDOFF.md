@@ -88,9 +88,9 @@ First the runs that need the user at the Mac (P11): the M3 battery run under the
 while charging and on battery, Low Power Mode at 540p/720p (P11.3: advice for players, into this
 file and the README); M4's gameplay check (a route recorded by hand with `record_route.sh`,
 replayed uncapped; sprint, a cutscene, falling objects by eye) and battery run. Then the user's call whether M3 goes back to 720p
-(P9.1 made it nearly pass on a warm Air). Then the levers P13 ranked (`docs/PERFORMANCE_YHARNAM_2026-10-18.md` §8: cheaper upscaling,
-720p for m4air now that it runs at 52 FPS uncapped in Yharnam, recording cost under heat, CPU
-power at the cap, the missed-slot `gpu_ms` stretch). Then the options,
+(P9.1 made it nearly pass on a warm Air). Then the levers P13 ranked, planned as four phases P14–P17 in
+`docs/PERFORMANCE_PLAN_2026-10-18.md` (start there): cheaper upscaling, pacing and CPU power at
+the cap, the m4air profile after P13.1 (720p), recording cost under heat. Then the options,
 in the plan's §8 "Resume here": heavier scenes (areas beyond Central Yharnam), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
 kernel's command buffer submission: Metal 4 command model, P6.4 untracked resources, fewer
