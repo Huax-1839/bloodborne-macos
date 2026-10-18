@@ -721,6 +721,26 @@ with the request (§9).
 
 Exit: met (§8 "P12 results").
 
+### P13: Heavier scenes: Central Yharnam (2026-10-18)
+
+Open item 1 of §8 ("heavier scenes"), started at the user's request: a benchmark of Central
+Yharnam on AC power to find what limits the Air there. Report with every table:
+`docs/PERFORMANCE_YHARNAM_2026-10-18.md`. No milestone changes.
+
+1. (O) P13.1 relaxed vertex shaders: the game's hardware vertex shaders that feed the rasterizer
+   directly (sw Vertex on hw Vertex) are emitted without `NoContraction` like P9.1's fragment
+   and compute shaders; their Position output is decorated `Invariant` (SPIRV-Cross
+   `[[position, invariant]]`) and their libraries are built with
+   `MTLCompileOptions.preserveInvariance`, which keeps depth-equal passes bit-identical (the
+   reason P9.1 left vertex shaders strict). ES/LS (geometry-shader emulation, tessellation),
+   tessellation evaluation and geometry stay strict. `Shader::Profile::relaxed_vertex_float`,
+   cache title `<title>-metal-relaxed-vs`, binary archive in `relaxed-vs/`;
+   `BB_MTL_RELAX_VERTEX=0` off.
+2. (O) P13.2 the rest of the benchmark: settings, upscaler, frames ahead, power and pacing; the
+   levers it ranks go to §8.
+
+Exit: met (§8 "P13 results").
+
 ## 6. Verification
 
 - **Build**: `bash macos/build.sh` (both backends). Unit tests: `ninja -C macos/out/gpu <target>`
@@ -783,9 +803,12 @@ as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 cl
 the kernel had been unwiring and rewiring gigabytes whenever the GPU idled under the cap).
 
 Open, not planned (pick with the user):
-1. **Heavier scenes.** Everything above is measured in the clinic. Central Yharnam has a bench
-   save (`BENCH_SAVE=pristine-savedata-yharnam`, from 2026-10-16) and no runs yet; at 540p the
-   clinic already needs ~29 of the 33 ms.
+1. **Heavier scenes.** Central Yharnam measured on AC (P13, 2026-10-18,
+   `docs/PERFORMANCE_YHARNAM_2026-10-18.md`): GPU-bound by vertex work; P13.1 (relaxed vertex
+   shaders, default) cut the GPU frame by 31%. Levers it leaves, ranked in that report's §8:
+   cheaper upscaling (MetalFX ~3 ms), 720p for m4air, recording cost under heat, CPU power at
+   the cap, the unexplained `gpu_ms` stretch of missed slots at the cap. Other areas (the DLC,
+   Cathedral Ward) and battery are not measured.
 2. **Stretch goals (§1).** 60 FPS presented with frame interpolation exists
    (`BB_FRAME_INTERPOLATION=1`, P7.2) but costs ~3× latency and turns a missed 33-ms slot into
    a 30 → 15 step; 1080p internal at 30 FPS is far off (9.8 FPS native).
@@ -1006,6 +1029,28 @@ then the 4-min scripted walk of `m1_run.sh`; in-game flips (≥ 300 draws), from
   uncapped (p11-vk2 32.7); title dumps Metal new vs old 68.8 dB (animated tiles only), Metal vs
   Vulkan 48.3 dB (old 47.6); no failed deferred build, no new drops; unit tests as before
   (`translation-memory-test` crashes on `main` too: two MoltenVK dylibs).
+
+**P13 results** (2026-10-18, Central Yharnam on AC; every table in
+`docs/PERFORMANCE_YHARNAM_2026-10-18.md`):
+- Baseline at 540p uncapped: 41.6–42.6 FPS (Vulkan 24.7–26.3), GPU 20.8–21.2 ms a frame,
+  recording 8.7–9.1 ms; 720p 36.3–39.1 FPS, GPU 24.4–24.7 ms. The G-buffer passes take 14.3 ms
+  of channel time, 12.6 of it on the vertex channel; 720p adds only 3.6 ms over 540p.
+- P13.1 (relaxed vertex shaders, invariant position), interleaved A B B A at 540p uncapped:
+  41.9 / 41.6 → 57.9 / 57.5 FPS, GPU 21.2 → 14.6 ms; 720p 38.1 → 52.0 FPS; G-buffer vertex time
+  12.6 → 4.6 ms (trace). Images: Yharnam in game 33.1 dB against the default (same-build pairs
+  34.3), clinic 38.1 dB, clinic against the Vulkan reference 35.2 dB (default 33.6), titles
+  51.5–51.7 dB (animated tiles only); temporal residuals dpan 34.48 / 34.56 dB and strafe
+  26.82 / 26.80 against the default's 34.43 / 34.70 and 26.63 / 27.24; a 5-min Yharnam walk with
+  `MTL_DEBUG_LAYER=1`: no validation errors; Vulkan 26.0 FPS, title 69.2 dB against the run
+  before the change. The default's new cache (`<title>-metal-relaxed-vs`) compiles every vertex
+  shader once on first use.
+- Measured and not taken: game AA off and chromatic aberration off (0), the "1080p Light Grid"
+  patch (+1 ms), Relaxed math (−0.3 ms), `BB_FRAMES_AHEAD=2` (missed slots unchanged).
+  `model_lod=2` −1.8 ms with visibly lower detail; SSAO and dynamic shadows cost ~1 ms;
+  MetalFX temporal ~3.0 ms (output 1280x720: −1 ms).
+- 10-min walks (powermetrics): 720p at the cap 29.93 FPS, 1.29% missed slots, CPU 3.7 W, GPU
+  2.9 W; 540p uncapped 49–56 FPS for two minutes, then heavy pressure, P cores at ~1 GHz,
+  recording 7 → 22 ms a frame, 43–47 FPS.
 
 M2 measurement (`macos/bench/m2.sh`, 3 runs each, interleaved V M M V V M / M V V M M V, 18 runs in
 a row after a 15-min cool-down):
@@ -1470,3 +1515,5 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-17 | M4 thresholds: mean ≥ 45 FPS and every 60-s stretch ≥ 40 FPS over 20 min at 540p uncapped, plus M3's duration, error, hitch and condition rules; no 30-FPS slot rules (p99/p99.9 reported) (user's decision, the recommended option) | first 20-min uncapped runs on AC: 540p 53.1 FPS mean, slowest minute 47.5; 720p 50.8 / 46.5; about 15% margin for warmer rooms, battery and run-to-run spread | §1 M4, `m3stats.py` |
 | 2026-10-17 | P12 added (lever 4 of `docs/PERFORMANCE_LEVERS_2026-10-16.md`) and Metal takes the core's background pipeline path by default: a draw of a pass drawn every frame goes without its new pipeline for a frame or two (`BB_ASYNC_PIPELINES=0` off) | the user asked for asynchronous and parallel pipeline compiles; cold-cache walks: compile hitches 10.5–12.1 s → 7.3–9.8 s with it | P12, Metal draw path |
 | 2026-10-17 | P12: deferred pipeline builds (the recording hooks wait for a pipeline built on the compile pool) added beyond the lever's proposal, the default (`BB_MTL_DEFER_PSO=0` off) | (a)–(c) left the first frame after a load at 2.85 s (its compiles synchronous by design); with deferral 0.6–0.9 s, hitches 4.1–4.3 s | P12, Metal recording hooks |
+| 2026-10-18 | New phase P13 (heavier scenes: Central Yharnam), started at the user's request, measured on AC only (the user was away: no battery runs) | §8 open item 1; every earlier number came from the clinic | P13, `docs/PERFORMANCE_YHARNAM_2026-10-18.md` |
+| 2026-10-18 | P13.1: the game's hardware vertex shaders lose `NoContraction` too, with an `Invariant` Position and `preserveInvariance`; the default (`BB_MTL_RELAX_VERTEX=0` off). Decided while the user was away, by their standing instruction to take the recommended option | Yharnam traces: G-buffer vertex channel 12.6 of 14.3 ms; the heaviest vertex shaders had 104–189 `optnone` helper calls; P9.1 kept vertex shaders strict only for bit-identical positions, which Metal's invariance guarantees. A B B A: GPU −31%, +38% FPS uncapped; images, temporal residuals, validation and Vulkan as for P9.1 | P13, P9.1, Metal shader cache (new tag) |

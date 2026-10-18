@@ -67,12 +67,19 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
     Off switches: `BB_MTL_ASYNC_COMPILE=0` (no pool), `BB_MTL_DEFER_PSO=0` (no deferred
     builds), `BB_ASYNC_PIPELINES=0` (no skipped draws). Frame stats count the recording's waits
     as compile time; the periodic Metal stats print the deferred builds and the PSO time.
+  - P13 (2026-10-18, Central Yharnam on AC, `docs/PERFORMANCE_YHARNAM_2026-10-18.md`): the
+    scene is GPU-bound by vertex work (G-buffer vertex channel 12.6 of 14.3 ms at 540p). P13.1
+    emits the game's hardware vertex shaders without `NoContraction` as well, with an invariant
+    position (`[[position, invariant]]` + `preserveInvariance`): GPU 21.2 → 14.6 ms a frame,
+    540p uncapped 41.8 → 57.7 FPS, 720p 38.1 → 52.0; images, temporal residuals, validation
+    and Vulkan unchanged. `BB_MTL_RELAX_VERTEX=0` off; its cache is `<title>-metal-relaxed-vs`
+    (every vertex shader compiles once on first use after the update).
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
   sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
   min with the validation layer clean.
-- Measured mostly in Iosefka's clinic. Central Yharnam has a bench save; its only runs so far
-  are P10.1's inventory boot (30.0 FPS at the cap, 1168 draws a frame).
+- Measured in Iosefka's clinic and, since P13, Central Yharnam (`BENCH_SAVE=pristine-savedata-yharnam`,
+  1168 draws a frame); other areas and battery not yet.
 
 ## Next
 
@@ -81,8 +88,10 @@ First the runs that need the user at the Mac (P11): the M3 battery run under the
 while charging and on battery, Low Power Mode at 540p/720p (P11.3: advice for players, into this
 file and the README); M4's gameplay check (a route recorded by hand with `record_route.sh`,
 replayed uncapped; sprint, a cutscene, falling objects by eye) and battery run. Then the user's call whether M3 goes back to 720p
-(P9.1 made it nearly pass on a warm Air). Then the options,
-in the plan's §8 "Resume here": heavier scenes (Central Yharnam first), the stretch
+(P9.1 made it nearly pass on a warm Air). Then the levers P13 ranked (`docs/PERFORMANCE_YHARNAM_2026-10-18.md` §8: cheaper upscaling,
+720p for m4air now that it runs at 52 FPS uncapped in Yharnam, recording cost under heat, CPU
+power at the cap, the missed-slot `gpu_ms` stretch). Then the options,
+in the plan's §8 "Resume here": heavier scenes (areas beyond Central Yharnam), the stretch
 goals (60 FPS presented with frame interpolation, 1080p internal), Metal's worst frames (the
 kernel's command buffer submission: Metal 4 command model, P6.4 untracked resources, fewer
 command buffers a frame), small open checks. An ARM64 renderer is assessed in
@@ -97,7 +106,7 @@ compression) too (P10.1, `docs/metal/texture_compression_design.md`), and the fo
 - Metal: `BB_FRAME_STATS=1` (draw/drop, pipeline, geometry-shader and command buffer counters),
   `BB_GS_DEBUG=1` (geometry-shader primitives in magenta), `BB_PASS_LABELS=1` (encoder labels with
   pass size and shaders, for Instruments), `BB_MTL_GUEST_IN_SET=1` (guest memory back in the
-  residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules), `BB_MTL_FULL_USAGE=1` (pre-P10.1 texture
+  residency set, the pre-P8.5 behaviour), `BB_MTL_STRICT_FLOAT=1` (pre-P9.1 float rules), `BB_MTL_RELAX_VERTEX=0` (strict vertex shaders, pre-P13.1), `BB_MTL_FULL_USAGE=1` (pre-P10.1 texture
   usages), `BB_IMAGE_USAGE_LOG=<tsv>` (per-texture usage inventory, `macos/bench/image_usage.py`).
 - Power and CPU (P11): `BB_THREAD_CPU_LOG=<s>` (per-thread CPU time grouped game / port / Metal /
   other, thermal pressure changes, poll and spin counters; `BB_THREAD_CPU_CSV=<path>` per thread),
