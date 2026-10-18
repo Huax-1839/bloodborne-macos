@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks camera motion vectors against the GPU's object vectors in an upscaler dump.
 
-    nix-shell -p "python3.withPackages (p: [p.numpy])" --run "python3 tools/mv_check.py out/dump_x out/ab_x.log"
+    python3 tools/mv_check.py out/dump_x out/ab_x.log   (needs numpy: pip3 install numpy)
 
 For each dumped frame: camera vectors recomputed from the logged matrices (Dump camera lines) as
 camera_motion.comp does, with the projection's y scale as logged and negated; the composited

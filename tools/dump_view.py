@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Converts the upscaler dumps (BB_DUMP_TRIGGER, BB_PRESENT_DUMP_TRIGGER) into PNGs.
 
-    nix-shell -p "python3.withPackages (p: [p.numpy p.pillow])" --run "python3 tools/dump_view.py out/dump"
+    python3 tools/dump_view.py out/dump   (needs numpy and pillow: pip3 install numpy pillow)
 
 Files are <dir>/fNNN_<name>_<w>x<h>_<format>.raw (vk_temporal_upscaler.cpp DumpImages):
 - rgba / bgra: 8-bit color as is;
