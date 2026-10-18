@@ -15,14 +15,15 @@ enum Print {
     static let lineStrong = Color(hex: 0x4a3f36)
     static let textPrimary = Color(hex: 0xd8cfbf)
     static let textSecondary = Color(hex: 0x8f8577)
+    /// Only disabled controls and decorative marks: below text contrast on purpose.
     static let textMuted = Color(hex: 0x5c544a)
     /// Only the main action.
     static let accent = Color(hex: 0x7a1f1a)
     static let accentHover = Color(hex: 0x93261f)
     static let accentPressed = Color(hex: 0x5e1713)
     static let brass = Color(hex: 0x9c8455)
-    static let danger = Color(hex: 0xa83a2c)
-    static let ok = Color(hex: 0x6b7a4f)
+    static let danger = Color(hex: 0xcc5c48)
+    static let ok = Color(hex: 0x7a8a55)
 
     // MARK: Spacing (4 px grid)
 

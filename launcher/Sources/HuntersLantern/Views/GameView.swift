@@ -247,7 +247,7 @@ struct PathRow: View {
                     } else {
                         Text("Nothing chosen yet")
                             .font(Print.text(14))
-                            .foregroundStyle(Print.textMuted)
+                            .foregroundStyle(Print.textSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

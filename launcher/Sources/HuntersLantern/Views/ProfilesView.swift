@@ -95,7 +95,7 @@ struct ProfilesView: View {
     /// One profile: ✦ before the active one, its name (a click makes it active), tags, the
     /// settings in a line, and the actions that apply to it.
     private func row(_ profile: Profile) -> some View {
-        let active = profile.id == model.state.activeProfile
+        let active = profile.id == model.activeProfile.id
         return HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(verbatim: active ? "✦" : "")
                 .foregroundStyle(Print.brass)

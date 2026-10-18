@@ -31,3 +31,5 @@ patches.json
 .DS_Store
 # Local: the user's game PKGs and dumps
 /game/
+# Local: Impeccable design critique snapshots (hold local paths)
+/.impeccable/

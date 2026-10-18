@@ -22,11 +22,11 @@ Colours:
 | `line-strong` | `#4a3f36` | dotted leaders, active rules |
 | `text-primary` | `#d8cfbf` | parchment/bone |
 | `text-secondary` | `#8f8577` | labels, hints |
-| `text-muted` | `#5c544a` | disabled, placeholders |
+| `text-muted` | `#5c544a` | disabled controls, placeholders, decorative marks; never content (2.6:1) |
 | `accent` / `-hover` / `-pressed` | `#7a1f1a` / `#93261f` / `#5e1713` | oxidised blood red, **only** the main action |
 | `brass` | `#9c8455` | hover, ornament rules, focus, selection marks |
-| `danger` | `#a83a2c` | errors |
-| `ok` | `#6b7a4f` | muted moss green for "ready" |
+| `danger` | `#cc5c48` | errors (4.8:1 on `bg-base`) |
+| `ok` | `#7a8a55` | muted moss green for "ready" (5.2:1 on `bg-base`) |
 
 Type (bundled, SIL Open Font License):
 - Display: Cormorant Garamond 600 (title 64, main button 28), line height 1.05.
@@ -143,5 +143,9 @@ artwork from the game other than the user's own `sce_sys/pic1.png` on the overvi
   keyboard focus outlines, Reduce Motion, the menus, dialogs and sheets as they open, drag
   reordering of mods, an import and a thorough check in progress, the first-run assistant with
   Rosetta missing (it grows towards the window's height).
+- Contrast (critique 2026-10-19): text is at least 4.5:1 on `bg-base`. `danger` and `ok` were
+  raised to pass; empty rows, counts, slot numbers and the version use `text-secondary`, so
+  `text-muted` is left for disabled controls and ornaments. Notes stay at 14: 15 was tried and is
+  barely visible while it breaks the scale; larger text needs a window that can grow.
 - The Mods page no longer names the profile its mod set belongs to; the Controller section of
   Advanced holds one line and could join Window.

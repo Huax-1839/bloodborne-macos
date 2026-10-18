@@ -160,7 +160,7 @@ struct ModsView: View {
             if let order {
                 Text(verbatim: String(order))
                     .font(Print.mono())
-                    .foregroundStyle(Print.textMuted)
+                    .foregroundStyle(Print.textSecondary)
                     .frame(width: 24, alignment: .leading)
             }
             Text(verbatim: mod.name)

@@ -95,7 +95,8 @@ struct HomeView: View {
 
     private var profileMenu: some View {
         Menu {
-            Picker(selection: $model.state.activeProfile) {
+            // The resolved profile, so the check mark is right when the saved one is gone.
+            Picker(selection: Binding(get: { model.activeProfile.id }, set: { model.state.activeProfile = $0 })) {
                 ForEach(model.profiles.all.filter(\.builtin) + model.profiles.custom) { profile in
                     Text(verbatim: profile.name).tag(profile.id)
                 }
@@ -304,7 +305,7 @@ private struct ListRow: View {
             if let lead {
                 Text(verbatim: lead)
                     .font(Print.mono())
-                    .foregroundStyle(Print.textMuted)
+                    .foregroundStyle(Print.textSecondary)
                     .frame(width: 16, alignment: .leading)
             }
             label
@@ -328,7 +329,7 @@ private struct ListRow: View {
 private struct EmptyRow: View {
     var body: some View {
         Text("none yet")
-            .foregroundStyle(Print.textMuted)
+            .foregroundStyle(Print.textSecondary)
             .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             .overlay(alignment: .top) { Rectangle().fill(Print.line).frame(height: 1) }
     }

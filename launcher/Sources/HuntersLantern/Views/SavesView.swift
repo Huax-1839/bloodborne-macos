@@ -116,7 +116,7 @@ struct SavesView: View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(verbatim: String(character.slot + 1))
                 .font(Print.mono())
-                .foregroundStyle(Print.textMuted)
+                .foregroundStyle(Print.textSecondary)
                 .frame(width: 16, alignment: .leading)
             Text(verbatim: character.name.isEmpty ? "—" : character.name)
                 .lineLimit(1)

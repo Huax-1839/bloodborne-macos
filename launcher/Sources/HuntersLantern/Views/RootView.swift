@@ -121,7 +121,7 @@ private struct Sidebar: View {
                 if let count {
                     Text(verbatim: count)
                         .font(Print.mono())
-                        .foregroundStyle(Print.textMuted)
+                        .foregroundStyle(Print.textSecondary)
                 }
             }
         }
@@ -153,7 +153,7 @@ private struct StatusBar: View {
             }
             Spacer(minLength: 16)
             Button { model.page = .about } label: { Text(verbatim: Self.appVersion) }
-                .buttonStyle(TextActionStyle(font: Print.mono(), color: Print.textMuted))
+                .buttonStyle(TextActionStyle(font: Print.mono(), color: Print.textSecondary))
                 .help(Text("About Hunter's Lantern"))
         }
         .font(Print.mono())
