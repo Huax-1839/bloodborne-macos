@@ -8,7 +8,7 @@ final class ProfileTests: XCTestCase {
         XCTAssertEqual(keys["effect_dynamic_shadows"], "0")
         XCTAssertEqual(keys["effect_motion_blur"], "0")
         XCTAssertEqual(keys["effect_dof"], "0")
-        XCTAssertEqual(keys["effect_ssao"], "0")
+        XCTAssertEqual(keys["effect_ssao"], "1")
         XCTAssertEqual(keys["effect_game_aa"], "1")
         XCTAssertEqual(keys["effect_ssr"], "0")
         XCTAssertEqual(keys["model_lod"], "1")

@@ -108,7 +108,9 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
 P16.1 prep (2026-10-19, `docs/PERFORMANCE_PLAN_2026-10-18.md` phase 3): at m4air 720p SSAO is free
 and visible, dynamic shadows cost 36% FPS in the clinic (tiny shadow-map passes, ~160 more
 encoders a frame, recording-bound) and little in Yharnam. Waiting for the user's choice of
-profile before the 20-min M3 run.
+profile before the 20-min M3 run. Decided (2026-10-19, the user took the recommendation): SSAO
+on in m4air (run.sh and the launcher's "MacBook Air" preset), shadows stay off; clinic 60.6 FPS
+uncapped with it. The 20-min M3 run of this profile is next (not started yet).
 
 First the runs that need the user at the Mac (P11): the M3 battery run under the acceptance rule
 (with `POWERMETRICS=1 THREADCPU=10`; the bench cache was filled at 540p by the P10.1 runs), 720p

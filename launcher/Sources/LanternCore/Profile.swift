@@ -99,13 +99,14 @@ extension Profile {
 
 extension Profile {
     /// "MacBook Air": run.sh's BB_PROFILE=m4air (measured on an M4 Air, 10-core GPU): the scene at
-    /// 1280x720, upscaled to 1080p, 30 FPS, the four costliest effects off, one model LOD lower.
+    /// 1280x720, upscaled to 1080p, 30 FPS, the three costliest effects off (SSAO stays on: +0.2 ms
+    /// GPU at 720p), one model LOD lower.
     public static let air: Profile = {
         var p = Profile(id: "builtin-air", name: "MacBook Air")
         p.builtin = true
         p.frameRate = .fps30
         p.renderResolution = "1280x720"
-        p.effects = [.dynamicShadows: false, .motionBlur: false, .depthOfField: false, .ambientOcclusion: false]
+        p.effects = [.dynamicShadows: false, .motionBlur: false, .depthOfField: false, .ambientOcclusion: true]
         p.modelLOD = 1
         p.iniValues = ["upscaler": "metalfx", "preset": "0"]
         return p

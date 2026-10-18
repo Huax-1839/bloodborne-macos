@@ -152,7 +152,8 @@ Measured 2026-10-18/19 (P16.1 prep, short boots, m4air 720p uncapped, AC, labell
   per command buffer): the frame becomes recording/encoder-bound. In Yharnam they cost little
   (+32 draws). A lever if shadows are wanted: fewer encoders for the small shadow passes.
 - Recommendation for P16.3 (the user's call): SSAO on in the m4air profile, dynamic shadows off;
-  then the 20-min M3 run with `effect_ssao=1`.
+  then the 20-min M3 run with `effect_ssao=1`. **Taken by the user 2026-10-19**: `macos/run.sh`
+  and `Profile.air` have SSAO on; the M3 run is next.
 
 Exit: the profile changed by the user's choice and passing the M3 rule on AC and battery.
 
