@@ -381,6 +381,16 @@
         }
       }
     },
+    "Built-in profiles stay as they are.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingebaute Profile sind fest."
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "de": {
@@ -631,6 +641,16 @@
         }
       }
     },
+    "copy to change": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zum Ändern kopieren"
+          }
+        }
+      }
+    },
     "crashed": {
       "localizations": {
         "de": {
@@ -721,6 +741,17 @@
         }
       }
     },
+    "delete…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "löschen…"
+          }
+        }
+      }
+    },
     "Delete…": {
       "localizations": {
         "de": {
@@ -761,12 +792,33 @@
         }
       }
     },
+    "Display number": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildschirmnummer"
+          }
+        }
+      }
+    },
     "Display number: %lld": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Bildschirmnummer: %lld"
+          }
+        }
+      }
+    },
+    "duplicate": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "duplizieren"
           }
         }
       }
@@ -857,6 +909,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Profil exportieren"
+          }
+        }
+      }
+    },
+    "export…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "exportieren…"
           }
         }
       }
@@ -1051,6 +1114,17 @@
         }
       }
     },
+    "import…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "importieren…"
+          }
+        }
+      }
+    },
     "Import…": {
       "localizations": {
         "de": {
@@ -1196,7 +1270,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Profile verwalten …"
+            "value": "Profile verwalten…"
           }
         }
       }
@@ -1536,7 +1610,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vorbereitung …"
+            "value": "Vorbereitung…"
           }
         }
       }
@@ -1571,6 +1645,16 @@
         }
       }
     },
+    "Recommended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empfohlen"
+          }
+        }
+      }
+    },
     "Recommended for this Mac": {
       "localizations": {
         "de": {
@@ -1587,6 +1671,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reflexionen (experimentell)"
+          }
+        }
+      }
+    },
+    "remove": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "entfernen"
           }
         }
       }
@@ -1637,6 +1732,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Profil umbenennen"
+          }
+        }
+      }
+    },
+    "rename…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "umbenennen…"
           }
         }
       }
@@ -1746,7 +1852,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Einstellungen …"
+            "value": "Einstellungen…"
           }
         }
       }
@@ -1866,7 +1972,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Jagd läuft …"
+            "value": "Die Jagd läuft…"
           }
         }
       }
@@ -2157,6 +2263,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Upscaler beim Start"
+          }
+        }
+      }
+    },
+    "use": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verwenden"
           }
         }
       }

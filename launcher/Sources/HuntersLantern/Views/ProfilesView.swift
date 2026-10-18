@@ -6,40 +6,35 @@ import UniformTypeIdentifiers
 /// Profiles: pick the active one, duplicate, rename, delete, export and import.
 struct ProfilesView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var deleting = false
-    @State private var renaming = false
+    @State private var deleting: Profile?
+    @State private var renaming: Profile?
 
     var body: some View {
         PageContainer(title: "Profiles") {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses.")
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 28)
-                List(selection: selection) {
-                    ForEach(model.profiles.all) { profile in
-                        row(profile).tag(profile.id)
-                    }
+            PrintNote(Text("A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses."))
+            VStack(alignment: .leading, spacing: 0) {
+                Rectangle().fill(Print.line).frame(height: 1)
+                PrintRows {
+                    ForEach(model.profiles.all) { row($0) }
                 }
-                .scrollContentBackground(.hidden)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 28)
-                actionBar
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 24)
             }
+        } trailing: {
+            Button(action: chooseImport) { Text("import…") }
+                .disabled(model.isBusy)
         }
-        .confirmationDialog("Delete the profile “\(model.activeProfile.name)”?", isPresented: $deleting, titleVisibility: .visible) {
-            if model.ownSaveFolders(model.activeProfile).isEmpty {
-                Button("Delete", role: .destructive) { model.deleteProfile(model.activeProfile) }
+        .confirmationDialog("Delete the profile “\(deleting?.name ?? "")”?", isPresented: deleteShown,
+                            titleVisibility: .visible, presenting: deleting) { profile in
+            if model.ownSaveFolders(profile).isEmpty {
+                Button("Delete", role: .destructive) { model.deleteProfile(profile) }
             } else {
-                Button("Delete and Keep Its Saves") { model.deleteProfile(model.activeProfile) }
+                Button("Delete and Keep Its Saves") { model.deleteProfile(profile) }
                 Button("Delete and Move Its Saves to the Trash", role: .destructive) {
-                    model.deleteProfile(model.activeProfile, trashingSaves: true)
+                    model.deleteProfile(profile, trashingSaves: true)
                 }
             }
             Button("Cancel", role: .cancel) {}
-        } message: {
-            if let saves = model.ownSaveFolders(model.activeProfile).first {
+        } message: { profile in
+            if let saves = model.ownSaveFolders(profile).first {
                 Text("This profile has its own saves. If you keep them, they stay in the data folder (\(saves.path)), but no profile shows them any more.")
             } else {
                 Text("This cannot be undone.")
@@ -57,9 +52,13 @@ struct ProfilesView: View {
         } message: { pending in
             Text(importMessage(pending))
         }
-        .sheet(isPresented: $renaming) {
-            RenameSheet(name: model.activeProfile.name) { model.renameProfile(model.activeProfile, to: $0) }
+        .sheet(item: $renaming) { profile in
+            RenameSheet(name: profile.name) { model.renameProfile(profile, to: $0) }
         }
+    }
+
+    private var deleteShown: Binding<Bool> {
+        Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })
     }
 
     private var importing: Binding<Bool> {
@@ -81,55 +80,80 @@ struct ProfilesView: View {
         return parts.joined(separator: "\n\n")
     }
 
-    private var selection: Binding<String?> {
-        Binding(get: { model.state.activeProfile }, set: { if let id = $0 { model.state.activeProfile = id } })
+    private func chooseImport() {
+        if let url = Panels.chooseFile(message: String(localized: "Choose a profile file"), types: [.json]) {
+            model.importProfile(from: url)
+        }
     }
 
+    private func export(_ profile: Profile) {
+        if let url = Panels.saveFile(message: String(localized: "Export the profile"), name: profile.name + ".json", type: .json) {
+            model.exportProfile(profile, to: url)
+        }
+    }
+
+    /// One profile: ✦ before the active one, its name (a click makes it active), tags, the
+    /// settings in a line, and the actions that apply to it.
     private func row(_ profile: Profile) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: profile.id == model.state.activeProfile ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(profile.id == model.state.activeProfile ? Theme.amber : Color.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(profile.name).font(.headline)
-                    if profile.builtin { Badge("Built-in") }
-                    if profile.unmeasured { Badge("Unmeasured", tint: Theme.amber) }
-                    if profile.id == model.hardware.suggestedProfile.id { Badge("Recommended for this Mac", tint: .green) }
-                }
-                summary(profile)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+        let active = profile.id == model.state.activeProfile
+        return HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(verbatim: active ? "✦" : "")
+                .foregroundStyle(Print.brass)
+                .frame(width: 16, alignment: .leading)
+                .accessibilityHidden(true)
+            Button { model.state.activeProfile = profile.id } label: {
+                ProfileLabel(profile: profile, recommended: profile.id == model.hardware.suggestedProfile.id)
             }
-            Spacer()
+            .buttonStyle(RowLinkStyle())
+            .accessibilityAddTraits(active ? .isSelected : [])
+            Spacer(minLength: 8)
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                if !active {
+                    Button { model.state.activeProfile = profile.id } label: { Text("use") }
+                }
+                Button { model.duplicateProfile(profile) } label: { Text("duplicate") }
+                if !profile.builtin {
+                    Button { renaming = profile } label: { Text("rename…") }
+                }
+                Button { export(profile) } label: { Text("export…") }
+                if !profile.builtin {
+                    Button { deleting = profile } label: { Text("delete…") }
+                }
+            }
+            .buttonStyle(TextActionStyle())
+            .fixedSize()
         }
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
+        .padding(.vertical, 8)
+        .printRow()
+    }
+}
+
+/// A profile's name with its tags and, under it, its main settings.
+private struct ProfileLabel: View {
+    let profile: Profile
+    let recommended: Bool
+    @Environment(\.rowHighlight) private var highlight
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(verbatim: profile.name)
+                    .font(Print.text(16))
+                    .foregroundStyle(highlight ? Print.brass : Print.textPrimary)
+                    .lineLimit(1)
+                if profile.builtin { PrintTag(Text("Built-in")) }
+                if profile.unmeasured { PrintTag(Text("Unmeasured")) }
+                if recommended { PrintTag(Text("Recommended")) }
+            }
+            summary
+                .font(Print.text(14))
+                .foregroundStyle(Print.textSecondary)
+                .lineLimit(1)
+        }
     }
 
-    private func summary(_ profile: Profile) -> Text {
+    private var summary: Text {
         Text(profile.frameRate.label) + Text(verbatim: " · ") + profile.sceneSizeText + Text(verbatim: " · ") + profile.rendererText
-    }
-
-    private var actionBar: some View {
-        let profile = model.activeProfile
-        return HStack {
-            Button("Duplicate") { model.duplicateProfile(profile) }
-            Button("Rename…") { renaming = true }
-                .disabled(profile.builtin)
-            Button("Delete…", role: .destructive) { deleting = true }
-                .disabled(profile.builtin)
-            Spacer()
-            Button("Import…") {
-                if let url = Panels.chooseFile(message: String(localized: "Choose a profile file"), types: [.json]) {
-                    model.importProfile(from: url)
-                }
-            }
-            Button("Export…") {
-                if let url = Panels.saveFile(message: String(localized: "Export the profile"), name: profile.name + ".json", type: .json) {
-                    model.exportProfile(profile, to: url)
-                }
-            }
-        }
     }
 }
 
@@ -140,22 +164,16 @@ struct RenameSheet: View {
     let onSave: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Rename the profile").font(.display(.title2))
+        PrintDialog(title: Text("Rename the profile"), width: 420) {
             TextField("Name", text: $name)
                 .onSubmit(save)
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Rename", action: save)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
+        } actions: {
+            Button(role: .cancel) { dismiss() } label: { Text("Cancel") }
+                .keyboardShortcut(.cancelAction)
+            Button(action: save) { Text("Rename") }
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(24)
-        .frame(width: 380)
     }
 
     private func save() {

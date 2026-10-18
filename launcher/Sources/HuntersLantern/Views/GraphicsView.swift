@@ -12,39 +12,15 @@ struct GraphicsView: View {
 
     var body: some View {
         let profile = model.activeProfile
-        PageContainer(title: "Graphics") {
-            Form {
-                Section {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(profile.name).font(.headline)
-                            if profile.builtin {
-                                Text("This is a built-in profile and cannot be changed. Duplicate it to make your own.")
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text("Changes are saved in this profile.")
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if profile.builtin {
-                            Button("Duplicate to edit") { model.duplicateProfile(profile) }
-                                .buttonStyle(.borderedProminent)
-                        }
-                    }
-                }
-                Group {
-                    performance
-                    display
-                    effects
-                    saves
-                }
-                .disabled(profile.builtin)
+        PageContainer(title: "Settings") {
+            ProfileEditLine(profile: profile)
+            Group {
+                performance
+                display
+                effects
+                saves
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            .disabled(profile.builtin)
         }
         .onAppear(perform: syncSize)
         .onChange(of: model.state.activeProfile) { syncSize() }
@@ -53,62 +29,65 @@ struct GraphicsView: View {
     // MARK: Sections
 
     private var performance: some View {
-        Section("Performance") {
-            Picker("Frame rate", selection: edit(\.frameRate)) {
-                ForEach(FrameRate.allCases, id: \.self) { Text($0.shortLabel).tag($0) }
+        PrintSection(Text("Performance")) {
+            RegisterLine(Text("Frame rate")) {
+                ChoiceWords(selection: edit(\.frameRate), options: FrameRate.allCases) { Text($0.shortLabel) }
             }
-            .pickerStyle(.segmented)
-            Picker("Model detail", selection: edit(\.modelLOD)) {
-                Text("Highest").tag(-2)
-                Text("Default").tag(0)
-                Text("Lower").tag(1)
-                Text("Lowest").tag(2)
+            RegisterLine(Text("Model detail")) {
+                PrintMenu(selection: edit(\.modelLOD), options: [-2, 0, 1, 2]) { Self.modelDetail($0) }
             }
+        }
+    }
+
+    private static func modelDetail(_ level: Int) -> Text {
+        switch level {
+        case -2: Text("Highest")
+        case 1: Text("Lower")
+        case 2: Text("Lowest")
+        default: Text("Default")
         }
     }
 
     private var display: some View {
-        Section {
-            Picker("Renderer", selection: edit(\.renderer)) {
-                ForEach(RendererChoice.allCases, id: \.self) { Text($0.label).tag($0) }
+        PrintSection(Text("Display")) {
+            RegisterLine(Text("Renderer")) {
+                ChoiceWords(selection: edit(\.renderer), options: RendererChoice.allCases) { Text($0.label) }
             }
             if MacHost.macOSMajor < 15 {
-                Text("Metal needs macOS 15 or newer. On this Mac the game uses Vulkan.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                PrintNote(Text("Metal needs macOS 15 or newer. On this Mac the game uses Vulkan."))
             }
-            Picker("Scene size", selection: sizeSelection) {
-                Text("Automatic").tag("")
-                ForEach(Self.sizes, id: \.self) { Text(verbatim: $0.replacingOccurrences(of: "x", with: "×")).tag($0) }
-                Text("Custom").tag("custom")
+            RegisterLine(Text("Scene size")) {
+                PrintMenu(selection: sizeSelection, options: [""] + Self.sizes + ["custom"]) { size in
+                    switch size {
+                    case "": Text("Automatic")
+                    case "custom": Text("Custom")
+                    default: Text(verbatim: size.replacingOccurrences(of: "x", with: "×"))
+                    }
+                }
             }
             if showsCustom {
-                LabeledContent("Custom size") {
+                RegisterLine(Text("Custom size")) {
                     TextField("Width×Height", text: $customText)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
                         .multilineTextAlignment(.trailing)
+                        .frame(width: 160)
                         .onSubmit(commitCustom)
                 }
                 if Self.parseSize(customText) == nil {
-                    Text("Enter the size as width and height, for example 1280x720.")
-                        .font(.callout)
-                        .foregroundStyle(.orange)
+                    PrintNote(Text("Enter the size as width and height, for example 1280x720."), color: Print.danger)
                 }
             }
-            Picker("Upscaler at start", selection: upscaler) {
-                Text("Keep the game's setting").tag("")
-                ForEach(upscalerChoices, id: \.self) { UpscalerOption.label($0).tag($0) }
+            RegisterLine(Text("Upscaler at start")) {
+                PrintMenu(selection: upscaler, options: [""] + upscalerChoices) { name in
+                    name.isEmpty ? Text("Keep the game's setting") : UpscalerOption.label(name)
+                }
             }
-        } header: {
-            Text("Display")
-        } footer: {
-            Text("Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu.")
+            PrintNote(Text("Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu."))
         }
     }
 
     private var effects: some View {
-        Section("Effects") {
+        PrintSection(Text("Effects")) {
             ForEach(Effect.allCases, id: \.self) { effect in
                 Toggle(effect.label, isOn: effectBinding(effect))
             }
@@ -116,12 +95,9 @@ struct GraphicsView: View {
     }
 
     private var saves: some View {
-        Section {
+        PrintSection(Text("Saves")) {
             Toggle("Own saves for this profile", isOn: edit(\.ownSaves))
-        } header: {
-            Text("Saves")
-        } footer: {
-            Text("The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared.")
+            PrintNote(Text("The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared."))
         }
     }
 
@@ -218,5 +194,36 @@ struct GraphicsView: View {
         guard parts.count == 2, let width = Int(parts[0]), let height = Int(parts[1]),
               (160...8192).contains(width), (90...8192).contains(height) else { return nil }
         return "\(width)x\(height)"
+    }
+}
+
+/// The line at the top of a profile's settings: the profile's name and, for a built-in profile
+/// (read-only), the way to a copy that can be changed. (Belongs in the kit if other pages need it.)
+struct ProfileEditLine: View {
+    @EnvironmentObject private var model: AppModel
+    let profile: Profile
+    var showsName = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if showsName {
+                Text(verbatim: profile.name)
+                    .font(Print.text(16))
+                    .foregroundStyle(Print.textPrimary)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                if profile.builtin {
+                    Text("Built-in profiles stay as they are.")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.textSecondary)
+                    Button { model.duplicateProfile(profile) } label: { Text("copy to change") }
+                        .buttonStyle(TextActionStyle())
+                } else {
+                    Text("Changes are saved in this profile.")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.textSecondary)
+                }
+            }
+        }
     }
 }

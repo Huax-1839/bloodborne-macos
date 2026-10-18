@@ -16,44 +16,36 @@ struct AdvancedView: View {
 
     var body: some View {
         PageContainer(title: "Advanced") {
-            Form {
-                Section("Window") {
-                    Toggle("Start in fullscreen", isOn: $model.state.settings.fullscreen)
-                    Toggle("Use a specific display", isOn: useDisplay)
-                    if let display = model.state.settings.display {
-                        Stepper(value: displayValue, in: 1...8) {
-                            Text("Display number: \(display)")
-                        }
+            PrintSection(Text("Window")) {
+                Toggle("Start in fullscreen", isOn: $model.state.settings.fullscreen)
+                Toggle("Use a specific display", isOn: useDisplay)
+                if model.state.settings.display != nil {
+                    RegisterLine(Text("Display number")) {
+                        ChoiceWords(selection: displayValue, options: Array(1...8)) { Text(verbatim: String($0)) }
                     }
                 }
-                Section {
-                    TextField("Controller", text: gamepad, prompt: Text("First controller found"))
-                } header: {
-                    Text("Controller")
-                } footer: {
-                    Text("A controller's name (or part of it) or its number. Leave empty to use the first one found.")
-                }
-                Section {
-                    Picker("Game language", selection: language) {
-                        Text("Default (English)").tag("")
-                        ForEach(Self.languages, id: \.id) { Text(verbatim: $0.name).tag($0.id) }
-                    }
-                } header: {
-                    Text("Language")
-                } footer: {
-                    Text("The language the game uses for its texts. Languages the game does not contain fall back to English.")
-                }
-                Section {
-                    Toggle("Skip the online/offline choice at start", isOn: $model.state.settings.skipNetworkChoice)
-                } header: {
-                    Text("Network")
-                } footer: {
-                    Text("The port has no PlayStation Network. With this on, the game starts offline without asking.")
-                }
-                ExpertVariablesSection()
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
+            PrintSection(Text("Controller")) {
+                RegisterLine(Text("Controller")) {
+                    TextField("Controller", text: gamepad, prompt: Text("First controller found"))
+                        .labelsHidden()
+                        .frame(width: 240)
+                }
+                PrintNote(Text("A controller's name (or part of it) or its number. Leave empty to use the first one found."))
+            }
+            PrintSection(Text("Language")) {
+                RegisterLine(Text("Game language")) {
+                    PrintMenu(selection: language, options: [""] + Self.languages.map(\.id)) { id in
+                        id.isEmpty ? Text("Default (English)") : Text(verbatim: Self.languages.first { $0.id == id }?.name ?? id)
+                    }
+                }
+                PrintNote(Text("The language the game uses for its texts. Languages the game does not contain fall back to English."))
+            }
+            PrintSection(Text("Network")) {
+                Toggle("Skip the online/offline choice at start", isOn: $model.state.settings.skipNetworkChoice)
+                PrintNote(Text("The port has no PlayStation Network. With this on, the game starts offline without asking."))
+            }
+            ExpertVariablesSection()
         }
     }
 
@@ -89,36 +81,37 @@ private struct ExpertVariablesSection: View {
 
     var body: some View {
         let profile = model.activeProfile
-        Section {
+        PrintSection(Text("Expert variables (profile “\(profile.name)”)")) {
+            PrintNote(Text("Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting."))
             if profile.builtin {
-                Text("Duplicate the profile to add variables. Built-in profiles cannot be changed.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                ProfileEditLine(profile: profile, showsName: false)
             }
-            ForEach(profile.environment.keys.sorted(), id: \.self) { name in
-                VariableRow(name: name, value: profile.environment[name] ?? "", editable: !profile.builtin) { value in
-                    set(name, value)
+            if !profile.environment.isEmpty {
+                PrintRows {
+                    ForEach(profile.environment.keys.sorted(), id: \.self) { name in
+                        VariableRow(name: name, value: profile.environment[name] ?? "", editable: !profile.builtin) { value in
+                            set(name, value)
+                        }
+                    }
                 }
             }
             if !profile.builtin {
-                HStack {
+                HStack(spacing: 16) {
                     TextField("Name", text: $newName, prompt: Text(verbatim: "BB_…"))
-                        .font(.system(.body, design: .monospaced))
+                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                        .frame(width: 200)
                     TextField("Value", text: $newValue)
-                        .font(.system(.body, design: .monospaced))
+                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
                     Button("Add", action: add)
+                        .buttonStyle(FrameActionStyle())
                         .disabled(!validName)
                 }
+                .padding(.top, 8)
                 if !newName.isEmpty && !validName {
-                    Text("Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores.")
-                        .font(.callout)
-                        .foregroundStyle(.orange)
+                    PrintNote(Text("Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores."),
+                              color: Print.danger)
                 }
             }
-        } header: {
-            Text("Expert variables (profile “\(profile.name)”)")
-        } footer: {
-            Text("Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting.")
         }
     }
 
@@ -140,6 +133,8 @@ private struct ExpertVariablesSection: View {
     }
 }
 
+/// One variable: `NAME ········ value`, the value edited in place (Return or leaving the field
+/// saves it), and a text action to remove it.
 private struct VariableRow: View {
     let name: String
     let value: String
@@ -149,24 +144,28 @@ private struct VariableRow: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack {
+        RegisterLine {
             Text(verbatim: name)
-                .font(.system(.body, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-            TextField("Value", text: $text)
-                .font(.system(.body, design: .monospaced))
-                .focused($focused)
-                .onSubmit { onChange(text) }
-                .disabled(!editable)
-            Button {
-                onChange(nil)
-            } label: {
-                Image(systemName: "minus.circle")
+                .font(Print.mono())
+                .foregroundStyle(Print.textPrimary)
+        } value: {
+            if editable {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    TextField("Value", text: $text)
+                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                        .frame(width: 240)
+                        .focused($focused)
+                        .onSubmit { onChange(text) }
+                    Button { onChange(nil) } label: { Text("remove") }
+                        .buttonStyle(TextActionStyle())
+                }
+            } else {
+                Text(verbatim: value)
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textSecondary)
             }
-            .buttonStyle(.borderless)
-            .help("Remove")
-            .disabled(!editable)
         }
+        .printRow()
         .onAppear { text = value }
         .onChange(of: value) { text = value }
         .onChange(of: focused) { if !focused && text != value { onChange(text) } }
