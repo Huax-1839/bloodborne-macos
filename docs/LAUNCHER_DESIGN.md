@@ -20,6 +20,7 @@ Colours:
 | `bg-sunken` | `#0a0908` | status bar, log areas |
 | `line` | `#2a2420` | rules, borders |
 | `line-strong` | `#4a3f36` | dotted leaders, active rules |
+| `line-input` | `#6b5f52` | text field edges (3.1:1 on `bg-base`) |
 | `text-primary` | `#d8cfbf` | parchment/bone |
 | `text-secondary` | `#8f8577` | labels, hints |
 | `text-muted` | `#5c544a` | disabled controls, placeholders, decorative marks; never content (2.6:1) |
@@ -46,7 +47,7 @@ Motion: 180 ms hover, 600 ms window fade-in, easing `cubic-bezier(0.2, 0, 0, 1)`
 scale. The main button flickers on hover like a gas lamp: irregular brightness, at most ±4 %;
 off with Reduce Motion.
 
-## 3. Layout (960 × 600, not resizable; revised 2026-10-19 after mock-up F)
+## 3. Layout (at least 960 × 600, opens at 1040 × 700, resizable; revised 2026-10-19)
 
 The layout follows the library launchers (a sidebar of pages), set in this design's style, with
 as little text as possible.
@@ -77,10 +78,15 @@ as little text as possible.
 ## 4. Pages and choices
 
 - The profile is chosen in a menu from the overview, or on the Profiles page.
-- A page: Cormorant 44 title (text actions may stand at its end), sections 32 apart, each a
-  small-caps heading over a rule; short notes in Garamond 14 secondary.
-- Settings are register lines (`label ········ value`): switches read `an`/`aus` (the chosen
-  word underlined in brass); up to four short alternatives as words (`30  60  90  frei`); more
+- A page: Cormorant 44 title (text actions may stand at its end) over a faint band of the game's
+  `pic1.png` (its lower edge, desaturated, 22 %, fading out; none without a game), sections 32
+  apart, each a small-caps heading over a rule; short notes in Garamond 14 secondary. Text keeps
+  to a column of 880; a larger window gets margins. A page longer than the window fades out
+  above the status bar (48), and its last line scrolls clear of the fade.
+- Text actions stand over a dotted brass rule (in `danger` for a destructive one), so they read
+  as actions without the pointer; menus (with ▾) and disabled actions have no rule.
+- Settings are register lines (`label ········ value`): switches show both words, `an  aus`, the
+  chosen one underlined in brass like a choice; up to four short alternatives as words (`30  60  90  frei`); more
   as a text with ▾ that opens the macOS menu; fields per §2.
 - Lists are rows between rules (40 high), figures and paths in mono, actions at the end as
   lowercase text actions ("exportieren…", "entfernen"); `✦` in brass marks the active or chosen
@@ -136,9 +142,10 @@ artwork from the game other than the user's own `sce_sys/pic1.png` on the overvi
 - String catalogs: lowercase text actions are keys of their own; where one differs from an
   existing key only in case or punctuation it has `generatesSymbol: false` (else the build's
   string symbols collide). German "…" has no space before it.
-- The window: `Window` scene, hidden title bar, not resizable, no full screen or zoom, moved by its
-  background; the content leaves out the title bar's height (measured in AppKit) so the window is
-  960 × 600 in all.
+- The window: `Window` scene, hidden title bar, at least 960 × 600 (`windowResizability
+  .contentMinSize`), opens at 1040 × 700, zoom and full screen allowed, moved by its background;
+  the content reaches under the transparent title bar (`ignoresSafeArea`). The artwork is read
+  once by `RootView` and handed down (`\.gameArtwork`) to the overview and the page headers.
 - Not checked by hand yet (the snapshots cannot show them): hover, the gas-lamp flicker,
   keyboard focus outlines, Reduce Motion, the menus, dialogs and sheets as they open, drag
   reordering of mods, an import and a thorough check in progress, the first-run assistant with

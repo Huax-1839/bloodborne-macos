@@ -15,8 +15,8 @@ launcher code existed, and is expected to change with the spikes of L0.
 - the decisions the user made on 2026-10-17 (§9): public `.app` in a DMG built by GitHub Actions,
   SwiftUI, Apple silicon with macOS 14+, the three import paths, the settings split with the
   in-game menu, profiles as complete packages, local mods only, the name; and the visual design
-  of 2026-10-19 (`docs/LAUNCHER_DESIGN.md`: one fixed 960 × 600 window in Victorian gothic,
-  its tokens and states), which replaced the home page + sidebar layout;
+  of 2026-10-19 (`docs/LAUNCHER_DESIGN.md`: one window in Victorian gothic, at least
+  960 × 600 and resizable since 2026-10-19, its tokens and states), which replaced the home page + sidebar layout;
 - **no PKG decryption code and no keys in this repository or in the app**: PKGs go through an
   external tool the user installs (D6);
 - **no Sony/FromSoftware artwork, logos or game files in the repository or the app**: artwork
@@ -340,7 +340,8 @@ v1 feature set (decided with the user):
 
 **D17 Artwork.**
 - Since 2026-10-19 (§9) the overview shows only `sce_sys/pic1.png` as a plate
-  (`docs/LAUNCHER_DESIGN.md` §3); the cover (`icon0.png`) is not shown.
+  (`docs/LAUNCHER_DESIGN.md` §3); the cover (`icon0.png`) is not shown. The same image, dimmed
+  to a texture, lies behind every page title (still read at run time, never shipped).
 - The home page shows `sce_sys/pic1.png` (background) and `icon0.png` (cover) from the user's
   imported game, read at run time and never copied into the repository or the app.
 - Before a game is imported, a neutral placeholder is shown.
@@ -649,3 +650,8 @@ Found during the inventory (fix when the task touching the file comes up):
   common wishes (60 FPS, a mod) hit a disabled page whose fix needed the profile model first.
   Profiles stay complete packages (the fixed point); a copy records the preset it came from
   (`Profile.basedOn`), copy names are made unique (`ProfileStore.uniqueName`).
+- 2026-10-19 (user): the window size is free (a fixed point, changed by the user). It is now
+  resizable, at least 960 × 600, opening at 1040 × 700; text keeps to a column of 880. With the
+  same critique pass (orchestrator): text actions carry a dotted brass rule, switches show
+  `an  aus`, long pages fade out at the bottom, text fields get a visible edge (`line-input`),
+  and the game's artwork lies faintly behind every page title.

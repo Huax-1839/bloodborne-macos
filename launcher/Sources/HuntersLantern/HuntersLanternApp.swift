@@ -8,7 +8,8 @@ struct HuntersLanternApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        // One window of a fixed size (docs/LAUNCHER_DESIGN.md): the other pages are its sheets.
+        // One window (docs/LAUNCHER_DESIGN.md), at least 960 × 600; it opens a little larger and
+        // can grow, so text is never squeezed into a fixed print.
         Window("Hunter's Lantern", id: "main") {
             RootView()
                 .environmentObject(delegate.model)
@@ -17,7 +18,8 @@ struct HuntersLanternApp: App {
                 .task { await Snapshot.runIfRequested(delegate.model) }
         }
         .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
+        .windowResizability(.contentMinSize)
+        .defaultSize(Print.windowDefault)
         .commands {
             UpdateCommands(updater: delegate.updater)
             GoCommands(model: delegate.model)

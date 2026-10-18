@@ -13,6 +13,8 @@ enum Print {
     static let bgSunken = Color(hex: 0x0a0908)
     static let line = Color(hex: 0x2a2420)
     static let lineStrong = Color(hex: 0x4a3f36)
+    /// The edge of a text field: the one rule that must be seen (3.1:1 on `bgBase`).
+    static let lineInput = Color(hex: 0x6b5f52)
     static let textPrimary = Color(hex: 0xd8cfbf)
     static let textSecondary = Color(hex: 0x8f8577)
     /// Only disabled controls and decorative marks: below text contrast on purpose.
@@ -27,7 +29,11 @@ enum Print {
 
     // MARK: Spacing (4 px grid)
 
+    /// The window's smallest size, and the size it opens at the first time (it can grow).
     static let window = CGSize(width: 960, height: 600)
+    static let windowDefault = CGSize(width: 1040, height: 700)
+    /// The widest a page's column of text gets in a large window (about 90 characters at 16).
+    static let column: CGFloat = 880
     static let inset: CGFloat = 48
     static let groupGap: CGFloat = 32
 
@@ -91,32 +97,52 @@ extension View {
 
 // MARK: - Buttons
 
-/// A text action ("ändern", "verwalten"): Garamond 14 in the text colour, brass on hover.
+/// A text action ("ändern", "verwalten"): Garamond 14 in the text colour over a dotted brass
+/// rule, so it reads as an action before the pointer finds it; all brass on hover. A danger
+/// action keeps its colour for both. `marked: false` for menus, whose ▾ already says it.
 struct TextActionStyle: ButtonStyle {
     var size: CGFloat = 14
     /// Another face (the status bar's mono).
     var font: Font?
     var color = Print.textPrimary
+    var marked = true
 
     func makeBody(configuration: Configuration) -> some View {
-        Label(configuration: configuration, font: font ?? Print.text(size), color: color)
+        Label(configuration: configuration, font: font ?? Print.text(size), color: color, marked: marked)
     }
 
     private struct Label: View {
         let configuration: ButtonStyleConfiguration
         let font: Font
         let color: Color
+        let marked: Bool
         @Environment(\.isEnabled) private var enabled
         @State private var hovering = false
 
         var body: some View {
+            let active = hovering || configuration.isPressed
             configuration.label
                 .font(font)
-                .foregroundStyle(!enabled ? Print.textMuted : hovering || configuration.isPressed ? Print.brass : color)
+                .foregroundStyle(!enabled ? Print.textMuted : active ? Print.brass : color)
+                .padding(.bottom, marked ? 3 : 0)
+                .overlay(alignment: .bottom) {
+                    if marked && enabled {
+                        ActionRule()
+                            .stroke(active ? Print.brass : color == Print.danger ? Print.danger : Print.brass.opacity(0.7),
+                                    style: StrokeStyle(lineWidth: 1, dash: [1, 2]))
+                            .frame(height: 1)
+                    }
+                }
                 .contentShape(Rectangle())
                 .onHover { hovering = $0 }
                 .animation(Print.hover, value: hovering)
                 .printFocus()
+        }
+    }
+
+    private struct ActionRule: Shape {
+        func path(in rect: CGRect) -> Path {
+            Path { $0.move(to: CGPoint(x: rect.minX, y: rect.midY)); $0.addLine(to: CGPoint(x: rect.maxX, y: rect.midY)) }
         }
     }
 }

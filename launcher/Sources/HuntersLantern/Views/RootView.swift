@@ -3,22 +3,32 @@ import AppKit
 import LanternCore
 import SwiftUI
 
+private struct GameArtworkKey: EnvironmentKey {
+    static let defaultValue: NSImage? = nil
+}
+
+extension EnvironmentValues {
+    /// The active game's artwork, read once by the window (nil: no game or no pic1).
+    var gameArtwork: NSImage? {
+        get { self[GameArtworkKey.self] }
+        set { self[GameArtworkKey.self] = newValue }
+    }
+}
+
 enum Page: String, CaseIterable, Identifiable {
     case home, game, profiles, graphics, mods, patches, saves, advanced, diagnostics, about
 
     var id: String { rawValue }
 }
 
-/// The window, fixed at 960 × 600 (docs/LAUNCHER_DESIGN.md): the sidebar of pages, the page, and
-/// the status bar under both.
+/// The window, at least 960 × 600 (docs/LAUNCHER_DESIGN.md): the sidebar of pages, the page, and
+/// the status bar under both. The content reaches under the transparent title bar.
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @State private var facts = LibraryFacts()
     @State private var appeared = false
-    /// The transparent title bar's height: SwiftUI adds it to the window around the content, so
-    /// the content asks for that much less and reaches under the title bar (the window stays
-    /// 960 × 600 in all).
-    @State private var titleBar: CGFloat = 0
+    /// The active game's sce_sys/pic1.png (D17), for the overview's plate and the page headers.
+    @State private var artwork: NSImage?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,17 +39,19 @@ struct RootView: View {
             }
             StatusBar()
         }
-        .frame(width: Print.window.width, height: Print.window.height)
+        .frame(minWidth: Print.window.width, maxWidth: .infinity, minHeight: Print.window.height, maxHeight: .infinity)
         .background(Print.bgBase)
         .foregroundStyle(Print.textPrimary)
         .font(Print.text())
-        .frame(width: Print.window.width, height: Print.window.height - titleBar, alignment: .bottom)
-        .background(WindowConfigurator { titleBar = $0 })
+        .ignoresSafeArea(.container, edges: .top)
+        .background(WindowConfigurator())
         .background {
             // The first-run assistant, a sheet on a view of its own.
             Color.clear.sheet(isPresented: firstRunShown) { FirstRunView().environmentObject(model) }
         }
         .task(id: factsKey) { facts = await LibraryFacts.read(model) }
+        .task(id: model.activeGame?.id) { await loadArtwork() }
+        .environment(\.gameArtwork, artwork)
         .opacity(appeared ? 1 : 0)
         .onAppear { withAnimation(Print.appear) { appeared = true } }
     }
@@ -58,6 +70,14 @@ struct RootView: View {
         case .diagnostics: DiagnosticsView()
         case .about: AboutView()
         }
+    }
+
+    private func loadArtwork() async {
+        guard let game = model.activeGame else {
+            artwork = nil
+            return
+        }
+        artwork = await Task.detached(priority: .userInitiated) { NSImage(contentsOf: game.backgroundImage) }.value
     }
 
     /// What the facts depend on: read again after a launch, on another page or profile.
@@ -259,32 +279,17 @@ struct GoCommands: Commands {
 /// The window's AppKit side: moved by its background, no full screen and no zoom (the layout is
 /// fixed at 960 × 600); reports the title bar's height.
 private struct WindowConfigurator: NSViewRepresentable {
-    let titleBar: (CGFloat) -> Void
-
-    func makeNSView(context: Context) -> NSView { ConfiguringView(titleBar: titleBar) }
+    func makeNSView(context: Context) -> NSView { ConfiguringView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     private final class ConfiguringView: NSView {
-        let titleBar: (CGFloat) -> Void
-
-        init(titleBar: @escaping (CGFloat) -> Void) {
-            self.titleBar = titleBar
-            super.init(frame: .zero)
-        }
-
-        required init?(coder: NSCoder) { fatalError("not used") }
-
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             guard let window else { return }
-            let height = window.frame.height - window.contentLayoutRect.height
-            DispatchQueue.main.async { self.titleBar(height) }
             window.isMovableByWindowBackground = true
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.backgroundColor = NSColor(Print.bgBase)
-            window.collectionBehavior.insert(.fullScreenNone)
-            window.standardWindowButton(.zoomButton)?.isEnabled = false
         }
     }
 }

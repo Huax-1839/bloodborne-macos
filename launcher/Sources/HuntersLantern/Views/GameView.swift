@@ -76,6 +76,7 @@ struct GameView: View {
                         Text(verbatim: "✦")
                             .foregroundStyle(Print.brass)
                             .help(Text("Active"))
+                            .accessibilityLabel(Text("Active"))
                     }
                 }
                 Text(verbatim: game.check.version)

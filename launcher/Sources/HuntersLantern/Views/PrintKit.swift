@@ -153,46 +153,26 @@ extension View {
 
 // MARK: - Choices
 
-/// A switch as a register line: `label ········ an` (underlined in brass) or `aus`. The whole line
-/// toggles.
+/// A switch as a register line: `label ········ an  aus`, both words shown and the current one
+/// chosen like `ChoiceWords`, so the line reads as a choice, not as a stray word. A click on a
+/// word sets it, a click on the label toggles; VoiceOver gets a plain switch.
 struct PrintToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
-        Styled(configuration: configuration)
-    }
-
-    private struct Styled: View {
-        let configuration: ToggleStyleConfiguration
-        @Environment(\.isEnabled) private var enabled
-        @State private var hovering = false
-
-        var body: some View {
-            Button { configuration.isOn.toggle() } label: {
-                RegisterLine {
-                    configuration.label
-                } value: {
-                    (configuration.isOn ? Text("on") : Text("off"))
-                        .font(Print.text(16))
-                        .foregroundStyle(valueColor)
-                        .padding(.bottom, 1)
-                        .overlay(alignment: .bottom) {
-                            if configuration.isOn {
-                                Rectangle().fill(enabled ? Print.brass : Print.lineStrong).frame(height: 1)
-                            }
-                        }
-                }
-                .contentShape(Rectangle())
+        RegisterLine {
+            Button { configuration.isOn.toggle() } label: { configuration.label }
+                .buttonStyle(.plain)
+                .focusable(false)
+        } value: {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Button { configuration.isOn = true } label: { Text("on") }
+                    .buttonStyle(ChoiceWordStyle(chosen: configuration.isOn))
+                Button { configuration.isOn = false } label: { Text("off") }
+                    .buttonStyle(ChoiceWordStyle(chosen: !configuration.isOn))
             }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .animation(Print.hover, value: hovering)
-            .printFocus()
-            .accessibilityValue(configuration.isOn ? Text("on") : Text("off"))
         }
-
-        private var valueColor: Color {
-            if !enabled { return Print.textMuted }
-            if hovering { return Print.brass }
-            return configuration.isOn ? Print.textPrimary : Print.textSecondary
+        .contentShape(Rectangle())
+        .accessibilityRepresentation {
+            Toggle(isOn: configuration.$isOn) { configuration.label }
         }
     }
 }
@@ -269,19 +249,19 @@ struct PrintMenu<Value: Hashable>: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 label(selection)
-                Text(verbatim: "▾").foregroundStyle(Print.brass)
+                Text(verbatim: "▾").foregroundStyle(Print.brass).accessibilityHidden(true)
             }
         }
         .menuStyle(.button)
         .menuIndicator(.hidden)
-        .buttonStyle(TextActionStyle(size: 16))
+        .buttonStyle(TextActionStyle(size: 16, marked: false))
         .fixedSize()
     }
 }
 
 // MARK: - Fields and actions
 
-/// A text field: `bg-base`, 1 px `line`, radius 2, the inner shadow, Garamond 16 (or the font
+/// A text field: `bg-base`, 1 px `lineInput`, radius 2, the inner shadow, Garamond 16 (or the font
 /// given, mono for paths and variables).
 struct PrintFieldStyle: TextFieldStyle {
     var font: Font = Print.text(16)
@@ -297,7 +277,7 @@ struct PrintFieldStyle: TextFieldStyle {
             .overlay(alignment: .top) {
                 Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1).padding(.horizontal, 1).padding(.top, 1)
             }
-            .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Print.line, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Print.lineInput, lineWidth: 1))
     }
 }
 

@@ -3116,6 +3116,26 @@
           }
         }
       }
+    },
+    "to the game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zum Spielordner"
+          }
+        }
+      }
+    },
+    "No update check while the game runs.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Updateprüfung, solange das Spiel läuft."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

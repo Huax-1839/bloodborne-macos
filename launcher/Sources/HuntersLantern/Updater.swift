@@ -67,7 +67,7 @@ private final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
         let refuse = MainActor.assumeIsolated { updateCheck == .updatesInBackground && gameRuns }
         if refuse {
             throw NSError(domain: "HuntersLantern", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "No update check while the game runs."])
+                          userInfo: [NSLocalizedDescriptionKey: String(localized: "No update check while the game runs.")])
         }
     }
 

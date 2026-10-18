@@ -40,7 +40,9 @@ struct FirstRunView: View {
             }
             PrintNote(Text("Next: add your own copy of the game on the Game page. The app contains no game files."))
         } actions: {
+            // The way on is the framed action; "later" stays a word beside it.
             Button { finish(goToGame: false) } label: { Text("Later") }
+                .buttonStyle(TextActionStyle(size: 16))
             Button { finish(goToGame: true) } label: { Text("Add the game") }
                 .keyboardShortcut(.defaultAction)
         }

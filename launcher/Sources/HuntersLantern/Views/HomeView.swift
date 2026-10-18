@@ -9,23 +9,26 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
     let facts: LibraryFacts
-    @State private var artwork: NSImage?
+    @Environment(\.gameArtwork) private var artwork
     @State private var power = PowerConditions.current()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             plate
-            band
-                .padding(.horizontal, Print.inset)
-                .padding(.top, 32)
-            line
-                .padding(.horizontal, Print.inset)
-                .padding(.top, 12)
-            Spacer(minLength: 0)
-            lists
-                .padding([.horizontal, .bottom], Print.inset)
+            VStack(alignment: .leading, spacing: 0) {
+                band
+                    .padding(.top, 32)
+                line
+                    .padding(.top, 12)
+                Spacer(minLength: 0)
+                lists
+                    .padding(.bottom, Print.inset)
+            }
+            .padding(.horizontal, Print.inset)
+            // A large window gets margins, not a band stretched across it.
+            .frame(maxWidth: Print.column + 2 * Print.inset)
+            .frame(maxWidth: .infinity)
         }
-        .task(id: model.activeGame?.id) { await loadArtwork() }
         .task {
             // Battery, Low Power Mode and heat change while the launcher is open.
             while !Task.isCancelled {
@@ -54,18 +57,10 @@ struct HomeView: View {
                     .padding(Print.inset)
             }
         }
-        .frame(height: 280)
+        .frame(minHeight: 280, maxHeight: 400)
         .frame(maxWidth: .infinity)
         .clipped()
         .overlay(alignment: .bottom) { Rectangle().fill(Print.line).frame(height: 1) }
-    }
-
-    private func loadArtwork() async {
-        guard let game = model.activeGame else {
-            artwork = nil
-            return
-        }
-        artwork = await Task.detached(priority: .userInitiated) { NSImage(contentsOf: game.backgroundImage) }.value
     }
 
     // MARK: The band: game, profile, main action
@@ -109,12 +104,12 @@ struct HomeView: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(verbatim: model.activeProfile.name)
-                Text(verbatim: "▾").foregroundStyle(Print.brass)
+                Text(verbatim: "▾").foregroundStyle(Print.brass).accessibilityHidden(true)
             }
         }
         .menuStyle(.button)
         .menuIndicator(.hidden)
-        .buttonStyle(TextActionStyle(size: 16))
+        .buttonStyle(TextActionStyle(size: 16, marked: false))
         .fixedSize()
         .disabled(locked)
         .help(Text("Profile"))
@@ -159,7 +154,9 @@ struct HomeView: View {
                 Button("stop") { model.stop() }
             }
         } else if model.activeGame == nil {
-            Line(text: Text("Choose your copy under “Game folder” in the sidebar."), color: Print.textSecondary)
+            Line(text: Text("Choose your copy under “Game folder” in the sidebar."), color: Print.textSecondary) {
+                Button("to the game folder") { model.page = .game }
+            }
         } else if power.onBattery {
             Line(text: Text("On battery power the game runs slower. Plug in the charger."), color: Print.textSecondary)
         } else if power.lowPowerMode {
