@@ -61,13 +61,13 @@ fi
 remove_mod_overlay() { [[ -z $mod_overlay ]] || rm -rf -- "$mod_overlay"; }
 trap remove_mod_overlay EXIT
 
-# BB_PROFILE=m4air: 30 FPS on a MacBook Air M4 (fanless, 10-core GPU). The scene at 960x540,
-# FSR 3 to the 1080p output (the UI drawn at 1080p), frame rate capped at 30, the effects that
-# cost most off and one model detail level lower (the clinic draws ~7 million triangles a frame).
-# 1280x720 gives ~20 FPS there.
+# BB_PROFILE=m4air: 30 FPS on a MacBook Air M4 (fanless, 10-core GPU). The scene at 1280x720
+# (user's choice after P13.1: 52 FPS uncapped in Central Yharnam; BB_RENDER_RES=960x540 for more
+# headroom), upscaled to the 1080p output (the UI drawn at 1080p), frame rate capped at 30, the
+# effects that cost most off and one model detail level lower.
 # Each value can still be given explicitly (BB_RENDER_RES, BB_FPS, BB_SETTINGS).
 if [[ ${BB_PROFILE:-} == m4air ]]; then
-    export BB_RENDER_RES=${BB_RENDER_RES:-960x540}
+    export BB_RENDER_RES=${BB_RENDER_RES:-1280x720}
     export BB_FPS=${BB_FPS:-30}
     export BB_SETTINGS=${BB_SETTINGS:-effect_dynamic_shadows=0,effect_motion_blur=0,effect_dof=0,effect_ssao=0,model_lod=1}
 fi

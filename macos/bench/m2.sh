@@ -3,7 +3,7 @@
 # m2.sh [profile...]: the M2 measurement of docs/METAL_BACKEND_PLAN.md (§1): Metal against Vulkan
 # at identical settings, three runs each, interleaved in both orders (V M M V V M, or M V V M M V
 # for every second profile), with bench.sh; prints each run and the means per profile. Profiles:
-#   uncap   BB_PROFILE=m4air BB_FPS=uncap   (540p scene, MetalFX/FSR 3 to 1080p)
+#   uncap   BB_PROFILE=m4air BB_FPS=uncap   (720p scene since 2026-10-18, MetalFX/FSR 3 to 1080p)
 #   cap30   BB_PROFILE=m4air                (the profile's 30 FPS cap)
 #   native  BB_FPS=30                       (1080p, no profile)
 # Default: all three. The results also go to $BB_BENCH_DIR/runs/results.tsv (names m2-<profile>-*).

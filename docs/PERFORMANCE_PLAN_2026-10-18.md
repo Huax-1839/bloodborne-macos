@@ -130,6 +130,10 @@ light-grid patch and Relaxed math are no levers.
    sync with run.sh), README/HANDOFF advice. `model_lod=2` only as an optional "performance"
    choice if the user wants one.
 
+Decided early (2026-10-18, the user): the m4air profile's scene is 1280x720 (run.sh and the
+launcher's "MacBook Air" preset); effects, model LOD and upscaler unchanged. P16.1 still measures
+it under the M3 rule; `BB_RENDER_RES=960x540` restores 540p.
+
 Exit: the profile changed by the user's choice and passing the M3 rule on AC and battery.
 
 ## Phase 4 (P17): recording cost under heat (uncapped play, M4)

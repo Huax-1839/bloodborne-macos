@@ -22,9 +22,9 @@ areas.
   is faster (see [Performance](#performance)).
 - **MetalFX temporal upscaling** with live presets (Native AA to Ultra Performance), and optional
   **MetalFX frame interpolation** on macOS 26 or newer.
-- **30 FPS on a fanless MacBook Air M4** with the `m4air` profile (540p scene upscaled to 1080p),
-  on power and on battery, with headroom to spare (about 44 FPS uncapped); a 720p scene now averages
-  30 FPS over 20 minutes too (just short of the project's strict 30-FPS acceptance rule).
+- **30 FPS on a fanless MacBook Air M4** with the `m4air` profile (720p scene upscaled to 1080p;
+  about 52 FPS uncapped even in Central Yharnam). The earlier 540p scene (`BB_RENDER_RES=960x540`)
+  passed the project's strict 20-minute 30-FPS rule on power and on battery.
 - **Vulkan renderer through MoltenVK** as an alternative (`BB_RENDERER=vulkan`).
 - The game's own settings menu gains *Display* and *Effects* pages (output resolution, upscaler,
   preset, FPS counter, model detail, effects), plus an overlay menu with advanced settings
@@ -67,7 +67,7 @@ carries the game runtime and everything the game preparation needs. Its source i
 
    Every import is checked (title, version 1.09, the executable, the shaders); a thorough check of
    all files can run in the background.
-3. **Pick a profile.** Built-in presets: *MacBook Air* (measured: 540p scene, MetalFX to 1080p,
+3. **Pick a profile.** Built-in presets: *MacBook Air* (measured: 720p scene, MetalFX to 1080p,
    30 FPS), *Pro* and *Max* (estimates, marked as unmeasured) and *Vanilla*. The launcher suggests
    one for your Mac. Duplicate a preset to change frame rate, renderer, scene size, effects, patches
    and mods; settings you change in the game's menu are taken back into the profile.
@@ -97,7 +97,7 @@ Settings, saves, logs and prepared files live in `~/Library/Application Support/
    beiden **PKG-Dateien**. Für PKGs brauchst du ein externes Werkzeug, empfohlen
    [ps4-pkg-tools](https://github.com/xXJSONDeruloXx/ps4-pkg-tools); die App selbst enthält keinen
    PKG-Code. Ein Delta-Update-PKG funktioniert nicht, nötig ist das vollständige 1.09-Update.
-3. **Profil wählen:** *MacBook Air* (gemessen: 540p, MetalFX auf 1080p, 30 FPS), *Pro* und *Max*
+3. **Profil wählen:** *MacBook Air* (gemessen: 720p, MetalFX auf 1080p, 30 FPS), *Pro* und *Max*
    (geschätzt, als ungemessen markiert) oder *Vanilla*. Zum Ändern ein Profil duplizieren.
 4. **Mods** (Seite *Mods*): Ordner oder ZIP-Dateien hinzufügen, sortieren, pro Profil einschalten.
    Die Spieldateien bleiben unverändert.
@@ -116,7 +116,7 @@ bash macos/build-deps.sh                  # once: the x86-64 libraries (macos/de
 bash macos/build.sh                       # macos/out: the loader and the renderer
 
 BB_GAME_DIR=/path/to/CUSA03173 bash macos/run.sh
-BB_PROFILE=m4air bash macos/run.sh        # MacBook Air: 540p scene, MetalFX to 1080p, 30 FPS cap
+BB_PROFILE=m4air bash macos/run.sh        # MacBook Air: 720p scene, MetalFX to 1080p, 30 FPS cap
 ```
 
 Without `BB_GAME_DIR`, the game is expected in `~/Games/Bloodborne/CUSA03173-1.09`. Settings are
@@ -127,7 +127,7 @@ Useful switches:
 | Variable | Effect |
 |---|---|
 | `BB_RENDERER=metal\|vulkan` | Choose the renderer (default: Metal on macOS 15+) |
-| `BB_PROFILE=m4air` | 30 FPS profile for fanless Macs: 960×540 scene, costly effects off, one model detail level lower |
+| `BB_PROFILE=m4air` | 30 FPS profile for fanless Macs: 1280×720 scene, costly effects off, one model detail level lower |
 | `BB_RENDER_RES=1280x720` | Fixed internal resolution, upscaled to the output |
 | `BB_FPS=30` | Frame rate cap |
 | `BB_LIVE_RES=1` | Keep live resolution changes from the menu at outputs other than 1080p |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # temporal_check.sh <name> [ENV=VAL ...]: temporal behaviour of the upscaler on the Metal backend
-# (MetalFX temporal, BB_PROFILE=m4air: 540p scene to 1080p), which still images cannot show.
+# (MetalFX temporal, BB_PROFILE=m4air: 720p scene to 1080p), which still images cannot show.
 # Boots the bench save into the clinic (bench.sh, KEEP=1, BB_RENDERER=metal and BB_PROFILE=m4air
 # unless given), scripts the pad (BB_PAD_FILE) and dumps bursts of consecutive display frames
 # (BB_PRESENT_DUMP_TRIGGER/_COUNT) into $BB_BENCH_DIR/runs/temporal-<name>/<sequence>/, then

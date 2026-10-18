@@ -9,7 +9,7 @@ upstream clone.
 
 Build: `bash macos/build-deps.sh` (once), `bash macos/build.sh`; run: `bash macos/run.sh` (game in
 `~/Games/Bloodborne/CUSA03173-1.09`). 30 FPS profile for the MacBook Air M4:
-`BB_PROFILE=m4air bash macos/run.sh` (960x540 scene, MetalFX to 1080p). Renderer: Metal by default
+`BB_PROFILE=m4air bash macos/run.sh` (1280x720 scene since 2026-10-18, MetalFX to 1080p; `BB_RENDER_RES=960x540` for the old 540p; benches with `BB_PROFILE=m4air` are 720p from then on, so add `BB_RENDER_RES=960x540` to compare with earlier numbers). Renderer: Metal by default
 on Apple silicon with macOS 15+, `BB_RENDERER=vulkan` for the Vulkan backend on MoltenVK (the
 reference). The repository is macOS only: the Linux build (top-level `build.sh`/`run.sh`,
 `shell.nix`), the GTK launcher and the AppImage/Nix packaging were removed on 2026-10-17. The
