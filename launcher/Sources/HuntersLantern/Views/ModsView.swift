@@ -4,6 +4,9 @@ import LanternCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// A literal from this page's string table (Mods.xcstrings).
+private func m(_ key: LocalizedStringKey) -> Text { Text(key, tableName: "Mods") }
+
 /// Mods: the library, and the active profile's mod set (on/off and load order, D10). A built-in
 /// profile is read-only.
 struct ModsView: View {
@@ -14,35 +17,35 @@ struct ModsView: View {
     @State private var dropTargeted = false
 
     private static let shownConflicts = 300
+    /// A mod row's height (`printRow()`); the reorderable list is this many times the count high.
+    private static let rowHeight: CGFloat = 40
 
     var body: some View {
         let profile = model.activeProfile
         PageContainer(title: "Mods") {
-            VStack(alignment: .leading, spacing: 14) {
-                header(profile)
-                if library.loaded && library.mods.isEmpty {
-                    emptyState
-                } else {
-                    modList(profile)
-                }
+            if profile.builtin { builtinSection(profile) }
+            addActions
+            if library.loaded && library.mods.isEmpty {
+                emptyState
+            } else {
+                modList(profile)
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 24)
-            .overlay {
-                if dropTargeted {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(Theme.amber, style: StrokeStyle(lineWidth: 2, dash: [8, 5]))
-                        .background(Theme.amber.opacity(0.06))
-                        .padding(8)
-                        .allowsHitTesting(false)
-                }
-            }
-            .dropDestination(for: URL.self) { urls, _ in
-                guard !model.isBusy else { return false }
-                Task { await add(urls) }
-                return true
-            } isTargeted: { dropTargeted = $0 }
+        } trailing: {
+            Button { NSWorkspace.shared.open(model.dirs.modsDir) } label: { m("Show mods folder") }
         }
+        .overlay {
+            if dropTargeted {
+                Rectangle()
+                    .strokeBorder(Print.brass, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard !model.isBusy else { return false }
+            Task { await add(urls) }
+            return true
+        } isTargeted: { dropTargeted = $0 }
         .task {
             library.configure(dir: model.dirs.modsDir) { model.errorMessage = $0 }
             await library.reload()
@@ -62,220 +65,190 @@ struct ModsView: View {
             }
         }
         .confirmationDialog(
-            Text("Move “\(deleting?.name ?? "")” to the Trash?", tableName: "Mods"),
+            m("Move “\(deleting?.name ?? "")” to the Trash?"),
             isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
             titleVisibility: .visible, presenting: deleting
         ) { mod in
-            Button(role: .destructive) { delete(mod) } label: { Text("Move to the Trash", tableName: "Mods") }
-            Button(role: .cancel) {} label: { Text("Cancel", tableName: "Mods") }
+            Button(role: .destructive) { delete(mod) } label: { m("Move to the Trash") }
+            Button(role: .cancel) {} label: { m("Cancel") }
         } message: { _ in
-            Text("The mod is switched off in every profile. You can put it back from the Trash.", tableName: "Mods")
+            m("The mod is switched off in every profile. You can put it back from the Trash.")
         }
     }
 
     // MARK: Header
 
-    private func header(_ profile: Profile) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if profile.builtin {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(profile.name).font(.headline)
-                        Text("This is a built-in profile and has no mods. Duplicate it to switch mods on.", tableName: "Mods")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Duplicate to edit") { model.duplicateProfile(profile) }
-                        .buttonStyle(.borderedProminent)
-                }
-                .card()
-            } else {
-                Text("Mods replace game files with your own: models, textures, texts. Switch on the mods you want in the profile “\(profile.name)”. They load from top to bottom; if two mods have the same file, the lower one wins. Drag the switched-on mods to change the order.", tableName: "Mods")
-                    .foregroundStyle(.secondary)
+    private func builtinSection(_ profile: Profile) -> some View {
+        PrintSection(Text(verbatim: profile.name)) {
+            PrintNote(m("This is a built-in profile and has no mods. Duplicate it to switch mods on."))
+            Button { model.duplicateProfile(profile) } label: { m("Duplicate to edit") }
+                .buttonStyle(FrameActionStyle())
+        }
+    }
+
+    private var addActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                Button { addFolder() } label: { m("Add mod folder…") }
+                Button { addZip() } label: { m("Add ZIP…") }
             }
-            HStack(spacing: 10) {
-                Button { addFolder() } label: {
-                    Label { Text("Add mod folder…", tableName: "Mods") } icon: { Image(systemName: "folder.badge.plus") }
-                }
-                Button { addZip() } label: {
-                    Label { Text("Add ZIP…", tableName: "Mods") } icon: { Image(systemName: "doc.zipper") }
-                }
-                Button { NSWorkspace.shared.open(model.dirs.modsDir) } label: {
-                    Label { Text("Show mods folder", tableName: "Mods") } icon: { Image(systemName: "folder") }
-                }
-                if let name = library.importing {
-                    ProgressView().controlSize(.small)
-                    Text("Adding “\(name)”…", tableName: "Mods").font(.callout).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
+            .buttonStyle(FrameActionStyle())
             .disabled(library.importing != nil)
+            if let name = library.importing {
+                PrintProgress(fraction: nil)
+                PrintNote(m("Adding “\(name)”…"))
+            }
         }
     }
 
     // MARK: Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "puzzlepiece.extension")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(Theme.amber.opacity(0.8))
-            Text("No mods yet", tableName: "Mods").font(.display(.title2))
-            VStack(spacing: 8) {
-                Text("A mod is a set of loose files that replace or add to the game's own: models, textures, texts, sounds. They go into a folder called dvdroot_ps4. Add a mod folder or a ZIP file here, or drop it onto this page.", tableName: "Mods")
-                Text("Not supported: mods that replace eboot.bin or system files, and mods that work by injecting a DLL. Archives other than ZIP (7z, RAR) have to be unpacked first, with an app like The Unarchiver.", tableName: "Mods")
-                    .foregroundStyle(.secondary)
-            }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: 480)
+        PrintSection(m("No mods yet")) {
+            PrintNote(m("A mod is a set of loose files that replace or add to the game's own: models, textures, texts, sounds. They go into a folder called dvdroot_ps4. Add a mod folder or a ZIP file here, or drop it onto this page."))
+            PrintNote(m("Not supported: mods that replace eboot.bin or system files, and mods that work by injecting a DLL. Archives other than ZIP (7z, RAR) have to be unpacked first, with an app like The Unarchiver."))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.bottom, 40)
     }
 
     // MARK: List
 
+    @ViewBuilder
     private func modList(_ profile: Profile) -> some View {
         let known = Dictionary(library.mods.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
         let enabledNames = (profile.mods ?? []).filter { known[$0] != nil }
         let enabled = enabledNames.compactMap { known[$0] }
         let others = library.mods.filter { !enabledNames.contains($0.name) }
-        return VStack(spacing: 12) {
-            List {
-            if !enabled.isEmpty {
-                Section {
-                    ForEach(enabled) { mod in
-                        row(mod, enabled: true, readOnly: profile.builtin)
+        if !enabled.isEmpty {
+            PrintSection(m("Switched on – load order")) {
+                PrintNote(m("The mod at the bottom is loaded last and wins where files overlap. Drag a mod to change the order."))
+                // A List only for the drag reordering; it looks like the rows below it and is as
+                // high as its rows (the page scrolls, not the list).
+                List {
+                    ForEach(Array(enabled.enumerated()), id: \.element.id) { index, mod in
+                        row(mod, enabled: true, readOnly: profile.builtin, order: index + 1)
+                            .font(Print.text())
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
                     .onMove { from, to in move(from, to, in: enabled) }
-                } header: {
-                    Text("Switched on – load order", tableName: "Mods")
-                } footer: {
-                    Text("The mod at the bottom is loaded last and wins where files overlap.", tableName: "Mods")
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .scrollDisabled(true)
+                .alternatingRowBackgrounds(.disabled)
+                .environment(\.defaultMinListRowHeight, Self.rowHeight)
+                .frame(height: CGFloat(enabled.count) * Self.rowHeight)
+                // The plain list keeps 8 px of its own at both sides.
+                .padding(.horizontal, -8)
+            }
+        }
+        if !others.isEmpty {
+            PrintSection(m(enabled.isEmpty ? "Mods" : "Available")) {
+                PrintRows {
+                    ForEach(others) { row($0, enabled: false, readOnly: profile.builtin, order: nil) }
                 }
             }
-            if !others.isEmpty {
-                Section {
-                    ForEach(others) { mod in
-                        row(mod, enabled: false, readOnly: profile.builtin)
-                    }
-                } header: {
-                    Text(enabled.isEmpty ? "Mods" : "Available", tableName: "Mods")
-                }
-            }
-            }
-            .scrollContentBackground(.hidden)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .frame(minHeight: 170)
-            if !library.conflicts.isEmpty {
-                conflictCard
-            }
+        }
+        if !library.conflicts.isEmpty {
+            conflictSection
         }
     }
 
-    private func row(_ mod: Mod, enabled: Bool, readOnly: Bool) -> some View {
-        HStack(spacing: 12) {
-            Toggle(isOn: Binding(get: { enabled }, set: { setEnabled(mod, $0) })) {
-                Text(mod.name)
+    private func row(_ mod: Mod, enabled: Bool, readOnly: Bool, order: Int?) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            if let order {
+                Text(verbatim: String(order))
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textMuted)
+                    .frame(width: 24, alignment: .leading)
             }
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .disabled(readOnly || (!mod.isValid && !enabled))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(mod.name).font(.headline)
-                if let problem = mod.problem {
-                    Label { Text(problem) } icon: { Image(systemName: "exclamationmark.triangle.fill") }
-                        .font(.callout)
-                        .foregroundStyle(.orange)
-                } else {
-                    HStack(spacing: 6) {
-                        Text("\(mod.files.count) files", tableName: "Mods")
-                        Text(verbatim: "·")
-                        Text(verbatim: mod.layout)
-                    }
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    if enabled, let lost = library.overridden[mod.name], lost > 0 {
-                        Text("\(lost) of its files are replaced by mods further down", tableName: "Mods")
-                            .font(.callout)
-                            .foregroundStyle(Theme.amber)
-                    }
+            Text(verbatim: mod.name)
+                .font(Print.text())
+                .foregroundStyle(Print.textPrimary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if let problem = mod.problem {
+                Text(verbatim: problem)
+                    .font(Print.text(14))
+                    .foregroundStyle(Print.danger)
+                    .lineLimit(1)
+                    .help(problem)
+            } else {
+                if enabled, let lost = library.overridden[mod.name], lost > 0 {
+                    m("\(lost) replaced")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.danger)
+                        .help(m("\(lost) of its files are replaced by mods further down"))
                 }
+                m("\(mod.files.count) files")
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textSecondary)
+                    .lineLimit(1)
+                    .help(Text(verbatim: mod.layout))
             }
-            Spacer()
-            Menu {
-                actions(mod)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
+            Button { setEnabled(mod, !enabled) } label: { m(enabled ? "switch off" : "switch on") }
+                .buttonStyle(TextActionStyle())
+                .disabled(readOnly || (!mod.isValid && !enabled))
+            Button { renaming = mod } label: { m("rename…") }
+                .buttonStyle(TextActionStyle())
+            Button { NSWorkspace.shared.activateFileViewerSelecting([mod.url]) } label: { m("show in Finder") }
+                .buttonStyle(TextActionStyle())
+            Button { deleting = mod } label: { m("remove") }
+                .buttonStyle(TextActionStyle())
         }
-        .padding(.vertical, 3)
-        .contextMenu { actions(mod) }
-    }
-
-    @ViewBuilder
-    private func actions(_ mod: Mod) -> some View {
-        Button { renaming = mod } label: { Text("Rename this mod…", tableName: "Mods") }
-        Button { NSWorkspace.shared.activateFileViewerSelecting([mod.url]) } label: { Text("Show in Finder", tableName: "Mods") }
-        Divider()
-        Button(role: .destructive) { deleting = mod } label: { Text("Move this mod to the Trash…", tableName: "Mods") }
+        .printRow()
     }
 
     // MARK: Conflicts
 
     /// Below the list, so it is in view whatever the list's scroll position.
-    private var conflictCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label { Text("Overlapping files (\(library.conflicts.count))", tableName: "Mods") } icon: { Image(systemName: "square.on.square") }
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-            Text("Several switched-on mods replace these files. The highlighted mod is the one that wins; change the order to change that.", tableName: "Mods")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+    private var conflictSection: some View {
+        PrintSection(m("Overlapping files (\(library.conflicts.count))")) {
+            PrintNote(m("Several switched-on mods replace these files. The mod marked ✦ is the one that wins; change the order to change that."))
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(library.conflicts.prefix(Self.shownConflicts)) { conflict in
                         conflictRow(conflict)
                     }
                     if library.conflicts.count > Self.shownConflicts {
-                        Text("and \(library.conflicts.count - Self.shownConflicts) more files", tableName: "Mods")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                        PrintNote(m("and \(library.conflicts.count - Self.shownConflicts) more files"))
+                            .padding(.top, 8)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: 150)
+            .frame(maxHeight: 240)
         }
-        .card()
     }
 
     private func conflictRow(_ conflict: ModConflict) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: Self.displayPath(conflict.path))
-                .font(.system(.callout, design: .monospaced))
+                .font(Print.mono())
+                .foregroundStyle(Print.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            HStack(spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 ForEach(Array(conflict.mods.enumerated()), id: \.offset) { index, name in
                     if index > 0 {
-                        Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                        Text(verbatim: "·").foregroundStyle(Print.textMuted)
                     }
                     if name == conflict.winner {
-                        Label { Text(name) } icon: { Image(systemName: "checkmark.circle.fill") }
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(Theme.amber)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(verbatim: "✦").foregroundStyle(Print.brass).accessibilityHidden(true)
+                            Text(verbatim: name).foregroundStyle(Print.textPrimary)
+                        }
                     } else {
-                        Text(name).font(.callout).foregroundStyle(.secondary)
+                        Text(verbatim: name).foregroundStyle(Print.textSecondary)
                     }
                 }
             }
+            .font(Print.text(14))
+            .lineLimit(1)
         }
+        .padding(.vertical, 8)
+        .printRow()
     }
 
     /// The game path without its dvdroot_ps4 root.
@@ -359,25 +332,19 @@ private struct RenameModSheet: View {
     let onSave: (String) async -> String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Rename the mod", tableName: "Mods").font(.display(.title2))
-            TextField(text: $name) { Text("Name", tableName: "Mods") }
+        PrintDialog(title: m("Rename the mod"), width: 420) {
+            TextField(text: $name) { m("Name") }
                 .onSubmit { save() }
             if let failure {
-                Text(failure).font(.callout).foregroundStyle(.orange)
+                PrintNote(Text(verbatim: failure), color: Print.danger)
             }
-            HStack {
-                Spacer()
-                Button(role: .cancel) { dismiss() } label: { Text("Cancel", tableName: "Mods") }
-                    .keyboardShortcut(.cancelAction)
-                Button { save() } label: { Text("Rename", tableName: "Mods") }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || saving)
-            }
+        } actions: {
+            Button(role: .cancel) { dismiss() } label: { m("Cancel") }
+                .keyboardShortcut(.cancelAction)
+            Button { save() } label: { m("Rename") }
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || saving)
         }
-        .padding(24)
-        .frame(width: 400)
     }
 
     private func save() {

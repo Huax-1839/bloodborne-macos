@@ -497,8 +497,8 @@ decisions in §9 are fixed.
    shell; the snapshots do.
 3. New visual design (2026-10-19, `docs/LAUNCHER_DESIGN.md`): the fixed 960 × 600 window with a
    sidebar of pages, the overview with the game's own artwork, and the status bar are
-   implemented; the other pages open in the main area with their old content, to be restyled
-   page by page (`docs/LAUNCHER_DESIGN.md` §9).
+   implemented, and every page, dialog and the first-run assistant are set in the same style
+   (`docs/LAUNCHER_DESIGN.md` §4, §9; what is still to check by hand is listed there).
 4. Code review 2026-10-18: `docs/LAUNCHER_REVIEW.md` lists 20 findings (R1–R20) with fixes and
    tests, in batches. All are fixed (2026-10-18, commits ticked off there); open from them: a
    hand check of Cmd-Q during play (R7). Its "smaller improvements" are not done.

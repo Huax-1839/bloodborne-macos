@@ -53,6 +53,17 @@
         }
       }
     },
+    "%lld replaced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ersetzt"
+          }
+        }
+      }
+    },
     "A mod is a set of loose files that replace or add to the game's own: models, textures, texts, sounds. They go into a folder called dvdroot_ps4. Add a mod folder or a ZIP file here, or drop it onto this page." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -70,7 +81,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ZIP hinzufügen …"
+            "value" : "ZIP hinzufügen…"
           }
         }
       }
@@ -81,7 +92,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mod-Ordner hinzufügen …"
+            "value" : "Mod-Ordner hinzufügen…"
           }
         }
       }
@@ -92,7 +103,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "„%@“ wird hinzugefügt …"
+            "value" : "„%@“ wird hinzugefügt…"
           }
         }
       }
@@ -141,6 +152,17 @@
         }
       }
     },
+    "Duplicate to edit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Bearbeiten duplizieren"
+          }
+        }
+      }
+    },
     "Mods" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -148,28 +170,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mods"
-          }
-        }
-      }
-    },
-    "Mods replace game files with your own: models, textures, texts. Switch on the mods you want in the profile “%@”. They load from top to bottom; if two mods have the same file, the lower one wins. Drag the switched-on mods to change the order." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mods ersetzen Spieldateien durch eigene: Modelle, Texturen, Texte. Schalte im Profil „%@“ die Mods ein, die du haben möchtest. Sie werden von oben nach unten geladen; haben zwei Mods dieselbe Datei, gewinnt die untere. Ziehe die eingeschalteten Mods, um die Reihenfolge zu ändern."
-          }
-        }
-      }
-    },
-    "Move this mod to the Trash…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In den Papierkorb legen …"
           }
         }
       }
@@ -240,6 +240,17 @@
         }
       }
     },
+    "remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "entfernen"
+          }
+        }
+      }
+    },
     "Rename" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -262,35 +273,37 @@
         }
       }
     },
-    "Rename this mod…" : {
+    "rename…" : {
       "extractionState" : "manual",
+      "generatesSymbol" : false,
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Umbenennen …"
+            "value" : "umbenennen…"
           }
         }
       }
     },
-    "Several switched-on mods replace these files. The highlighted mod is the one that wins; change the order to change that." : {
+    "Several switched-on mods replace these files. The mod marked ✦ is the one that wins; change the order to change that." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mehrere eingeschaltete Mods ersetzen diese Dateien. Hervorgehoben ist die Mod, die gewinnt; ändere die Reihenfolge, um das zu ändern."
+            "value" : "Mehrere eingeschaltete Mods ersetzen diese Dateien. Die mit ✦ markierte gewinnt; ändere die Reihenfolge, um das zu ändern."
           }
         }
       }
     },
-    "Show in Finder" : {
+    "show in Finder" : {
       "extractionState" : "manual",
+      "generatesSymbol" : false,
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Im Finder zeigen"
+            "value" : "im Finder zeigen"
           }
         }
       }
@@ -306,6 +319,28 @@
         }
       }
     },
+    "switch off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ausschalten"
+          }
+        }
+      }
+    },
+    "switch on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "einschalten"
+          }
+        }
+      }
+    },
     "Switched on – load order" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -317,13 +352,13 @@
         }
       }
     },
-    "The mod at the bottom is loaded last and wins where files overlap." : {
+    "The mod at the bottom is loaded last and wins where files overlap. Drag a mod to change the order." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die unterste Mod wird zuletzt geladen und gewinnt, wo sich Dateien überschneiden."
+            "value" : "Die unterste Mod wird zuletzt geladen und gewinnt, wo sich Dateien überschneiden. Ziehe eine Mod, um die Reihenfolge zu ändern."
           }
         }
       }

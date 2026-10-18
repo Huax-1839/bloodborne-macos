@@ -1,8 +1,7 @@
 # Launcher "Hunter's Lantern": visual design
 
 Status: direction chosen by the user on 2026-10-19 (`docs/LAUNCHER_PLAN.md` §9). The window and
-its overview are implemented in SwiftUI (2026-10-19, layout of §3); the other pages still have
-their old look inside (§9).
+every page are implemented in SwiftUI (2026-10-19, layout of §3, parts in §9).
 
 ## 1. Direction
 
@@ -75,10 +74,22 @@ as little text as possible.
 - Status bar 32 high, `bg-sunken`, mono 12: readiness, or the last error or notice with
   "schließen" (no modal), on the left; the version (links to About) on the right.
 
-## 4. Choices
+## 4. Pages and choices
 
-- The profile is chosen in a menu from the overview (and on the Profiles page).
-- Settings pages use register lines (`label ········ value`) when they are restyled (§9).
+- The profile is chosen in a menu from the overview, or on the Profiles page.
+- A page: Cormorant 44 title (text actions may stand at its end), sections 32 apart, each a
+  small-caps heading over a rule; short notes in Garamond 14 secondary.
+- Settings are register lines (`label ········ value`): switches read `an`/`aus` (the chosen
+  word underlined in brass); up to four short alternatives as words (`30  60  90  frei`); more
+  as a text with ▾ that opens the macOS menu; fields per §2.
+- Lists are rows between rules (40 high), figures and paths in mono, actions at the end as
+  lowercase text actions ("exportieren…", "entfernen"); `✦` in brass marks the active or chosen
+  item, problems are a word or line in `danger`.
+- A page's own actions (import, add) are framed text buttons (1 px `line-strong`, brass on
+  hover); the accent stays the main action's alone.
+- Dialogs over the window: `bg-base`, inset 32, a Cormorant 28 title, framed buttons at the
+  bottom right. The system's confirmation dialogs, alerts and file panels stay native.
+- Logs and system information: mono 12 on `bg-sunken` with a 1 px `line` border.
 
 ## 5. States
 
@@ -114,16 +125,23 @@ artwork from the game other than the user's own `sce_sys/pic1.png` on the overvi
 
 ## 9. Implementation notes and what is open
 
-- Code: tokens, type and the shared styles in `launcher/Sources/HuntersLantern/Views/Print.swift`,
+- Code: tokens, type and the base styles in `launcher/Sources/HuntersLantern/Views/Print.swift`,
+  the parts of §4 in `PrintKit.swift` (`PrintSection`, `PrintNote`, `PrintTag`, `RegisterLine`,
+  `PrintRows`/`printRow()`, `PrintToggleStyle`, `ChoiceWords`, `PrintMenu`, `PrintFieldStyle`,
+  `FrameActionStyle`, `PrintProgress`, `PrintDialog`), the page frame in `PageContainer.swift`,
   the overview in `HomeView.swift`, the window, sidebar, status bar and Go menu (⌘0–⌘7, ⌘, for
-  settings) in `RootView.swift`.
-- **The pages other than the overview still use the old cards and system forms inside**
-  (`PageContainer` has the new title and background): to be redone in this style, page by page.
-  Settings is the old Graphics page; Advanced and About are reached from the Go menu, About also
-  from the status bar's version.
+  settings) in `RootView.swift`. The old theme (`Theme.swift`) is gone.
+- Settings is the Graphics page; Advanced and About are reached from the Go menu, About also from
+  the status bar's version.
+- String catalogs: lowercase text actions are keys of their own; where one differs from an
+  existing key only in case or punctuation it has `generatesSymbol: false` (else the build's
+  string symbols collide). German "…" has no space before it.
 - The window: `Window` scene, hidden title bar, not resizable, no full screen or zoom, moved by its
   background; the content leaves out the title bar's height (measured in AppKit) so the window is
   960 × 600 in all.
-- Not checked by hand yet: hover, the gas-lamp flicker, keyboard focus outlines, Reduce Motion,
-  the profile menu (the snapshots cannot show them).
-- First-run assistant and import progress in the same style.
+- Not checked by hand yet (the snapshots cannot show them): hover, the gas-lamp flicker,
+  keyboard focus outlines, Reduce Motion, the menus, dialogs and sheets as they open, drag
+  reordering of mods, an import and a thorough check in progress, the first-run assistant with
+  Rosetta missing (it grows towards the window's height).
+- The Mods page no longer names the profile its mod set belongs to; the Controller section of
+  Advanced holds one line and could join Window.

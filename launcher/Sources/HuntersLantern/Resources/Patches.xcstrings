@@ -7,7 +7,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "XML-Datei hinzufügen …"
+            "value": "XML-Datei hinzufügen…"
           }
         }
       }
@@ -100,13 +100,13 @@
         }
       }
     },
-    "Move to Trash": {
-      "extractionState": "manual",
+    "move to Trash": {
+      "generatesSymbol": false,
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "In den Papierkorb legen"
+            "value": "in den Papierkorb legen"
           }
         }
       }
@@ -122,24 +122,24 @@
         }
       }
     },
-    "Off": {
-      "extractionState": "manual",
+    "off": {
+      "generatesSymbol": false,
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aus"
+            "value": "aus"
           }
         }
       }
     },
-    "On": {
-      "extractionState": "manual",
+    "on": {
+      "generatesSymbol": false,
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "An"
+            "value": "an"
           }
         }
       }
@@ -177,13 +177,13 @@
         }
       }
     },
-    "Set on the Graphics page": {
+    "Set on the Settings page": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auf der Seite „Grafik“ einstellen"
+            "value": "Auf der Seite „Einstellungen“ einstellen"
           }
         }
       }
@@ -210,13 +210,13 @@
         }
       }
     },
-    "These follow the profile's frame rate (%@). Change the frame rate on the Graphics page.": {
+    "These follow the profile's frame rate (%@). Change the frame rate on the Settings page.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diese folgen der Bildrate des Profils (%@). Die Bildrate änderst du auf der Seite „Grafik“."
+            "value": "Diese folgen der Bildrate des Profils (%@). Die Bildrate änderst du auf der Seite „Einstellungen“."
           }
         }
       }
