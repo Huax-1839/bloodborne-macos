@@ -45,6 +45,16 @@
         }
       }
     },
+    "%@ failed (status %lld): %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ ist fehlgeschlagen (Status %2$lld): %3$@"
+          }
+        }
+      }
+    },
     "%@ is not a PS4 game folder: it has no eboot.bin and sce_sys/param.sfo." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -78,6 +88,36 @@
         }
       }
     },
+    "A game process (bb-probe, pid %lld) is already running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Spielprozess (bb-probe, PID %lld) läuft bereits."
+          }
+        }
+      }
+    },
+    "Another game is already running (pid %lld)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es läuft bereits ein Spiel (PID %lld)."
+          }
+        }
+      }
+    },
+    "Another game is already running." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es läuft bereits ein Spiel."
+          }
+        }
+      }
+    },
     "Bloodborne %@ with update 1.09: ready to play." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -96,6 +136,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kopieren von %@ fehlgeschlagen: %@"
+          }
+        }
+      }
+    },
+    "Could not prepare the game start: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Spielstart konnte nicht vorbereitet werden: %@"
+          }
+        }
+      }
+    },
+    "Could not start the game: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Spiel konnte nicht gestartet werden: %@"
           }
         }
       }
@@ -188,6 +248,16 @@
         }
       }
     },
+    "The game runtime is missing: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Spiel-Laufzeit fehlt: %@"
+          }
+        }
+      }
+    },
     "The program could not be started: %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -232,6 +302,16 @@
         }
       }
     },
+    "This game process was already started." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Spielprozess wurde bereits gestartet."
+          }
+        }
+      }
+    },
     "This is not a retail release of Bloodborne. Any region and The Old Hunters editions work, with update 1.09." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -250,6 +330,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die eboot.bin ließ sich nicht als entschlüsselte PS4-Programmdatei lesen. Dumpe oder extrahiere das Spiel und das Update 1.09 erneut. Ein Delta-Update-PKG funktioniert nicht: Es wird ein vollständiges Update 1.09 gebraucht."
+          }
+        }
+      }
+    },
+    "macOS stopped the game pipeline (killed). If Hunter's Lantern was just downloaded, open it once with System Settings › Privacy & Security › Open Anyway." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS hat die Spielvorbereitung beendet (killed). Wenn Hunter's Lantern gerade heruntergeladen wurde, öffne es einmal über Systemeinstellungen › Datenschutz & Sicherheit › Dennoch öffnen."
           }
         }
       }

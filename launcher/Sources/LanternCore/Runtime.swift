@@ -25,13 +25,14 @@ public struct Runtime: Sendable, Equatable {
     public var scripts: URL { pipeline.appendingPathComponent("scripts", isDirectory: true) }
     public var patchesXML: URL { pipeline.appendingPathComponent("patches/Bloodborne.xml") }
 
-    public enum LocateError: Error, Equatable, CustomStringConvertible {
+    public enum LocateError: Error, Equatable, LocalizedError, CustomStringConvertible {
         case notFound(String)
-        public var description: String {
+        public var errorDescription: String? {
             switch self {
-            case .notFound(let what): return "The game runtime is missing: \(what)"
+            case .notFound(let what): return String(localized: "The game runtime is missing: \(what)", bundle: .module)
             }
         }
+        public var description: String { errorDescription ?? "" }
     }
 
     /// The bundled runtime, else the repository's.

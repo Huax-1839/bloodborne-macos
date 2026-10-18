@@ -16,7 +16,7 @@ public struct PythonPipeline: Pipeline {
         guard result.status == 0 || result.status == 1,
               let line = result.stdout.split(separator: "\n").last,
               let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else {
-            throw PipelineError("game_check.py failed (status \(result.status)): \(result.stderr.suffix(2000))")
+            throw PipelineError.failed("game_check.py", status: result.status, output: result.stderr.suffix(2000))
         }
         let problem = (object["problem"] as? String).map { GameProblem(rawValue: $0) ?? .unreadable }
         return GameCheck(problem: problem, title: object["title"] as? String ?? "?",
@@ -31,7 +31,7 @@ public struct PythonPipeline: Pipeline {
             if let list = object["broken"] as? [String] { broken = list }
         }
         guard result.status == 0 || result.status == 1, let broken else {
-            throw PipelineError("game_check.py failed (status \(result.status)): \(result.stderr.suffix(2000))")
+            throw PipelineError.failed("game_check.py", status: result.status, output: result.stderr.suffix(2000))
         }
         return broken
     }
@@ -47,7 +47,8 @@ public struct PythonPipeline: Pipeline {
         let result = try await python(["mods.py", game.path, "--out", out.path, "--mods-dir", modsDir.path,
                                        "--config", config.path, "--enabled", "1"], environment: [:])
         guard result.status == 0, let line = result.stdout.split(separator: "\n").last else {
-            throw PipelineError(result.stderr.split(separator: "\n").last.map(String.init) ?? "mods.py failed (status \(result.status))")
+            throw result.stderr.split(separator: "\n").last.map { PipelineError(String($0)) }
+                ?? PipelineError.failed("mods.py", status: result.status, output: "")
         }
         return URL(fileURLWithPath: String(line), isDirectory: true)
     }
@@ -55,7 +56,7 @@ public struct PythonPipeline: Pipeline {
     public func run(_ step: LaunchSpec.Step, environment: [String: String], log: FileHandle?) async throws {
         let result = try await python([step.script] + step.arguments, environment: environment, log: log)
         guard result.status == 0 else {
-            throw PipelineError("\(step.script) failed (status \(result.status)): \(result.stderr.suffix(4000))")
+            throw PipelineError.failed(step.script, status: result.status, output: result.stderr.suffix(4000))
         }
     }
 
@@ -70,7 +71,7 @@ public struct PythonPipeline: Pipeline {
                                                  workingDirectory: runtime.pipeline, log: log, onLine: onLine)
         if result.signal == SIGKILL {
             // Gatekeeper kills processes of an app it has not approved (a quarantined bundle).
-            throw PipelineError("macOS stopped the game pipeline (killed). If Hunter's Lantern was just downloaded, open it once with System Settings › Privacy & Security › Open Anyway.")
+            throw PipelineError(String(localized: "macOS stopped the game pipeline (killed). If Hunter's Lantern was just downloaded, open it once with System Settings › Privacy & Security › Open Anyway.", bundle: .module))
         }
         return result
     }

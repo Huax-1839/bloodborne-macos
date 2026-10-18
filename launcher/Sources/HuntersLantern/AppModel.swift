@@ -325,7 +325,7 @@ final class AppModel: ObservableObject {
             } catch {
                 phase = nil
                 showApp()
-                errorMessage = (error as? LaunchError)?.description ?? String(describing: error)
+                errorMessage = error.localizedDescription
             }
             self.launcher = nil
             launchTask = nil
@@ -385,7 +385,7 @@ final class AppModel: ObservableObject {
     }
 
     private func showRuntimeError() {
-        if case .failure(let error) = runtime { errorMessage = String(describing: error) }
+        if case .failure(let error) = runtime { errorMessage = error.localizedDescription }
     }
 }
 

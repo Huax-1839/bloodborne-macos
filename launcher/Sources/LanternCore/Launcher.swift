@@ -22,13 +22,14 @@ public struct LaunchResult: Sendable {
     public var logTail: String
 }
 
-public struct LaunchError: Error, CustomStringConvertible, Sendable {
+public struct LaunchError: Error, LocalizedError, CustomStringConvertible, Sendable {
     public var description: String
     public var check: GameCheck?
     public init(_ description: String, check: GameCheck? = nil) {
         self.description = description
         self.check = check
     }
+    public var errorDescription: String? { description }
 }
 
 /// One launch from the launcher (D5, D7, D8, D9): quick check, save backup, the profile's keys

@@ -205,7 +205,7 @@ struct HomeView: View {
     private var cards: some View {
         VStack(alignment: .leading, spacing: 14) {
             if case .failure(let error) = model.runtime {
-                runtimeCard(String(describing: error))
+                runtimeCard(error.localizedDescription)
             }
             if model.activeGame == nil {
                 noGameCard

@@ -17,7 +17,7 @@ public enum GameOutcome: Equatable, Sendable {
 }
 
 /// Why start() refused or failed.
-public enum GameProcessError: Error, Equatable, CustomStringConvertible {
+public enum GameProcessError: Error, Equatable, LocalizedError, CustomStringConvertible {
     /// The lock file is held: another launcher (or another GameProcess) runs a game. `pid` is the
     /// game's pid when the lock file names it.
     case alreadyRunning(pid: Int32?)
@@ -30,20 +30,24 @@ public enum GameProcessError: Error, Equatable, CustomStringConvertible {
     /// The executable could not be spawned.
     case launchFailed(String)
 
-    public var description: String {
+    public var errorDescription: String? {
         switch self {
-        case .alreadyRunning(let pid):
-            return "Another game is already running" + (pid.map { " (pid \($0))" } ?? "") + "."
+        case .alreadyRunning(let pid?):
+            return String(localized: "Another game is already running (pid \(Int(pid))).", bundle: .module)
+        case .alreadyRunning(nil):
+            return String(localized: "Another game is already running.", bundle: .module)
         case .externalGameRunning(let pid):
-            return "A game process (bb-probe, pid \(pid)) is already running."
+            return String(localized: "A game process (bb-probe, pid \(Int(pid))) is already running.", bundle: .module)
         case .alreadyStarted:
-            return "This game process was already started."
+            return String(localized: "This game process was already started.", bundle: .module)
         case .setupFailed(let message):
-            return "Could not prepare the game start: \(message)"
+            return String(localized: "Could not prepare the game start: \(message)", bundle: .module)
         case .launchFailed(let message):
-            return "Could not start the game: \(message)"
+            return String(localized: "Could not start the game: \(message)", bundle: .module)
         }
     }
+
+    public var description: String { errorDescription ?? "" }
 }
 
 /// The game process: started from a LaunchSpec, stdout and stderr in logs/run-<time>.log (the

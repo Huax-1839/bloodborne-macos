@@ -49,7 +49,15 @@ public protocol Pipeline: Sendable {
     func run(_ step: LaunchSpec.Step, environment: [String: String], log: FileHandle?) async throws
 }
 
-public struct PipelineError: Error, CustomStringConvertible, Sendable {
+/// A pipeline step that failed; `description` is shown to the user as it is (localized by the
+/// thrower, with the script's own output in English).
+public struct PipelineError: Error, LocalizedError, CustomStringConvertible, Sendable {
     public var description: String
     public init(_ description: String) { self.description = description }
+    public var errorDescription: String? { description }
+
+    /// "<script> failed (status N): <its error output>".
+    static func failed(_ script: String, status: Int32, output: some StringProtocol) -> PipelineError {
+        PipelineError(String(localized: "\(script) failed (status \(Int(status))): \(String(output))", bundle: .module))
+    }
 }
