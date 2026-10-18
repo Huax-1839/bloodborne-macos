@@ -9,7 +9,10 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "sdl_window.h"
-#include "bbport_overlay.h"
+#include "bbport_settings.h"
+#ifdef __APPLE__
+#include "bbport_mac_window.h"
+#endif
 
 namespace Frontend {
 
@@ -58,6 +61,9 @@ SDL_DisplayID ChooseDisplay() {
 } // namespace
 
 WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}, height{height_} {
+#ifdef __APPLE__
+    BbMacWindow::PrepareMetalHud();
+#endif
     // Gamepads are sampled by runtime_pad.c; their events are pumped here with the window's.
     if (!SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         UNREACHABLE_MSG("Failed to initialize SDL video: {}", SDL_GetError());
@@ -165,7 +171,11 @@ void WindowSDL::UpdateTextTitle() {
     const std::string title = text_active ? base_title + " \u2014 " + text_prompt + ": " + text + "_  (Enter = OK, Esc = cancel)"
                                           : base_title;
     SDL_SetWindowTitle(window, title.c_str());
-    BbOverlay::SetTextPrompt(text_active, text_prompt, text);
+}
+
+bool WindowSDL::TextInputActive() {
+    std::scoped_lock lock{text_mutex};
+    return text_active;
 }
 
 bool WindowSDL::PollEvents() {
@@ -174,12 +184,24 @@ bool WindowSDL::PollEvents() {
         if (text_requested) { // SDL text input must be toggled from the window thread
             text_requested = false;
             text_active = true;
-            SDL_StartTextInput(window);
-            UpdateTextTitle();
+#ifdef __APPLE__
+            // macOS: a sheet with a text field (visible in fullscreen too); its answer arrives
+            // from a later event pump, on this thread.
+            text_sheet = BbMacWindow::BeginTextSheet(
+                window, text_prompt, text, [this](int state, const std::string& typed) {
+                    std::scoped_lock lock{text_mutex};
+                    if (state == 1) {
+                        text = typed;
+                    }
+                    text_state = state;
+                    text_active = text_sheet = false;
+                });
+#endif
+            if (!text_sheet) {
+                SDL_StartTextInput(window);
+                UpdateTextTitle();
+            }
         }
-    }
-    if (!text_active) {
-        BbOverlay::UpdateTextInput(window);
     }
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -191,7 +213,7 @@ bool WindowSDL::PollEvents() {
                 mouse_dy += event.motion.yrel;
             }
         }
-        if (text_active && (event.type == SDL_EVENT_TEXT_INPUT || event.type == SDL_EVENT_KEY_DOWN)) {
+        if (text_active && !text_sheet && (event.type == SDL_EVENT_TEXT_INPUT || event.type == SDL_EVENT_KEY_DOWN)) {
             std::scoped_lock lock{text_mutex};
             if (event.type == SDL_EVENT_TEXT_INPUT) {
                 text += event.text.text;
@@ -207,14 +229,11 @@ bool WindowSDL::PollEvents() {
             UpdateTextTitle();
             continue;
         }
-        if (BbOverlay::HandleEvent(event)) {
-            continue;
-        }
         // Mouse look: a click in the game takes the mouse (that click is not passed on as a
         // button: runtime_pad.c reads the buttons only while it is held); F1 and leaving the
         // window let it go.
         if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !mouse_captured.load(std::memory_order_relaxed) &&
-            mouse_look.load(std::memory_order_relaxed) && !BbOverlay::MenuOpen()) {
+            mouse_look.load(std::memory_order_relaxed) && !text_active) {
             CaptureMouse(true);
             continue;
         }
@@ -248,20 +267,26 @@ bool WindowSDL::PollEvents() {
             break;
         }
     }
-    // The menu, the name dialog and mouse_look=0 want the cursor.
+    // The name dialog and mouse_look=0 want the cursor.
     if (mouse_captured.load(std::memory_order_relaxed) &&
-        (BbOverlay::MenuOpen() || text_active || !mouse_look.load(std::memory_order_relaxed))) {
+        (text_active || !mouse_look.load(std::memory_order_relaxed))) {
         CaptureMouse(false);
     }
     UpdateCursor();
+#ifdef __APPLE__
+    // The FPS counter (show_fps, the game menu's "FPS counter").
+    if (window_info.type == WindowSystemType::Metal) {
+        BbMacWindow::SetPerformanceHud(window_info.render_surface, BbSettings::Get().show_fps);
+    }
+#endif
     return is_open;
 }
 
 // Issue #3: the OS cursor over the game. Hidden in fullscreen, and in a window after 3 s without
-// moving the mouse; always shown while the settings menu is open.
+// moving the mouse; always shown while the text dialog is open.
 void WindowSDL::UpdateCursor() {
     const bool fullscreen = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
-    const bool hide = !BbOverlay::MenuOpen() &&
+    const bool hide = !text_active &&
                       (fullscreen || SDL_GetTicks() - last_mouse_motion_ms > 3000);
     if (hide != cursor_hidden) {
         cursor_hidden = hide;

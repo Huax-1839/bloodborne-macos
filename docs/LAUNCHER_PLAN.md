@@ -208,7 +208,8 @@ v1 feature set (decided with the user):
 
 **D8 Restart and process control.**
 - The overlay's "Apply and restart" no longer execs `bash macos/run.sh`: `bb-probe` exits with a
-  dedicated restart code (L0.1). The launcher, and `run.sh` through a small loop, start it again.
+  dedicated restart code (L0.1). (The overlay is gone since 2026-10-18; the exit code and the
+  loops stay for `runtime_restart`, which nothing in the game calls now.) The launcher, and `run.sh` through a small loop, start it again.
 - The launcher starts the game with `Process` and writes stdout/stderr to
   `logs/run-<time>.log` (keeps 10).
 - Outcomes: exit 0 is a normal end, the restart code relaunches, a signal or an error code shows
@@ -608,3 +609,14 @@ Found during the inventory (fix when the task touching the file comes up):
   (D13). The mod overlay feeds only `/app0` and `patches.py`; the image steps read the game's
   own eboot so the prepared-image cache survives mods (D9, D10). `link_libc.py` left the run
   path (L2.5): boot-linked.bin is byte-identical without it.
+- 2026-10-18 (user): the ImGui overlay (L3+R3 / Insert) is removed, with no replacement menu.
+  Live settings are the game menu's pages, everything else is the launcher's (profile ini keys,
+  `BB_*` variables on the Advanced page: jitter, reactive mask, character motion vectors,
+  sharpness). No in-game restart or quit (the game's own quit is enough); FSR 4/4.1.1 and DLSS
+  settings go with it (not available on macOS: MoltenVK lacks compute shader derivatives, the
+  Metal path never had them). The FPS counter (`show_fps`) is Apple's Metal performance HUD on
+  the window's `CAMetalLayer` (both renderers), the game's text dialog an AppKit sheet on the
+  window (`gpu/shim/bbport_mac_window.mm`). Metal loads its HUD only with `MTL_HUD_ENABLED=1` at
+  device creation, so the window sets it in-process (unless the user set it) and
+  `developerHUDProperties` (`mode` default/disabled) show and hide it; Dear ImGui and the DejaVu
+  fonts left the build and the repository.

@@ -28,11 +28,9 @@ int main() {
 
     BbSettings::Load();
     auto& s = BbSettings::Get();
-    assert(s.upscaler == BbSettings::UpscalerFsr3 && !s.show_fps && s.menu_x < 0.0f);
+    assert(s.upscaler == BbSettings::UpscalerFsr3 && !s.show_fps);
     s.show_fps = true;
     s.upscaler = BbSettings::UpscalerFsr411;
-    s.menu_x = 0.625f;
-    s.menu_y = 0.125f;
     BbSettings::Save();
 
     const std::string saved = Read(path);
@@ -40,13 +38,12 @@ int main() {
     // in place, new ones appended.
     assert(saved.find("# launcher\nupscaler=fsr411\nkey.cross=X, Space\npad.circle=a\nshow_fps=1\n"
                       "fullscreen_hint=1\n") == 0);
-    assert(saved.find("menu_pos=0.6250,0.1250\n") != std::string::npos);
     assert(saved.find("upscaler=fsr3") == std::string::npos);
 
-    s.menu_x = -1.0f;
-    s.menu_y = -1.0f;
+    s.show_fps = false;
+    s.upscaler = BbSettings::UpscalerFsr3;
     BbSettings::Load();
-    assert(s.menu_x == 0.625f && s.menu_y == 0.125f && s.upscaler == BbSettings::UpscalerFsr411);
+    assert(s.show_fps && s.upscaler == BbSettings::UpscalerFsr411);
     unlink(path);
-    std::puts("PASS: settings save keeps other keys, menu position");
+    std::puts("PASS: settings save keeps other keys and reloads");
 }

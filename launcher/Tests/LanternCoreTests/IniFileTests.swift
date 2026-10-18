@@ -6,7 +6,7 @@ final class IniFileTests: XCTestCase {
     /// A bbport.ini as the game and the launcher leave it: the game's header, menu keys, bindings
     /// with dots, a foreign comment and a foreign key.
     private let realistic = """
-    # bbport settings (in-game menu: Insert / L3+R3)
+    # bbport settings (in-game: Options > System > Display, Effects)
     menu_language=en
     upscaler=fsr3
     preset=2
@@ -110,7 +110,7 @@ final class IniFileTests: XCTestCase {
         var ini = IniFile()
         XCTAssertEqual(ini.text, "")
         ini.set([("upscaler", "off"), ("preset", "0")])
-        XCTAssertEqual(ini.text, "# bbport settings (in-game menu: Insert / L3+R3)\nupscaler=off\npreset=0\n")
+        XCTAssertEqual(ini.text, "# bbport settings (in-game: Options > System > Display, Effects)\nupscaler=off\npreset=0\n")
     }
 
     func testSetOfNothingKeepsEmptyIniEmpty() {

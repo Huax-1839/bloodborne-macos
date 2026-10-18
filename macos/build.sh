@@ -15,7 +15,7 @@ export MACOSX_DEPLOYMENT_TARGET=14.0
 CC="clang -arch x86_64"
 
 # Submodules and this port's changes to FSR-Vulkan, as build.sh does.
-if [[ ! -f gpu/third_party/fsr-vulkan/CMakeLists.txt || ! -f gpu/third_party/imgui/imgui.h ]]; then
+if [[ ! -f gpu/third_party/fsr-vulkan/CMakeLists.txt ]]; then
     git submodule update --init --recursive
 fi
 for patch in gpu/patches/fsr-vulkan/*.patch; do

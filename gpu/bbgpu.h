@@ -34,10 +34,11 @@ void bbgpu_dump_guest_writes(void *ucontext);
  * no window exists; poll returns 0 typing, 1 confirmed, 2 cancelled (UTF-8 text). */
 int bbgpu_text_input_begin(const char *initial_utf8, const char *prompt_utf8);
 int bbgpu_text_input_poll(char *out_utf8, uint64_t size);
-/* 1 while the in-game settings menu is open: the game's pad input is held neutral. */
-int bbgpu_overlay_captures_input(void);
+/* 1 while the text dialog (bbgpu_text_input_begin) is open: the game's pad input is held
+ * neutral. */
+int bbgpu_text_input_active(void);
 /* Mouse look (runtime_pad.c): the window takes the mouse when it is clicked (relative mode) and
- * lets it go on F1, losing focus or the menu opening. take: motion (pixels) and wheel notches
+ * lets it go on F1, losing focus or the text dialog opening. take: motion (pixels) and wheel notches
  * since the last call, reset; captured: 1 while the window holds it; enable: mouse_look=0 in
  * bbport.ini keeps the window from taking it. */
 void bbgpu_mouse_take(double *dx, double *dy, int *wheel_up, int *wheel_down);

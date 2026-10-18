@@ -1146,7 +1146,8 @@ commit (kept privately, not in this repository):
     Immediate: off, Fifo: on); Vulkan m4air 33.0 FPS, title 50.8 dB
   - [x] P5.2 overlay and game menu (74baa8b): `bbport_overlay` backend neutral,
     `vk_overlay` / `mtl_overlay` (imgui_impl_metal, ARC); menu and FPS counter checked on both
-    backends, Metal validation layer clean
+    backends, Metal validation layer clean. The overlay was removed on 2026-10-18 (decision in
+    `docs/LAUNCHER_PLAN.md` §9): FPS counter = Metal performance HUD, text dialog = AppKit sheet
   - [x] P5.3 scene resolution and UI composition (design `docs/metal/ui_composition_design.md`):
     U1 shared `UiCompositor` (bc60548; Vulkan pairs within spread, display dumps 59.6/46.1 dB
     before/after); U2 `Metal::Upscaler` (c68e8e0): `BB_RENDER_RES=960x540` display buffers

@@ -511,7 +511,7 @@ static void sample_host(PadData *d) {
     int wheel_up=0, wheel_down=0;
     bbgpu_mouse_take(&mouse_dx,&mouse_dy,&wheel_up,&wheel_down);
     const int captured=bbgpu_mouse_captured();
-    if (bbgpu_overlay_captures_input()) { apply_mouse_look(d,0,0,d->timestamp,0); return; } /* menu open: neutral input */
+    if (bbgpu_text_input_active()) { apply_mouse_look(d,0,0,d->timestamp,0); return; } /* text dialog open: neutral input */
     const bool *k=SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetKeyboardState(NULL) : NULL;
     mouse_buttons=captured && SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetMouseState(NULL,NULL) : 0;
     mouse_wheel_step(d->timestamp,captured ? wheel_up : 0,captured ? wheel_down : 0);
@@ -694,7 +694,7 @@ static void drop_live_input(PadData *d) {
 
 static void sample(PadData *d) {
     sample_host(d);
-    if (bbgpu_overlay_captures_input()) return;
+    if (bbgpu_text_input_active()) return;
     drop_live_input(d);
     record_sample(d);
     read_inject();

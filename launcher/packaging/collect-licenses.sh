@@ -62,11 +62,9 @@ if [[ -n $python ]]; then
     add Zydis "Zydis: MIT" "$deps/zydis/LICENSE"
     add Zycore "Zycore: MIT" "$deps/zycore/LICENSE"
     add LibAtrac9 "LibAtrac9: MIT" "$repo/third_party/LibAtrac9/LICENSE"
-    add imgui "Dear ImGui: MIT" "$gpu/imgui/LICENSE.txt"
     add sirit "sirit: BSD-3-Clause" "$gpu/sirit/LICENSE.txt"
     add fsr-vulkan "FidelityFX FSR (Vulkan port): MIT" "$gpu/fsr-vulkan/LICENSE.txt" "$gpu/fsr-vulkan/NOTICE.md"
     add half "half: MIT" "$gpu/half/LICENSE.txt"
-    add DejaVu "DejaVu fonts: Bitstream Vera / DejaVu license" "$gpu/fonts/LICENSE-DejaVu.txt"
     # The AMD register headers carry their MIT license in the header comment.
     gcn=$(find "$gpu/gcn/include" -name '*.h' | sort | head -1)
     [[ -n $gcn ]] || { echo "Missing $gpu/gcn/include" >&2; exit 1; }

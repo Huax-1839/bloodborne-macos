@@ -190,7 +190,7 @@ void DefineTexts() {
 
     // Two pages of the ControllSetting layout's six rows (the game's other layouts are fixed
     // forms): the picture, then the game's effects. The other patches (intros, the free camera,
-    // the debug menu) and the game's own AA are in the overlay menu and the launcher.
+    // the debug menu) and the game's own AA are in the launcher.
     page("Display", "Изображение", "Resolution, upscaler, sharpness and model detail (bbport)",
          "Разрешение, апскейлер, резкость и детализация (bbport)");
     // Sliders and toggles first, the pop-up list last: a list opens downwards over the rows
@@ -209,8 +209,8 @@ void DefineTexts() {
         {AddText("1280 x 720", "1280 x 720"), AddText("1920 x 1080", "1920 x 1080"),
          AddText("2560 x 1440", "2560 x 1440"), AddText("3840 x 2160", "3840 x 2160")},
         Kind::Steps);
-    row(ShowFps, "FPS counter", "Счётчик FPS", "Frame rate in the top right corner",
-        "Частота кадров в правом верхнем углу", toggle);
+    row(ShowFps, "FPS counter", "Счётчик FPS", "Metal performance HUD: frame rate and frame time",
+        "HUD Metal: частота и время кадра", toggle);
     row(ModelLod, "Model detail", "Детализация",
         "After a restart: 0-1 highest, 2-4 game default, 5-7 lower, 8-10 lowest",
         "После перезапуска: 0-1 максимальная, 2-4 как в игре, 5-7 ниже, 8-10 минимальная",

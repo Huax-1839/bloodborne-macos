@@ -27,8 +27,8 @@ areas.
   passed the project's strict 20-minute 30-FPS rule on power and on battery.
 - **Vulkan renderer through MoltenVK** as an alternative (`BB_RENDERER=vulkan`).
 - The game's own settings menu gains *Display* and *Effects* pages (output resolution, upscaler,
-  preset, FPS counter, model detail, effects), plus an overlay menu with advanced settings
-  (L3+R3 on a gamepad, or Insert on an external keyboard).
+  preset, FPS counter, model detail, effects); the launcher sets the rest before the start. The
+  FPS counter is the Metal performance HUD.
 - Gamepad through SDL3, plus keyboard and mouse. The 60 FPS mode and community game patches can be
   switched on in the settings.
 
@@ -224,9 +224,7 @@ licenses:
 - [half](https://half.sourceforge.net/) (MIT)
 - [FSR-Vulkan](https://github.com/FireBurn/FSR-Vulkan) by FireBurn and the AMD FidelityFX SDK (MIT)
 - [LibAtrac9](https://github.com/Thealexbarney/LibAtrac9) (MIT)
-- [Dear ImGui](https://github.com/ocornut/imgui) (MIT)
 - [cpp-httplib](https://github.com/yhirose/cpp-httplib) (MIT)
-- DejaVu fonts
 - the DLSS bridge and loader parts by [Supermedo](https://github.com/Supermedo/bloodborne_pc) and
   [IFreemz](https://github.com/IFreemz/shadPS4-Bloodborne-DLSS-FSR)
 

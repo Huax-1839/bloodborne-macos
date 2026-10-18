@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// bbport: user settings changed at run time from the in-game menu (bbport_overlay.h) and kept
+// bbport: user settings changed at run time from the game's System menu (bbport_game_menu.h) and kept
 // in bbport.ini (BB_CONFIG overrides the path). Environment variables override the file at
 // start. Readers load the atomics every frame; writers are the menu and Load().
 
@@ -66,10 +66,8 @@ struct Values {
     std::atomic<float> reactive_threshold{0.2f};
     std::atomic<float> reactive_max{0.9f};
     std::atomic<int> debug_view{DebugNone};
-    std::atomic<bool> show_fps{false};
-    /// The settings menu's position (fraction of the screen), -1 until it is moved.
-    std::atomic<float> menu_x{-1.0f}, menu_y{-1.0f};
-    // FSR 4 checks (menu): the provider's auto exposure, the jitter sign it is given.
+    std::atomic<bool> show_fps{false}; ///< the Metal performance HUD (bbport_mac_window.h)
+    // FSR 4 checks (bbport.ini, Vulkan): the provider's auto exposure, the jitter sign it is given.
     std::atomic<bool> fsr4_auto_exposure{true};
     std::atomic<bool> fsr4_invert_jitter{false};
     std::atomic<int> active_render_width{1920}, active_render_height{1080};
@@ -105,9 +103,6 @@ struct Values {
 };
 
 Values& Get();
-/// Localized overlay text; the Language selector itself stays in English.
-const char* MenuText(const char* english, const char* russian);
-
 /// Reads the file, then the environment overrides. Called once at start.
 void Load();
 /// Checks the loaded choice before the first frame (Vulkan); unsupported FSR 4 uses FSR 3.1,

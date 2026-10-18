@@ -30,10 +30,13 @@ public:
     bool IsOpen() const { return is_open.load(std::memory_order_relaxed); }
     /// Processes pending window events. Returns false once the user closed the window.
     bool PollEvents();
-    /// Keyboard text entry for the system IME dialog; typed text shows in the title bar.
+    /// Keyboard text entry for the system IME dialog: a sheet on macOS, elsewhere the typed text
+    /// shows in the title bar.
     void BeginTextInput(const std::string& initial, const std::string& prompt);
     /// 0 while typing, 1 confirmed (Enter), 2 cancelled (Escape); text is UTF-8.
     int PollTextInput(std::string& text);
+    /// The text dialog is open: the game's pad and keyboard input is held neutral.
+    bool TextInputActive();
     /// Mouse look (bbgpu_mouse_take): motion and wheel notches since the last call, reset.
     void TakeMouse(double& dx, double& dy, int& wheel_up, int& wheel_down);
     /// The window holds the mouse (relative mode) for looking around.
@@ -45,7 +48,7 @@ private:
     std::atomic<s32> width, height;
     std::atomic<bool> is_open{true};
     std::mutex text_mutex;
-    bool text_requested{}, text_active{};
+    bool text_requested{}, text_active{}, text_sheet{};
     int text_state{};
     std::string text, text_prompt, base_title;
     void UpdateTextTitle();

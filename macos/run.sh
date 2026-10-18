@@ -6,7 +6,7 @@
 #   bash macos/run.sh --print-env   prints the launch (cwd, pipeline steps, executable, arguments,
 #                                   BB_*/MVK_*/ROSETTA_* environment) and starts nothing: the
 #                                   launcher's LaunchSpec is tested against it.
-# The game exits with 75 to be restarted (the settings menu's "Apply and restart"); the script
+# The game exits with 75 to be restarted (runtime_restart; the removed overlay's "Apply and restart"); the script
 # then runs again with the same environment, as when bb-probe exec'd it.
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."

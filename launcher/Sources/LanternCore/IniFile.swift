@@ -13,7 +13,7 @@ import Foundation
 /// as Save and patches.py do); patches.py also splits `\n`/`\r`/other Unicode line breaks.
 public struct IniFile: Equatable, Sendable {
     /// The written header of an empty or missing file (as Save writes it).
-    static let header = "# bbport settings (in-game menu: Insert / L3+R3)"
+    static let header = "# bbport settings (in-game: Options > System > Display, Effects)"
 
     /// The lines without their terminators (CRLF input arrives as LF lines, as Save rewrites it).
     private var lines: [String]

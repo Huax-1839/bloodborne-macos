@@ -225,32 +225,12 @@ if (APPLE)
     target_link_libraries(spirv_to_msl_header PRIVATE ${SPIRV_CROSS_MSL_LIBRARY}
         ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY})
 endif()
-# In-game settings menu: Dear ImGui (third_party/imgui, MIT) with its Vulkan backend, and an
-# embedded Cyrillic font (third_party/fonts).
-target_sources(bbgpu PRIVATE third_party/imgui/imgui.cpp third_party/imgui/imgui_draw.cpp
-    third_party/imgui/imgui_tables.cpp third_party/imgui/imgui_widgets.cpp
-    third_party/imgui/backends/imgui_impl_vulkan.cpp)
-target_include_directories(bbgpu PRIVATE third_party/imgui third_party/imgui/backends)
-# Dear ImGui stays private to libbbgpu.so. The library is linked into bb-probe, so its exports are
-# in the global symbol scope; a Vulkan layer carrying its own Dear ImGui without -Bsymbolic
-# (vkShade 0.1) had its ImGui_ImplVulkan_Init bound to this copy, which called the Vulkan loader
-# with the layer's down-chain physical device handle ("Invalid physicalDevice", abort).
-set_source_files_properties(third_party/imgui/imgui.cpp third_party/imgui/imgui_draw.cpp
-    third_party/imgui/imgui_tables.cpp third_party/imgui/imgui_widgets.cpp
-    third_party/imgui/backends/imgui_impl_vulkan.cpp PROPERTIES
-    COMPILE_OPTIONS "-fvisibility=hidden;-fvisibility-inlines-hidden")
 if (APPLE)
-    # The Metal backend's renderer (renderer_metal/mtl_overlay.mm, P5.2). It needs ARC: its
-    # __bridge_retained/__bridge_transfer casts do nothing without, and NewFrame's
-    # framebufferDescriptor is only autoreleased in the metal-cpp build (IMGUI_IMPL_METAL_CPP).
-    target_sources(bbgpu PRIVATE third_party/imgui/backends/imgui_impl_metal.mm)
-    set_source_files_properties(third_party/imgui/backends/imgui_impl_metal.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-fvisibility=hidden;-fvisibility-inlines-hidden")
+    # The FPS counter (Metal performance HUD) and the text dialog's sheet (shim/bbport_mac_window).
+    target_sources(bbgpu PRIVATE shim/bbport_mac_window.mm)
+    set_source_files_properties(shim/bbport_mac_window.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    target_link_libraries(bbgpu PRIVATE "-framework AppKit")
 endif()
-target_compile_definitions(bbgpu PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES
-    BB_FONT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf")
-set_source_files_properties(shim/bbport_overlay.cpp PROPERTIES
-    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf")
 target_include_directories(bbgpu PRIVATE shim layer games cp shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include)
 target_compile_definitions(bbgpu PRIVATE BOOST_ASIO_STANDALONE NDEBUG)
 # bbport: the Linux interfaces used here, for macOS (shim/bbport_platform.h), in every source.

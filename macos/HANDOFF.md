@@ -19,6 +19,15 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
 - run.sh changes from the launcher work (2026-10-17): `--print-env` dry run; the overlay's restart
   exits 75 and run.sh loops (no more exec of run.sh from bb-probe on macOS); `link_libc.py` left
   the run path; mods via `BB_MODS_DIR`/`BB_MODS_CONFIG`/`BB_MODS_ENABLED` (docs/MODS.md).
+- The ImGui overlay (L3+R3 / Insert) is gone (2026-10-18, `docs/LAUNCHER_PLAN.md` §9): live
+  settings live in the game's System menu (Display, Effects), the rest in the launcher or as
+  `BB_*`/ini keys. `show_fps` turns on Apple's Metal performance HUD (both renderers; the window
+  sets `MTL_HUD_ENABLED=1` in-process unless it is set, `MTL_HUD_ENABLED=0` keeps the HUD
+  unloaded); the game's text dialog is an AppKit sheet on the window
+  (`gpu/shim/bbport_mac_window.mm`; Return/Escape in the real dialog not yet tried by hand).
+  The loaded but hidden HUD costs nothing measurable: clinic, m4air uncapped, 4 interleaved
+  pairs in both orders, 52.6 FPS mean vs 53.1 with `MTL_HUD_ENABLED=0` (runs 42–63 FPS, the
+  Air throttling).
 
 ## State
 

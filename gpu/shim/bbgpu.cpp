@@ -2,7 +2,6 @@
 #include "bbport_game_menu.h"
 #include "bbport_gnm_hooks.h"
 // bbport: glue between the C loader and the vendored shadPS4 video core.
-#include "bbport_overlay.h"
 #include "bbport_settings.h"
 #include "game_profile.h"
 #include "bbport_copy.h"
@@ -414,8 +413,8 @@ u32 ConsumeWithOverlaysScreenshotRequests() { return 0; }
 ScreenshotRequests ConsumeScreenshotRequests() { return {}; }
 } // namespace VideoCore
 
-extern "C" int bbgpu_overlay_captures_input(void) {
-    return BbOverlay::CapturesInput() ? 1 : 0;
+extern "C" int bbgpu_text_input_active(void) {
+    return g_window && g_window->TextInputActive() ? 1 : 0;
 }
 
 extern "C" void bbgpu_mouse_take(double* dx, double* dy, int* wheel_up, int* wheel_down) {

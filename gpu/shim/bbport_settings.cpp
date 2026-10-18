@@ -58,13 +58,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.debug_view = std::clamp(i, 0, DebugViewCount - 1);
     } else if (key == "show_fps") {
         v.show_fps = i != 0;
-    } else if (key == "menu_pos") {
-        float x = -1.0f, y = -1.0f;
-        if (std::sscanf(value.c_str(), "%f,%f", &x, &y) == 2 && x >= 0.0f && x <= 1.0f && y >= 0.0f &&
-            y <= 1.0f) {
-            v.menu_x = x;
-            v.menu_y = y;
-        }
     } else if (key == "fsr4_auto_exposure") {
         v.fsr4_auto_exposure = i != 0;
     } else if (key == "fsr4_invert_jitter") {
@@ -93,10 +86,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
 Values& Get() {
     static Values values;
     return values;
-}
-
-const char* MenuText(const char* english, const char* russian) {
-    return Get().menu_language == MenuLanguage::Russian ? russian : english;
 }
 
 void Load() {
@@ -273,9 +262,6 @@ void Save() {
                           std::to_string(OutputHeights[v.output_res]));
     // Read by run.sh at start.
     put("live_resolution", v.live_resolution < 0 ? "auto" : flag(v.live_resolution != 0));
-    if (v.menu_x >= 0.0f && v.menu_y >= 0.0f) {
-        put("menu_pos", fixed(v.menu_x, 4) + "," + fixed(v.menu_y, 4));
-    }
 
     std::string out;
     bool had_lines = false;
@@ -304,7 +290,7 @@ void Save() {
         std::fclose(file);
     }
     if (!had_lines) {
-        out = "# bbport settings (in-game menu: Insert / L3+R3)\n";
+        out = "# bbport settings (in-game: Options > System > Display, Effects)\n";
     }
     for (size_t k = 0; k < keys.size(); ++k) {
         if (!written[k]) {

@@ -6,7 +6,7 @@ import Darwin
 public enum GameOutcome: Equatable, Sendable {
     /// Exit status 0.
     case finished
-    /// Exit status 75 (BB_RESTART_EXIT, src/runtime.h): the settings menu's "Apply and restart".
+    /// Exit status 75 (BB_RESTART_EXIT, src/runtime.h): the game asks to be started again (runtime_restart).
     case restartRequested
     /// Another exit status.
     case failed(status: Int32)

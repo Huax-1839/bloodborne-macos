@@ -21,7 +21,6 @@
 #include "sdl_window.h"
 #include "video_core/renderer_metal/mtl_device_impl.h"
 #include "video_core/renderer_metal/mtl_frame_interpolator.h"
-#include "video_core/renderer_metal/mtl_overlay.h"
 #include "video_core/renderer_metal/mtl_presenter.h"
 #include "video_core/renderer_metal/mtl_rasterizer.h"
 #include "video_core/renderer_metal/mtl_runtime_impl.h"
@@ -326,9 +325,6 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
         std::printf("Metal: MetalFX frame interpolation on (it runs while the MetalFX temporal "
                     "scaler does)\n");
     }
-
-    // The settings menu / FPS counter (shim/bbport_overlay), drawn by Present over the frame.
-    Overlay::Init(*device);
 
     u32 index = 0;
     for (auto& frame : frames) {
@@ -691,9 +687,6 @@ void Presenter::Present(VideoCore::PresentFrame* present_frame, bool is_reusing_
                 [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
             }
             [encoder endEncoding];
-            // bbport: the settings menu / FPS counter over the frame, at display resolution
-            // (drawn into each of the frames shown, so the menu does not flicker).
-            Overlay::Render((__bridge const void*)cmdbuf, (__bridge const void*)target.texture);
             [cmdbuf presentDrawable:target];
             // Blocks capture C++ references as references: copies of what outlives this call.
             const std::shared_ptr<std::atomic<int>> pending = remaining;
