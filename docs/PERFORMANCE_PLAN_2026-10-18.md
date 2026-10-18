@@ -134,6 +134,26 @@ Decided early (2026-10-18, the user): the m4air profile's scene is 1280x720 (run
 launcher's "MacBook Air" preset); effects, model LOD and upscaler unchanged. P16.1 still measures
 it under the M3 rule; `BB_RENDER_RES=960x540` restores 540p.
 
+Measured 2026-10-18/19 (P16.1 prep, short boots, m4air 720p uncapped, AC, labelled 5-s traces,
+`chansplit.py`; the 20-min runs not yet made):
+
+| Variant | Yharnam FPS / GPU ms | Clinic FPS / GPU ms / draws / encoders a frame |
+|---|---|---|
+| SSAO and dynamic shadows off (the profile) | 50.3, 49.8 / 20.0 | 60.7 / 17.5 / 776 / 195 |
+| SSAO only | — | 60.1 / 17.6 / 779 / 197 |
+| dynamic shadows only | — | 38.7 / 21.2 / 1199 / 354 |
+| both | 46.9, 47.4 / 20.8 | 40.3 / 21.4 / 1202 / 357 |
+
+- SSAO is free (+0.2 ms GPU, FPS within noise) and visible: darker crevices behind and under
+  objects (clinic shelves, Yharnam door recess and gate).
+- Dynamic shadows cost 36% FPS in the clinic but only +3.7 ms GPU: the wall lamp adds ~420 draws
+  and ~160 encoders a frame in tiny shadow-map passes (32x32, 64x64 depth targets, ~1 ms vertex
+  each group), GPU busy falls from 80% to 63% and the kernel submit cost appears (0.27–0.34 ms
+  per command buffer): the frame becomes recording/encoder-bound. In Yharnam they cost little
+  (+32 draws). A lever if shadows are wanted: fewer encoders for the small shadow passes.
+- Recommendation for P16.3 (the user's call): SSAO on in the m4air profile, dynamic shadows off;
+  then the 20-min M3 run with `effect_ssao=1`.
+
 Exit: the profile changed by the user's choice and passing the M3 rule on AC and battery.
 
 ## Phase 4 (P17): recording cost under heat (uncapped play, M4)
