@@ -17,6 +17,14 @@ public enum ExpertVariables {
             && name.allSatisfy { $0.isASCII && ($0.isUppercase || $0.isNumber || $0 == "_") }
     }
 
+    /// The launcher's own environment without BB_*, MVK_* and ROSETTA_* (R19): the game and the
+    /// pipeline get those only from the LaunchSpec, the one contract (D5). Otherwise a variable from
+    /// the launcher's environment would reach the game but not the spec's decisions, and the ones
+    /// the spec removes (BB_AUTO_RENDER_RES and friends) would come back.
+    public static var inheritedEnvironment: [String: String] {
+        ProcessInfo.processInfo.environment.filter { item in !prefixes.contains { item.key.hasPrefix($0) } }
+    }
+
     /// The variables with a valid name.
     public static func valid(_ environment: [String: String]) -> [String: String] {
         environment.filter { isValidName($0.key) }

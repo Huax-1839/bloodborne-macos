@@ -155,7 +155,7 @@ public final class GameProcess: @unchecked Sendable {
         let process = Process()
         process.executableURL = spec.executable
         process.arguments = spec.arguments
-        process.environment = ProcessInfo.processInfo.environment.merging(spec.environment) { _, new in new }
+        process.environment = ExpertVariables.inheritedEnvironment.merging(spec.environment) { _, new in new }
         process.currentDirectoryURL = spec.workingDirectory
         process.standardInput = FileHandle(forReadingAtPath: "/dev/null") ?? FileHandle.nullDevice
         let log = FileHandle(fileDescriptor: logFD, closeOnDealloc: false)

@@ -18,6 +18,26 @@ final class GameProcessTests: XCTestCase {
         try? FileManager.default.removeItem(at: dir)
     }
 
+    /// R19: the game gets BB_*/MVK_*/ROSETTA_* only from the spec, never from the launcher's own
+    /// environment; other variables (HOME, PATH) still reach it.
+    func testGameVariablesComeOnlyFromTheSpec() async throws {
+        setenv("BB_R19_INHERITED", "1", 1)
+        setenv("MVK_R19_INHERITED", "1", 1)
+        setenv("BB_R19_OVERRIDDEN", "launcher", 1)
+        defer {
+            for name in ["BB_R19_INHERITED", "MVK_R19_INHERITED", "BB_R19_OVERRIDDEN"] { unsetenv(name) }
+        }
+        let out = dir.appendingPathComponent("env.txt")
+        let game = process(try script("env.sh", "env > '\(out.path)'"), environment: ["BB_R19_OVERRIDDEN": "spec"])
+        _ = try game.start()
+        let outcome = await game.wait()
+        XCTAssertEqual(outcome, .finished)
+        let lines = Set(logText(out).split(separator: "\n").map(String.init))
+        XCTAssertTrue(lines.contains("BB_R19_OVERRIDDEN=spec"))
+        XCTAssertFalse(lines.contains { $0.hasPrefix("BB_R19_INHERITED=") || $0.hasPrefix("MVK_R19_INHERITED=") })
+        XCTAssertTrue(lines.contains { $0.hasPrefix("HOME=") })
+    }
+
     // MARK: - Helpers
 
     private func script(_ name: String, _ body: String) throws -> URL {

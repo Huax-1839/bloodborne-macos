@@ -64,7 +64,7 @@ public struct PythonPipeline: Pipeline {
                 onLine: ((String) -> Void)? = nil) async throws -> ProcessResult {
         var args = ["-E", "-s", "-B", runtime.scripts.appendingPathComponent(arguments[0]).path]
         args += arguments.dropFirst()
-        var env = ProcessInfo.processInfo.environment
+        var env = ExpertVariables.inheritedEnvironment
         env.merge(environment) { $1 }
         let result = try await ProcessRunner.run(runtime.python, arguments: args, environment: env,
                                                  workingDirectory: runtime.pipeline, log: log, onLine: onLine)

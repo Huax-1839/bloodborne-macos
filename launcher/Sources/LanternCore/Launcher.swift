@@ -173,8 +173,7 @@ public final class Launcher: @unchecked Sendable {
         fm.createFile(atPath: logURL.path, contents: nil)
         let log = try FileHandle(forWritingTo: logURL)
         defer { try? log.close() }
-        var environment = ProcessInfo.processInfo.environment
-        environment.merge(spec.environment) { $1 }
+        let environment = spec.environment
         for step in spec.steps {
             if isCancelled { throw CancellationError() }
             let imageStep = step.script != "patches.py"
