@@ -19,47 +19,34 @@ struct AboutView: View {
 
     var body: some View {
         PageContainer(title: "About", locked: false) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    HStack(spacing: 16) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Theme.amber)
-                            .shadow(color: Theme.amber.opacity(0.6), radius: 12)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Hunter's Lantern").font(.display(.title))
-                            Text("Version \(version)").foregroundStyle(.secondary)
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("The game is your own copy. This app contains no game files and downloads none.")
-                        Text("Licence: GPL-2.0-or-later")
-                            .foregroundStyle(.secondary)
-                        if let licenses {
-                            Button("Licenses…") { NSWorkspace.shared.open(licenses) }
-                                .help("The license texts of Hunter's Lantern and the components it contains")
-                        }
-                    }
-                    .card()
-                    VStack(alignment: .leading, spacing: 10) {
-                        CardHeading("Data folder", symbol: "folder")
-                        Text(verbatim: model.dirs.root.path)
-                            .font(.system(.callout, design: .monospaced))
-                            .textSelection(.enabled)
-                        Button("Show in Finder") {
-                            NSWorkspace.shared.activateFileViewerSelecting([model.dirs.root])
-                        }
-                    }
-                    .card()
-                    VStack(alignment: .leading, spacing: 10) {
-                        CardHeading("Source code", symbol: "chevron.left.forwardslash.chevron.right")
-                        Link("github.com/Huax-1839/bloodborne-macos", destination: URL(string: "https://github.com/Huax-1839/bloodborne-macos")!)
-                    }
-                    .card()
+            PrintSection(Text("Hunter's Lantern")) {
+                RegisterLine(Text("Version")) {
+                    Text(verbatim: version)
+                        .font(Print.mono())
+                        .foregroundStyle(Print.textPrimary)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
-                .frame(maxWidth: 640, alignment: .leading)
+                PrintNote(Text("The game is your own copy. This app contains no game files and downloads none."))
+                PrintNote(Text("Licence: GPL-2.0-or-later"))
+            } trailing: {
+                if let licenses {
+                    Button { NSWorkspace.shared.open(licenses) } label: { Text("licenses…") }
+                        .help(Text("The license texts of Hunter's Lantern and the components it contains"))
+                }
+            }
+            PrintSection(Text("Data folder")) {
+                Text(verbatim: model.dirs.root.path)
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textSecondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } trailing: {
+                Button { NSWorkspace.shared.activateFileViewerSelecting([model.dirs.root]) } label: { Text("show in Finder") }
+            }
+            PrintSection(Text("Source code")) {
+                Button {
+                    if let url = URL(string: "https://github.com/Huax-1839/bloodborne-macos") { NSWorkspace.shared.open(url) }
+                } label: { Text("github.com/Huax-1839/bloodborne-macos") }
+                    .buttonStyle(TextActionStyle(font: Print.mono()))
             }
         }
     }

@@ -14,15 +14,9 @@ struct DiagnosticsView: View {
 
     var body: some View {
         PageContainer(title: "Diagnostics", locked: false) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    systemInfo
-                    lastCrash
-                    logViewer
-                }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
-            }
+            systemInfo
+            lastCrash
+            logViewer
         }
         .onAppear(perform: reload)
     }
@@ -33,65 +27,60 @@ struct DiagnosticsView: View {
     }
 
     private var systemInfo: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            CardHeading("System information", symbol: "cpu")
-            Text(info).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-            HStack {
-                Button(copied ? "Copied" : "Copy for a bug report") {
+        PrintSection(Text("System information")) {
+            LogBlock(text: info)
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(info, forType: .string)
                     copied = true
-                }
-                Text("Contains no paths and no user names.").font(.caption).foregroundStyle(.secondary)
+                } label: { Text(copied ? "Copied" : "Copy for a bug report") }
+                    .buttonStyle(FrameActionStyle())
+                PrintNote(Text("Contains no paths and no user names."))
             }
         }
-        .card()
     }
 
     @ViewBuilder
     private var lastCrash: some View {
         if let result = model.lastResult, result.outcome != .finished, result.outcome != .cancelled {
-            VStack(alignment: .leading, spacing: 10) {
-                CardHeading("Last crash", symbol: "exclamationmark.triangle")
-                Text(result.logTail).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            PrintSection(Text("Last crash")) {
+                if let failure = HomeView.failure(result.outcome) {
+                    PrintNote(failure, color: Print.danger)
+                }
+                LogBlock(text: result.logTail)
+            } trailing: {
                 if let log = result.log {
-                    Button("Show this log") { select(log) }
+                    Button { select(log) } label: { Text("show this log") }
                 }
             }
-            .card()
         }
     }
 
     private var logViewer: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CardHeading("Game logs", symbol: "doc.text.magnifyingglass")
-                Spacer()
-                Button("Open logs folder") { NSWorkspace.shared.open(model.dirs.logsDir) }
-                Button("Reload", action: reload)
-            }
+        PrintSection(Text("Game logs")) {
             if logs.isEmpty {
-                Text("No logs yet: each game start writes one (the last 10 are kept).").foregroundStyle(.secondary)
+                PrintNote(Text("No logs yet: each game start writes one (the last 10 are kept)."))
             } else {
-                Picker("Log", selection: Binding(get: { selected }, set: { if let url = $0 { select(url) } })) {
-                    ForEach(logs, id: \.self) { url in Text(url.lastPathComponent).tag(Optional(url)) }
+                PrintRows {
+                    ForEach(logs, id: \.self) { url in
+                        Button { select(url) } label: { LogRow(name: url.lastPathComponent, chosen: url == selected) }
+                            .buttonStyle(RowLinkStyle())
+                    }
                 }
-                .labelsHidden()
-                ScrollView([.vertical, .horizontal]) {
-                    Text(text).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(minHeight: 260, maxHeight: 420)
-                .background(Theme.ink.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
-                HStack {
-                    Text("The last 400 lines.").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    if let selected { Button("Open in Console") { NSWorkspace.shared.open(selected) } }
+                LogBlock(text: text, scrolls: true)
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    PrintNote(Text("The last 400 lines."))
+                    if let selected {
+                        Button { NSWorkspace.shared.open(selected) } label: { Text("open in Console") }
+                            .buttonStyle(TextActionStyle())
+                    }
                 }
             }
+        } trailing: {
+            Button { NSWorkspace.shared.open(model.dirs.logsDir) } label: { Text("open logs folder") }
+            Button(action: reload) { Text("reload") }
         }
-        .card()
     }
 
     private func reload() {
@@ -109,5 +98,57 @@ struct DiagnosticsView: View {
         try? handle.seek(toOffset: size > 262_144 ? size - 262_144 : 0)
         let content = String(decoding: handle.readDataToEndOfFile(), as: UTF8.self)
         text = content.split(separator: "\n", omittingEmptySubsequences: false).suffix(400).joined(separator: "\n")
+    }
+}
+
+/// A log or system information: mono 12 on the sunken background, a 1 px rule round it, square
+/// corners, selectable. `scrolls` gives it a fixed height with both scroll directions (a long log).
+private struct LogBlock: View {
+    let text: String
+    var scrolls = false
+
+    var body: some View {
+        Group {
+            if scrolls {
+                ScrollView([.vertical, .horizontal]) { content }
+                    .frame(minHeight: 256, maxHeight: 416)
+            } else {
+                content
+            }
+        }
+        .background(Print.bgSunken)
+        .overlay(Rectangle().strokeBorder(Print.line, lineWidth: 1))
+    }
+
+    private var content: some View {
+        Text(verbatim: text)
+            .font(Print.mono())
+            .foregroundStyle(Print.textSecondary)
+            .textSelection(.enabled)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A log file in the list: ✦ in brass before the chosen one, brass while under the pointer.
+private struct LogRow: View {
+    let name: String
+    let chosen: Bool
+    @Environment(\.rowHighlight) private var highlight
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(verbatim: chosen ? "✦" : "")
+                .font(Print.text(16))
+                .foregroundStyle(Print.brass)
+                .frame(width: 16, alignment: .leading)
+                .accessibilityHidden(true)
+            Text(verbatim: name)
+                .font(Print.mono())
+                .foregroundStyle(highlight ? Print.brass : chosen ? Print.textPrimary : Print.textSecondary)
+            Spacer(minLength: 0)
+        }
+        .printRow()
+        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 }

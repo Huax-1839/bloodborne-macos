@@ -11,22 +11,15 @@ struct FirstRunView: View {
     @State private var moveError: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(spacing: 12) {
-                Image(systemName: "flame.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(Theme.amber)
-                    .shadow(color: Theme.amber.opacity(0.6), radius: 10)
-                VStack(alignment: .leading) {
-                    Text("Welcome to Hunter's Lantern").font(.display(.title))
-                    Text("A few checks before the first hunt.").foregroundStyle(.secondary)
-                }
-            }
-            VStack(alignment: .leading, spacing: 12) {
+        PrintDialog(title: Text("Welcome to Hunter's Lantern"), width: 560) {
+            PrintNote(Text("A few checks before the first hunt."))
+            PrintRows {
                 row(ok: check.rosetta, title: "Rosetta 2",
                     detail: check.rosetta ? "Installed: the game runs under Rosetta 2."
                         : "Missing: the game is an Intel program and needs Rosetta 2. macOS offers to install it when you continue, or run “softwareupdate --install-rosetta” in Terminal.") {
-                    if !check.rosetta { Button("Install Rosetta…") { installRosetta() } }
+                    if !check.rosetta {
+                        Button { installRosetta() } label: { Text("Install Rosetta…") }
+                    }
                 }
                 row(ok: true, title: "macOS \(check.macOSMajor)",
                     detail: check.metalAvailable ? "The game runs on Metal, the faster renderer."
@@ -34,45 +27,49 @@ struct FirstRunView: View {
                 row(ok: !Updater.needsMove, title: "Location",
                     detail: Updater.needsMove ? "The app runs from the disk image or a temporary location. Move it to the Applications folder so it can update itself."
                         : "The app can update itself here.") {
-                    if Updater.needsMove { Button("Move to Applications") { moveToApplications() } }
+                    if Updater.needsMove {
+                        Button { moveToApplications() } label: { Text("Move to Applications") }
+                    }
                 }
                 row(ok: check.enoughSpaceForImport, title: "Free space",
                     detail: check.enoughSpaceForImport ? "Enough space to import the game (about 30 GB when merging or extracting)."
                         : "Less than 35 GB free: importing from PKG files or merging onto another disk needs about 30 GB. A ready game folder needs no extra space.")
             }
-            .card()
             if let moveError {
-                Text(moveError).foregroundStyle(.red).font(.callout)
+                PrintNote(Text(moveError), color: Print.danger)
             }
-            Text("Next: add your own copy of the game on the Game page. The app contains no game files.")
-                .foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button("Later") { finish(goToGame: false) }
-                Button("Add the game") { finish(goToGame: true) }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-            }
+            PrintNote(Text("Next: add your own copy of the game on the Game page. The app contains no game files."))
+        } actions: {
+            Button { finish(goToGame: false) } label: { Text("Later") }
+            Button { finish(goToGame: true) } label: { Text("Add the game") }
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(28)
-        .frame(width: 620)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             check = SystemCheck.current(dataDir: model.dirs.root)
         }
     }
 
+    /// One check: its name, "Ready" in the ok colour when it is fine (otherwise the explanation is
+    /// in the danger colour), an optional action, and what it means below.
     private func row(ok: Bool, title: LocalizedStringKey, detail: LocalizedStringKey,
                      @ViewBuilder action: () -> some View = { EmptyView() }) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(ok ? .green : Theme.amber)
-                .font(.title3)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
-                Text(detail).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Text(title)
+                Spacer(minLength: 8)
                 action()
+                    .buttonStyle(TextActionStyle())
+                if ok {
+                    Text("Ready")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.ok)
+                }
             }
+            PrintNote(Text(detail), color: ok ? Print.textSecondary : Print.danger)
         }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) { Rectangle().fill(Print.line).frame(height: 1) }
     }
 
     private func finish(goToGame: Bool) {

@@ -391,6 +391,17 @@
         }
       }
     },
+    "cancel": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "abbrechen"
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "de": {
@@ -591,6 +602,17 @@
         }
       }
     },
+    "choose…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auswählen…"
+          }
+        }
+      }
+    },
     "Choose…": {
       "localizations": {
         "de": {
@@ -768,6 +790,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tiefenschärfe"
+          }
+        }
+      }
+    },
+    "details": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
           }
         }
       }
@@ -1185,6 +1217,16 @@
         }
       }
     },
+    "less": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "weniger"
+          }
+        }
+      }
+    },
     "Level %lld": {
       "localizations": {
         "de": {
@@ -1201,6 +1243,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lizenz: GPL-2.0-or-later"
+          }
+        }
+      }
+    },
+    "licenses…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lizenzen…"
           }
         }
       }
@@ -1515,12 +1568,34 @@
         }
       }
     },
+    "open in Console": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in der Konsole öffnen"
+          }
+        }
+      }
+    },
     "Open log": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Protokoll öffnen"
+          }
+        }
+      }
+    },
+    "open logs folder": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokollordner öffnen"
           }
         }
       }
@@ -1675,6 +1750,17 @@
         }
       }
     },
+    "reload": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "neu laden"
+          }
+        }
+      }
+    },
     "remove": {
       "generatesSymbol": false,
       "localizations": {
@@ -1702,6 +1788,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ aus der Liste entfernen?"
+          }
+        }
+      }
+    },
+    "remove…": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "entfernen…"
           }
         }
       }
@@ -1807,6 +1904,17 @@
         }
       }
     },
+    "set active": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktivieren"
+          }
+        }
+      }
+    },
     "Set active": {
       "localizations": {
         "de": {
@@ -1857,12 +1965,34 @@
         }
       }
     },
+    "show in Finder": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "im Finder zeigen"
+          }
+        }
+      }
+    },
     "Show in Finder": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Im Finder zeigen"
+          }
+        }
+      }
+    },
+    "show this log": {
+      "generatesSymbol": false,
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dieses Protokoll zeigen"
           }
         }
       }
