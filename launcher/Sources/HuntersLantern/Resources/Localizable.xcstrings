@@ -51,6 +51,46 @@
         }
       }
     },
+    "%@ · version %@ · check failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Version %2$@ · Prüfung fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "%@ · version %@ · checked": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Version %2$@ · geprüft"
+          }
+        }
+      }
+    },
+    "%@, level %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, Stufe %2$lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld on": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld von %2$lld an"
+          }
+        }
+      }
+    },
     "30": {
       "localizations": {
         "de": {
@@ -137,6 +177,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Info"
+          }
+        }
+      }
+    },
+    "About Hunter's Lantern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über Hunter's Lantern"
           }
         }
       }
@@ -241,6 +291,16 @@
         }
       }
     },
+    "auto": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auto"
+          }
+        }
+      }
+    },
     "Automatic": {
       "localizations": {
         "de": {
@@ -301,6 +361,16 @@
         }
       }
     },
+    "Backups": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sicherungen"
+          }
+        }
+      }
+    },
     "Base game PKG": {
       "localizations": {
         "de": {
@@ -321,12 +391,32 @@
         }
       }
     },
+    "Begin the Hunt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jagd beginnen"
+          }
+        }
+      }
+    },
     "Bring your own copy of the game to begin. The app contains no game files.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Bring deine eigene Kopie des Spiels mit, um zu beginnen. Die App enthält keine Spieldateien."
+          }
+        }
+      }
+    },
+    "built-in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "eingebaut"
           }
         }
       }
@@ -341,6 +431,16 @@
         }
       }
     },
+    "Built-in profiles stay as they are.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingebaute Profile sind fest."
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "de": {
@@ -351,12 +451,42 @@
         }
       }
     },
+    "change": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ändern"
+          }
+        }
+      }
+    },
     "Changes are saved in this profile.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Änderungen werden in diesem Profil gespeichert."
+          }
+        }
+      }
+    },
+    "check again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "erneut prüfen"
+          }
+        }
+      }
+    },
+    "Check failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfung fehlgeschlagen"
           }
         }
       }
@@ -391,6 +521,16 @@
         }
       }
     },
+    "choose": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wählen"
+          }
+        }
+      }
+    },
     "Choose": {
       "localizations": {
         "de": {
@@ -417,6 +557,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anderes Werkzeug auswählen…"
+          }
+        }
+      }
+    },
+    "Choose the folder of your copy under “Game” on the right.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle rechts unter „Spiel“ den Ordner deiner Kopie."
           }
         }
       }
@@ -531,6 +681,16 @@
         }
       }
     },
+    "close": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "schließen"
+          }
+        }
+      }
+    },
     "Coming in this version": {
       "localizations": {
         "de": {
@@ -547,6 +707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Controller"
+          }
+        }
+      }
+    },
+    "copy to change": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zum Ändern kopieren"
           }
         }
       }
@@ -781,6 +951,16 @@
         }
       }
     },
+    "free": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "frei"
+          }
+        }
+      }
+    },
     "FSR 3.1": {
       "localizations": {
         "de": {
@@ -821,12 +1001,32 @@
         }
       }
     },
+    "Game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielordner"
+          }
+        }
+      }
+    },
     "Game language": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Spielsprache"
+          }
+        }
+      }
+    },
+    "Game running": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spiel läuft"
           }
         }
       }
@@ -841,12 +1041,42 @@
         }
       }
     },
+    "Game runtime missing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laufzeit fehlt"
+          }
+        }
+      }
+    },
+    "Go": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gehe zu"
+          }
+        }
+      }
+    },
     "Graphics": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Grafik"
+          }
+        }
+      }
+    },
+    "Graphics…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grafik …"
           }
         }
       }
@@ -867,6 +1097,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Start"
+          }
+        }
+      }
+    },
+    "Hunter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jäger"
           }
         }
       }
@@ -941,12 +1181,52 @@
         }
       }
     },
+    "last %@ · %lld kept": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zuletzt %1$@ · %2$lld aufbewahrt"
+          }
+        }
+      }
+    },
+    "Last hunt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte Jagd"
+          }
+        }
+      }
+    },
     "Last run": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Letzter Start"
+          }
+        }
+      }
+    },
+    "Last run failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzter Start fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "Level %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stufe %lld"
           }
         }
       }
@@ -961,12 +1241,42 @@
         }
       }
     },
+    "log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokoll"
+          }
+        }
+      }
+    },
+    "Logs and the last crash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokolle und der letzte Absturz"
+          }
+        }
+      }
+    },
     "Looking for the PKG tool…": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Suche nach dem PKG-Werkzeug…"
+          }
+        }
+      }
+    },
+    "Low Power Mode is on and lowers the frame rate.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Stromsparmodus ist an und senkt die Bildrate."
           }
         }
       }
@@ -997,6 +1307,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Am niedrigsten"
+          }
+        }
+      }
+    },
+    "manage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "verwalten"
           }
         }
       }
@@ -1081,6 +1401,16 @@
         }
       }
     },
+    "more": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mehr"
+          }
+        }
+      }
+    },
     "Motion blur": {
       "localizations": {
         "de": {
@@ -1121,6 +1451,36 @@
         }
       }
     },
+    "no folder chosen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kein Ordner gewählt"
+          }
+        }
+      }
+    },
+    "No game folder": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Spielordner"
+          }
+        }
+      }
+    },
+    "No game set up yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch kein Spiel eingerichtet"
+          }
+        }
+      }
+    },
     "No PKG tool was found on this Mac. The launcher does not bundle or download one: install ps4-pkg-tools (recommended), then choose its executable here.": {
       "localizations": {
         "de": {
@@ -1147,6 +1507,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Noch kein Spiel"
+          }
+        }
+      }
+    },
+    "none": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "keine"
+          }
+        }
+      }
+    },
+    "none yet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "noch keine"
           }
         }
       }
@@ -1201,6 +1581,16 @@
         }
       }
     },
+    "own": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "eigenes"
+          }
+        }
+      }
+    },
     "Own saves for this profile": {
       "localizations": {
         "de": {
@@ -1251,12 +1641,32 @@
         }
       }
     },
+    "Preparing": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird vorbereitet"
+          }
+        }
+      }
+    },
     "Preparing (%@)": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vorbereiten (%@)"
+          }
+        }
+      }
+    },
+    "Preparing the hunt…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jagd wird vorbereitet …"
           }
         }
       }
@@ -1277,6 +1687,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Profile"
+          }
+        }
+      }
+    },
+    "Ready · game checked": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit · Spiel geprüft"
+          }
+        }
+      }
+    },
+    "recommended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "empfohlen"
           }
         }
       }
@@ -1391,6 +1821,16 @@
         }
       }
     },
+    "Saved data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielstände"
+          }
+        }
+      }
+    },
     "Saves": {
       "localizations": {
         "de": {
@@ -1491,6 +1931,16 @@
         }
       }
     },
+    "stop": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "anhalten"
+          }
+        }
+      }
+    },
     "Stop": {
       "localizations": {
         "de": {
@@ -1507,6 +1957,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Schalte die mitgelieferten und externen Spiel-Patches ein oder aus. Die Bildraten-Patches folgen der Bildrate des Profils."
+          }
+        }
+      }
+    },
+    "The game crashed (%@).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist abgestürzt (%@)."
+          }
+        }
+      }
+    },
+    "The game failed (exit status %lld).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist fehlgeschlagen (Exit-Status %lld)."
+          }
+        }
+      }
+    },
+    "The game runtime is missing, so the game cannot start.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Laufzeit des Spiels fehlt, daher kann es nicht starten."
+          }
+        }
+      }
+    },
+    "The hunt is on…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jagd läuft …"
+          }
+        }
+      }
+    },
+    "The launcher waits in the background until the game ends.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Launcher wartet im Hintergrund, bis das Spiel endet."
           }
         }
       }
@@ -1737,6 +2237,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unbegrenzt"
+          }
+        }
+      }
+    },
+    "unmeasured": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ungemessen"
           }
         }
       }
@@ -2487,6 +2997,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieses Profil hat eigene Spielstände. Wenn du sie behältst, bleiben sie im Datenordner (%@), aber kein Profil zeigt sie mehr an."
+          }
+        }
+      }
+    },
+    "Your saves are backed up before every start.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vor jedem Start werden die Spielstände gesichert."
           }
         }
       }

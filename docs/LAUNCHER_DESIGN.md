@@ -1,7 +1,10 @@
 # Launcher "Hunter's Lantern": visual design
 
-Status: direction chosen by the user on 2026-10-19 (`docs/LAUNCHER_PLAN.md` §9); mocked up, not
-implemented yet. It replaces the home page + sidebar layout. Implementation is SwiftUI (D2).
+Status: direction chosen by the user on 2026-10-19 (`docs/LAUNCHER_PLAN.md` §9). The window and
+its home page are implemented in SwiftUI (2026-10-19): tokens, type and the components in
+`launcher/Sources/HuntersLantern/Views/Print.swift`, the page in `HomeView.swift`, the fixed window
+and the page sheets in `RootView.swift`. The pages behind the sheets still have their old look
+(§9).
 
 ## 1. Direction
 
@@ -101,8 +104,21 @@ or artwork from the game.
 4. Would it read as gothic/Victorian without the title?
 5. Does anything look like a generic SaaS app? Remove it.
 
-## 9. Open
+## 9. Implementation notes and what is open
 
-- Pages that do not fit the single window (mods, patches, saves, diagnostics, advanced, about):
-  separate sheets in the same print style, reached from the register's text actions.
+- The other pages (game, profiles, graphics, mods, patches, saves, advanced, diagnostics, about)
+  are sheets of 880 × 520 over the window, reached from the text actions ("verwalten", "ändern",
+  "mehr"), the register lines (last hunt → diagnostics, hunter and backups → saves), the version
+  in the status bar (about) and the Go menu (⌘1–⌘7, ⌘, for graphics). Their frame
+  (`PageContainer`) has the new title, background and a "schließen" action (Esc); **their content
+  still uses the old cards and system forms**: to be redone in the print style, page by page.
+- Errors: the home page shows them inline (§5); a sheet covers it, so the sheets keep an alert.
+- Built-in profiles are read-only (as on the Graphics page): their renderer and frame-rate words
+  are muted, with "zum Ändern kopieren" next to them.
+- The title is "Bloodborne" for every accepted title ID (all are Bloodborne with update 1.09); the
+  version line names the title ID.
+- The window: `Window` scene, hidden title bar, not resizable, no full screen or zoom, moved by its
+  background; the content leaves out the title bar's height so the window is 960 × 600 in all.
+- Not checked by hand yet: hover, the gas-lamp flicker, keyboard focus outlines, Reduce Motion
+  (the snapshots cannot show them).
 - First-run assistant and import progress in the same style.

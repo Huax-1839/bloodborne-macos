@@ -495,7 +495,11 @@ decisions in §9 are fixed.
    in-process and quits; `LANTERN_SNAPSHOT_PAGES=home,game`), `LANTERN_AUTOPLAY=1` (presses Play),
    `LANTERN_IMPORT_BASE/UPDATE` (runs an import). Screen capture does not work from the agent
    shell; the snapshots do.
-3. Code review 2026-10-18: `docs/LAUNCHER_REVIEW.md` lists 20 findings (R1–R20) with fixes and
+3. New visual design (2026-10-19, `docs/LAUNCHER_DESIGN.md`): the fixed 960 × 600 window and its
+   home page are implemented; the other pages open as sheets with their old content, to be
+   restyled page by page (`docs/LAUNCHER_DESIGN.md` §9). Snapshots (`LANTERN_SNAPSHOT`) capture a
+   page's sheet.
+4. Code review 2026-10-18: `docs/LAUNCHER_REVIEW.md` lists 20 findings (R1–R20) with fixes and
    tests, in batches. All are fixed (2026-10-18, commits ticked off there); open from them: a
    hand check of Cmd-Q during play (R7). Its "smaller improvements" are not done.
 

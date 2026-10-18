@@ -328,4 +328,28 @@ final class GameProcessTests: XCTestCase {
         let finished = await retry.wait()
         XCTAssertEqual(finished, .finished)
     }
+
+    /// The home page's last hunt: the newest log by the time in its name, ended at its last write.
+    func testLastSessionIsTheNewestLog() throws {
+        XCTAssertNil(GameProcess.lastSession(logsDir: logsDir))
+        try FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+        let fm = FileManager.default
+        func log(_ name: String, endingAt end: Date) throws {
+            let url = logsDir.appendingPathComponent(name)
+            try Data("x".utf8).write(to: url)
+            try fm.setAttributes([.modificationDate: end], ofItemAtPath: url.path)
+        }
+        let calendar = Calendar.current
+        let start = calendar.date(from: DateComponents(year: 2026, month: 10, day: 18, hour: 17, minute: 18, second: 5))!
+        try log("run-20261017-210000.log", endingAt: start.addingTimeInterval(-3600))
+        try log("run-20261018-171805.log", endingAt: start.addingTimeInterval(8040))
+        try log("notes.txt", endingAt: start.addingTimeInterval(99999))
+        let session = try XCTUnwrap(GameProcess.lastSession(logsDir: logsDir))
+        XCTAssertEqual(session.log.lastPathComponent, "run-20261018-171805.log")
+        XCTAssertEqual(session.start, start)
+        XCTAssertEqual(session.duration, 8040, accuracy: 1)
+        // A second run in the same second gets "-2" and is the newer one.
+        try log("run-20261018-171805-2.log", endingAt: start.addingTimeInterval(60))
+        XCTAssertEqual(GameProcess.lastSession(logsDir: logsDir)?.log.lastPathComponent, "run-20261018-171805-2.log")
+    }
 }

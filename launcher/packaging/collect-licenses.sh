@@ -44,6 +44,8 @@ add() { # <folder> <component: license> <file...>
 
 add HuntersLantern "Hunter's Lantern and bbport: GPL-2.0-or-later" "$repo/LICENSE"
 add Sparkle "Sparkle (updates): MIT" "$sparkle"
+add Fonts "Cormorant Garamond, EB Garamond, IM FELL English SC, JetBrains Mono: OFL-1.1" \
+    "$repo"/launcher/Sources/HuntersLantern/Resources/Fonts/OFL-*.txt
 
 if [[ -n $python ]]; then
     add MoltenVK "MoltenVK: Apache-2.0" "$deps/MoltenVK/LICENSE"

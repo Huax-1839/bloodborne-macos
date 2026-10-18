@@ -34,12 +34,17 @@ enum Snapshot {
         for page in pages {
             model.page = page
             try? await Task.sleep(for: .seconds(1.5))
-            guard let view = NSApp.windows.first(where: { $0.isVisible })?.contentView,
+            // The pages other than home are sheets: their own window, attached to the main one.
+            let main = NSApp.windows.first { $0.isVisible && $0.sheetParent == nil }
+            guard let view = (main?.attachedSheet ?? main)?.contentView,
                   let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try? bitmap.representation(using: .png, properties: [:])?
                 .write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(page.rawValue).png"))
         }
+        // An open sheet holds up terminate: back to the home page first.
+        model.page = .home
+        try? await Task.sleep(for: .seconds(1))
         NSApp.terminate(nil)
     }
 }

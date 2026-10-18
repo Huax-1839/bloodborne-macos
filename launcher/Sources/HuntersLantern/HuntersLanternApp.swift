@@ -8,15 +8,20 @@ struct HuntersLanternApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        WindowGroup {
+        // One window of a fixed size (docs/LAUNCHER_DESIGN.md): the other pages are its sheets.
+        Window("Hunter's Lantern", id: "main") {
             RootView()
                 .environmentObject(delegate.model)
                 .preferredColorScheme(.dark)
-                .tint(Theme.amber)
+                .tint(Print.brass)
                 .task { await Snapshot.runIfRequested(delegate.model) }
         }
-        .defaultSize(width: 1080, height: 680)
-        .commands { UpdateCommands(updater: delegate.updater) }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .commands {
+            UpdateCommands(updater: delegate.updater)
+            GoCommands(model: delegate.model)
+        }
     }
 }
 
@@ -29,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let updater: Updater
 
     override init() {
+        Print.registerFonts()
         model = AppModel()
         updater = Updater(model: model)
         super.init()

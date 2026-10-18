@@ -3,32 +3,28 @@ import AppKit
 import LanternCore
 import SwiftUI
 
-/// Home: the game's own artwork (read at run time, D17), Play, the profile and the status cards.
+/// The window (docs/LAUNCHER_DESIGN.md): on the left the game, a register of its last hunt,
+/// hunter and backups, and the main action; on the right the pre-launch settings as register
+/// entries; at the bottom the status bar. The other pages open as sheets (RootView).
 struct HomeView: View {
     @EnvironmentObject private var model: AppModel
-    @Binding var page: Page
-    @State private var background: NSImage?
-    @State private var cover: NSImage?
+    @State private var facts = HomeFacts()
     @State private var power = PowerConditions.current()
 
     var body: some View {
-        ZStack {
-            backdrop
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        Spacer(minLength: 0)
-                        header
-                        if model.activeGame != nil { actions }
-                        if model.phase == nil { powerHints }
-                        cards
-                    }
-                    .padding(32)
-                    .frame(maxWidth: .infinity, minHeight: geometry.size.height, alignment: .bottomLeading)
-                }
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                main
+                    .frame(width: 576)
+                settings
             }
+            statusBar
         }
-        .task(id: model.activeGame?.id) { await loadArtwork() }
+        .frame(width: Print.window.width, height: Print.window.height)
+        .background(Print.bgBase)
+        .foregroundStyle(Print.textPrimary)
+        .font(Print.text())
+        .task(id: factsKey) { facts = await HomeFacts.read(model) }
         .task {
             // Battery, Low Power Mode and heat change while the launcher is open.
             while !Task.isCancelled {
@@ -38,330 +34,489 @@ struct HomeView: View {
         }
     }
 
-    // MARK: Artwork
-
-    @ViewBuilder
-    private var backdrop: some View {
-        if let background {
-            GeometryReader { geometry in
-                Image(nsImage: background)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-            }
-            .overlay {
-                // Dark enough for text at the bottom and on the left, open at the top right.
-                LinearGradient(stops: [.init(color: .black.opacity(0.25), location: 0),
-                                       .init(color: .black.opacity(0.55), location: 0.5),
-                                       .init(color: .black.opacity(0.9), location: 1)],
-                               startPoint: .top, endPoint: .bottom)
-                LinearGradient(colors: [.black.opacity(0.5), .clear], startPoint: .leading, endPoint: .trailing)
-            }
-            .ignoresSafeArea()
-        } else {
-            LanternBackdrop()
-        }
+    /// What the register depends on: read again after a launch and when the profile changes.
+    private var factsKey: String {
+        "\(model.state.activeProfile)|\(model.activeGame?.id ?? "")|\(model.phase == nil)|\(model.page == .home)"
     }
 
-    private func loadArtwork() async {
-        guard let game = model.activeGame else {
-            background = nil
-            cover = nil
-            return
-        }
-        let images = await Task.detached(priority: .userInitiated) {
-            (NSImage(contentsOf: game.backgroundImage), NSImage(contentsOf: game.coverImage))
-        }.value
-        background = images.0
-        cover = images.1
-    }
+    private var locked: Bool { model.isBusy }
 
-    // MARK: Header and actions
+    // MARK: Left: the game and the main action
 
-    private var header: some View {
-        HStack(alignment: .bottom, spacing: 20) {
-            if let game = model.activeGame {
-                if let cover {
-                    Image(nsImage: cover)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 104, height: 104)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.15)))
-                        .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(game.check.title)
-                        .font(.system(size: 40, weight: .semibold, design: .serif))
-                        .shadow(color: .black.opacity(0.6), radius: 8)
-                    Text("Version \(game.check.version)")
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Hunter's Lantern")
-                        .font(.system(size: 40, weight: .semibold, design: .serif))
-                    Text("Bring your own copy of the game to begin. The app contains no game files.")
-                        .foregroundStyle(.secondary)
-                }
+    private var main: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Every title the game check accepts is Bloodborne (a retail ID with update 1.09).
+            Text(verbatim: model.activeGame == nil ? "Hunter's Lantern" : "Bloodborne")
+                .font(Print.display(64))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .padding(.top, 16)
+            subtitle
+                .font(Print.smallCaps())
+                .tracking(14 * 0.12)
+                .foregroundStyle(Print.textSecondary)
+                .padding(.top, 8)
+            OrnamentRule()
+                .padding(.top, 24)
+            if model.activeGame != nil {
+                register
+                    .padding(.top, 24)
             }
-        }
-    }
-
-    @ViewBuilder
-    private var actions: some View {
-        if let phase = model.phase {
-            HStack(spacing: 14) {
-                ProgressView().controlSize(.small)
-                phaseText(phase)
-                    .font(.headline)
-                Spacer()
-                Button("Stop") { model.stop() }
-                    .controlSize(.large)
-            }
-            .card()
-        } else {
-            HStack(spacing: 16) {
-                Button {
-                    model.play()
-                } label: {
-                    Label("Play", systemImage: "play.fill")
-                        .font(.title2.weight(.semibold))
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.extraLarge)
+            Spacer(minLength: 0)
+            errorLine
+            Button(action: model.play) { mainLabel }
+                .buttonStyle(MainActionStyle())
+                .disabled(!canPlay)
                 .keyboardShortcut(.defaultAction)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Profile").font(.caption).foregroundStyle(.secondary)
-                    profilePicker
-                }
-            }
+            hintLine
+                .padding(.top, 12)
         }
+        .padding(Print.inset)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var subtitle: Text {
+        guard let game = model.activeGame else { return Text("No game set up yet") }
+        return game.check.ok
+            ? Text("\(game.check.title) · version \(game.check.version) · checked")
+            : Text("\(game.check.title) · version \(game.check.version) · check failed")
+    }
+
+    private var register: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { model.page = .diagnostics } label: {
+                RegisterLine(label: Text("Last hunt")) { lastHunt }
+            }
+            .help(Text("Logs and the last crash"))
+            Button { model.page = .saves } label: {
+                RegisterLine(label: Text("Hunter")) { hunter }
+            }
+            .help(Text("Saved data"))
+            Button { model.page = .saves } label: {
+                RegisterLine(label: Text("Backups")) { backups }
+            }
+            .help(Text("Saved data"))
+        }
+        .buttonStyle(RegisterLinkStyle())
+    }
+
+    private var lastHunt: Text {
+        guard let session = facts.lastSession else { return Text("none yet") }
+        let when = HomeFacts.relative(session.start)
+        guard let duration = HomeFacts.duration(session.duration) else { return Text(verbatim: when) }
+        return Text(verbatim: "\(when) — \(duration)")
+    }
+
+    private var hunter: Text {
+        guard let character = facts.character else { return Text("none yet") }
+        let played = HomeFacts.duration(TimeInterval(character.playtime)) ?? ""
+        let others = facts.characterCount - 1
+        let name = character.name.isEmpty ? Text("Level \(character.level)") : Text("\(character.name), level \(character.level)")
+        let line = Text("\(name) · \(played)")
+        return others > 0 ? Text("\(line) · +\(others)") : line
+    }
+
+    private var backups: Text {
+        guard let newest = facts.newestBackup else { return Text("none yet") }
+        return Text("last \(HomeFacts.relative(newest)) · \(facts.backupCount) kept")
+    }
+
+    private var canPlay: Bool {
+        guard model.activeGame != nil, !model.isBusy, case .success = model.runtime else { return false }
+        return true
     }
 
     @ViewBuilder
-    private var powerHints: some View {
-        if power.onBattery || power.lowPowerMode || power.hot {
-            VStack(alignment: .leading, spacing: 6) {
-                if power.onBattery {
-                    Label("On battery power the game runs slower. Plug in the charger.", systemImage: "battery.50")
-                }
-                if power.lowPowerMode {
-                    Label("Low Power Mode is on and lowers the frame rate. Turn it off in System Settings under Battery.", systemImage: "leaf")
-                }
-                if power.hot {
-                    Label("The Mac is hot and slows the game down. Let it cool down first.", systemImage: "thermometer.high")
-                }
-            }
-            .font(.callout)
-            .foregroundStyle(Theme.amber)
-            .card()
+    private var mainLabel: some View {
+        switch model.phase {
+        case .running: Text("The hunt is on…")
+        case .some: Text("Preparing the hunt…")
+        case nil: Text("Begin the Hunt")
         }
     }
 
-    private var profilePicker: some View {
-        Picker("Profile", selection: $model.state.activeProfile) {
-            ForEach(model.profiles.all.filter(\.builtin)) { profileItem($0) }
-            if !model.profiles.custom.isEmpty {
-                Divider()
-                ForEach(model.profiles.custom) { profileItem($0) }
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(width: 240)
-    }
-
+    /// One line in the danger colour above the main action, no modal (the most important first).
     @ViewBuilder
-    private func profileItem(_ profile: Profile) -> some View {
-        let recommended = profile.id == model.hardware.suggestedProfile.id
-        if profile.unmeasured && recommended {
-            Text("\(profile.name) (unmeasured, recommended for this Mac)").tag(profile.id)
-        } else if profile.unmeasured {
-            Text("\(profile.name) (unmeasured)").tag(profile.id)
-        } else if recommended {
-            Text("\(profile.name) (recommended for this Mac)").tag(profile.id)
+    private var errorLine: some View {
+        if case .failure(let error) = model.runtime {
+            ErrorLine(text: Text("The game runtime is missing, so the game cannot start."), detail: error.localizedDescription)
+        } else if let game = model.activeGame, !game.check.ok {
+            ErrorLine(text: Text(verbatim: GameCheckText.problem(game.check)), detail: GameCheckText.problem(game.check)) {
+                Button("check again") { model.page = .game }
+            }
+        } else if let result = model.lastResult, let text = Self.failure(result.outcome) {
+            ErrorLine(text: text, detail: result.logTail) {
+                if let log = result.log {
+                    Button("log") { NSWorkspace.shared.open(log) }
+                }
+                Button("close") { model.lastResult = nil }
+            }
+        } else if model.page == .home, let message = model.errorMessage {
+            ErrorLine(text: Text(verbatim: message), detail: message) {
+                Button("close") { model.errorMessage = nil }
+            }
+        }
+    }
+
+    private static func failure(_ outcome: GameOutcome) -> Text? {
+        switch outcome {
+        case .crashed(let signal): Text("The game crashed (\(signalName(signal))).")
+        case .failed(let status): Text("The game failed (exit status \(Int(status))).")
+        case .finished, .restartRequested, .cancelled: nil
+        }
+    }
+
+    /// One line in the secondary colour under the main action.
+    @ViewBuilder
+    private var hintLine: some View {
+        if let phase = model.phase {
+            HintLine(text: Self.phaseText(phase)) {
+                Button("stop") { model.stop() }
+            }
+        } else if let notice = model.notice {
+            HintLine(text: Text(verbatim: notice)) {
+                Button("close") { model.notice = nil }
+            }
+        } else if model.activeGame == nil {
+            HintLine(text: Text("Choose the folder of your copy under “Game” on the right."))
+        } else if power.onBattery {
+            HintLine(text: Text("On battery power the game runs slower. Plug in the charger."))
+        } else if power.lowPowerMode {
+            HintLine(text: Text("Low Power Mode is on and lowers the frame rate."))
+        } else if power.hot {
+            HintLine(text: Text("The Mac is hot and slows the game down. Let it cool down first."))
         } else {
-            Text(profile.name).tag(profile.id)
+            HintLine(text: Text("Your saves are backed up before every start."))
         }
     }
 
-    private func phaseText(_ phase: LaunchPhase) -> Text {
+    private static func phaseText(_ phase: LaunchPhase) -> Text {
         switch phase {
         case .checking: Text("Checking the game")
         case .backingUp: Text("Backing up saves")
         case .preparing(let script): Text("Preparing (\(script))")
-        case .running: Text("Running")
+        case .running: Text("The launcher waits in the background until the game ends.")
         case .restarting: Text("Restarting")
         }
     }
 
-    // MARK: Cards
+    // MARK: Right: the settings column
 
-    private var cards: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if case .failure(let error) = model.runtime {
-                runtimeCard(error.localizedDescription)
+    private var settings: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: Print.groupGap) {
+                profileGroup
+                displayGroup
+                gameGroup
             }
-            if model.activeGame == nil {
-                noGameCard
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 14, alignment: .top)], alignment: .leading, spacing: 14) {
-                    gameCard
-                    profileCard
-                }
-            }
-            if let result = model.lastResult {
-                OutcomeCard(result: result, logsDir: model.dirs.logsDir)
-            }
+            .padding(.top, Print.inset)
+            .padding(.leading, 32)
+            .padding(.trailing, Print.inset)
+            .padding(.bottom, Print.inset)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Print.bgRaised)
+        .overlay(alignment: .leading) { Rectangle().fill(Print.line).frame(width: 1) }
     }
 
-    private var noGameCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            CardHeading("Game", symbol: "opticaldisc")
-            Text("No game yet")
-                .font(.display(.title2))
-            Text("Add your copy of the game: a ready game folder, the base game with its update, or PKG files.")
-                .foregroundStyle(.secondary)
-            Button("Add a game…") { page = .game }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-        }
-        .card()
-    }
-
-    private var gameCard: some View {
+    private var profileGroup: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CardHeading("Game", symbol: "opticaldisc")
-            if let game = model.activeGame {
-                InfoRow("Title", Text(verbatim: game.check.title))
-                InfoRow("Version", Text(verbatim: game.check.version))
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: game.check.ok ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(game.check.ok ? Color.green : Color.orange)
-                    Text(GameCheckText.problem(game.check))
-                        .font(.callout)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 4)
+            SectionHeading("Profile") {
+                Button("manage") { model.page = .profiles }
+                    .buttonStyle(TextActionStyle())
             }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(model.profiles.all.filter(\.builtin) + model.profiles.custom) { profile in
+                    Button {
+                        model.state.activeProfile = profile.id
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(verbatim: profile.name).lineLimit(1)
+                            Leader()
+                            profileNote(profile)
+                                .font(Print.text(14))
+                                .foregroundStyle(Print.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .buttonStyle(ChoiceLineStyle(chosen: profile.id == model.activeProfile.id))
+                    .accessibilityAddTraits(profile.id == model.activeProfile.id ? .isSelected : [])
+                }
+            }
+            .disabled(locked)
         }
-        .card()
     }
 
-    private var profileCard: some View {
+    private func profileNote(_ profile: Profile) -> Text {
+        if profile.id == model.hardware.suggestedProfile.id { return Text("recommended") }
+        if profile.unmeasured { return Text("unmeasured") }
+        return profile.builtin ? Text("built-in") : Text("own")
+    }
+
+    private var displayGroup: some View {
         let profile = model.activeProfile
         return VStack(alignment: .leading, spacing: 8) {
-            CardHeading("Profile", symbol: "square.stack")
-            HStack {
-                Text(profile.name).font(.headline)
-                if profile.unmeasured { Badge("Unmeasured", tint: Theme.amber) }
+            SectionHeading("Display") {
+                Button("more") { model.page = .graphics }
+                    .buttonStyle(TextActionStyle())
             }
-            InfoRow("Frame rate", Text(profile.frameRate.label))
-            InfoRow("Scene size", profile.sceneSizeText)
-            InfoRow("Renderer", profile.rendererText)
-            if let upscaler = profile.iniValues["upscaler"] {
-                InfoRow("Upscaler", UpscalerOption.label(upscaler))
+            Group {
+                RegisterLine(label: Text("Renderer"), labelSize: 14) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        ForEach(RendererChoice.allCases, id: \.self) { choice in
+                            Button { edit { $0.renderer = choice } } label: { Self.word(choice) }
+                                .buttonStyle(ChoiceWordStyle(chosen: profile.renderer == choice))
+                                .accessibilityAddTraits(profile.renderer == choice ? .isSelected : [])
+                        }
+                    }
+                }
+                RegisterLine(label: Text("Frame rate"), labelSize: 14) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        ForEach(FrameRate.allCases, id: \.self) { rate in
+                            Button { edit { $0.frameRate = rate } } label: { Self.word(rate) }
+                                .buttonStyle(ChoiceWordStyle(chosen: profile.frameRate == rate))
+                                .accessibilityAddTraits(profile.frameRate == rate ? .isSelected : [])
+                        }
+                    }
+                }
+            }
+            .disabled(locked || profile.builtin)
+            if profile.builtin && !locked {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Built-in profiles stay as they are.")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.textSecondary)
+                    Button("copy to change") { model.duplicateProfile(profile) }
+                        .buttonStyle(TextActionStyle())
+                }
             }
         }
-        .card()
     }
 
-    private func runtimeCard(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CardHeading("Game runtime", symbol: "exclamationmark.triangle")
-            Text("The game runtime was not found, so the game cannot start.")
-            Text(message)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
+    /// Changes the active profile (a built-in one is read-only, as on the Graphics page).
+    private func edit(_ change: (inout Profile) -> Void) {
+        var profile = model.activeProfile
+        guard !profile.builtin, !locked else { return }
+        change(&profile)
+        model.saveProfile(profile)
+    }
+
+    private static func word(_ choice: RendererChoice) -> Text {
+        switch choice {
+        case .automatic: Text("auto")
+        case .metal: Text(verbatim: "Metal")
+        case .vulkan: Text(verbatim: "Vulkan")
         }
-        .card()
+    }
+
+    private static func word(_ rate: FrameRate) -> Text {
+        switch rate {
+        case .fps30: Text(verbatim: "30")
+        case .fps60: Text(verbatim: "60")
+        case .fps90: Text(verbatim: "90")
+        case .uncapped: Text("free")
+        }
+    }
+
+    private var gameGroup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionHeading("Game")
+            VStack(alignment: .leading, spacing: 4) {
+                RegisterLine(label: Text("Game folder"), labelSize: 14) {
+                    Button(model.activeGame == nil ? "choose" : "change") { model.page = .game }
+                        .buttonStyle(TextActionStyle())
+                        .disabled(locked)
+                }
+                if let game = model.activeGame {
+                    let path = (game.path.path as NSString).abbreviatingWithTildeInPath
+                    Text(verbatim: path)
+                        .font(Print.mono())
+                        .foregroundStyle(locked ? Print.textMuted : Print.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(Text(verbatim: path))
+                } else {
+                    Text("no folder chosen")
+                        .font(Print.mono())
+                        .foregroundStyle(Print.textMuted)
+                }
+            }
+            RegisterLine(label: Text("Mods"), labelSize: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    modsValue
+                        .font(Print.text(14))
+                        .foregroundStyle(locked ? Print.textMuted : Print.textPrimary)
+                    Button("manage") { model.page = .mods }
+                        .buttonStyle(TextActionStyle())
+                }
+            }
+            .padding(.top, 8)
+            RegisterLine(label: Text("Patches"), labelSize: 14) {
+                Button("manage") { model.page = .patches }
+                    .buttonStyle(TextActionStyle())
+            }
+        }
+    }
+
+    private var modsValue: Text {
+        let on = model.activeProfile.mods?.count ?? 0
+        guard facts.modsTotal > 0 else { return Text("none") }
+        return Text("\(on) of \(facts.modsTotal) on")
+    }
+
+    // MARK: Status bar
+
+    private var statusBar: some View {
+        HStack(spacing: 8) {
+            Text(verbatim: "●")
+                .foregroundStyle(statusOK ? Print.ok : Print.danger)
+                .accessibilityHidden(true)
+            statusText
+                .foregroundStyle(Print.textSecondary)
+            Spacer()
+            Button { model.page = .about } label: {
+                Text(verbatim: "Hunter's Lantern \(Self.appVersion)")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Print.textMuted)
+            .help(Text("About Hunter's Lantern"))
+        }
+        .font(Print.mono())
+        .padding(.horizontal, 16)
+        .frame(height: 32)
+        .background(Print.bgSunken)
+        .overlay(alignment: .top) { Rectangle().fill(Print.line).frame(height: 1) }
+    }
+
+    private var statusOK: Bool {
+        guard case .success = model.runtime, let game = model.activeGame else { return false }
+        if let result = model.lastResult, Self.failure(result.outcome) != nil, model.phase == nil { return false }
+        return game.check.ok
+    }
+
+    private var statusText: Text {
+        if case .failure = model.runtime { return Text("Game runtime missing") }
+        guard let game = model.activeGame else { return Text("No game folder") }
+        if model.phase == .running { return Text("Game running") }
+        if model.phase != nil { return Text("Preparing") }
+        if !game.check.ok { return Text("Check failed") }
+        if let result = model.lastResult, Self.failure(result.outcome) != nil { return Text("Last run failed") }
+        return Text("Ready · game checked")
+    }
+
+    private static var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
 }
 
-/// How the last launch ended: finished, crashed, failed or stopped; the log's tail for the bad ends.
-struct OutcomeCard: View {
-    @EnvironmentObject private var model: AppModel
-    let result: LaunchResult
-    let logsDir: URL
+// MARK: - Lines under and over the main action
+
+/// The error line: danger colour, one line (the whole text as a tooltip), text actions at its end.
+private struct ErrorLine<Actions: View>: View {
+    let text: Text
+    let detail: String
+    @ViewBuilder var actions: Actions
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                CardHeading("Last run", symbol: "clock.arrow.circlepath")
-                Spacer()
-                Button {
-                    model.lastResult = nil
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.borderless)
-                .help("Dismiss")
-            }
-            HStack(spacing: 8) {
-                Image(systemName: symbol).foregroundStyle(tint)
-                title.font(.headline)
-            }
-            if showsLog, !result.logTail.isEmpty {
-                ScrollView {
-                    Text(result.logTail)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                }
-                .frame(maxHeight: 170)
-                .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
-            }
-            HStack {
-                if let log = result.log {
-                    Button("Open log") { NSWorkspace.shared.open(log) }
-                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([log]) }
-                } else {
-                    Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([logsDir]) }
-                }
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text("✦ \(text)")
+                .foregroundStyle(Print.danger)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(Text(verbatim: detail))
+            Spacer(minLength: 0)
+            actions
+                .buttonStyle(TextActionStyle())
         }
-        .card()
+        .font(Print.text(14))
+        .padding(.bottom, 12)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+extension ErrorLine where Actions == EmptyView {
+    init(text: Text, detail: String) {
+        self.init(text: text, detail: detail) { EmptyView() }
+    }
+}
+
+/// The hint line: secondary colour, one line, text actions at its end.
+private struct HintLine<Actions: View>: View {
+    let text: Text
+    @ViewBuilder var actions: Actions
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            text
+                .foregroundStyle(Print.textSecondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+            actions
+                .buttonStyle(TextActionStyle())
+        }
+        .font(Print.text(14))
+    }
+}
+
+extension HintLine where Actions == EmptyView {
+    init(text: Text) {
+        self.init(text: text) { EmptyView() }
+    }
+}
+
+// MARK: - The register's facts
+
+/// What the home page reads from disk: the last run (its log), the characters of the active save
+/// root, its backups, the mod library's size. Read off the main thread.
+struct HomeFacts: Equatable, Sendable {
+    var lastSession: GameProcess.Session?
+    /// The character played longest.
+    var character: SaveLocation.Character?
+    var characterCount = 0
+    var newestBackup: Date?
+    var backupCount = 0
+    var modsTotal = 0
+
+    @MainActor
+    static func read(_ model: AppModel) async -> HomeFacts {
+        let dirs = model.dirs
+        let profile = model.activeProfile
+        let title = model.activeGame?.check.title
+        return await Task.detached(priority: .userInitiated) {
+            var facts = HomeFacts()
+            facts.lastSession = GameProcess.lastSession(logsDir: dirs.logsDir)
+            // The save root and its backup history, as SavesModel and AppModel.play() use them.
+            let root = profile.ownSaves ? dirs.profileUserDir(profile.id) : dirs.userDir
+            let locations = SaveRoot.find(userRoot: root)
+            let characters = (locations.first { $0.titleID == title } ?? locations.first)?.characters() ?? []
+            facts.character = characters.max { $0.playtime < $1.playtime }
+            facts.characterCount = characters.count
+            let store = BackupStore(dir: dirs.backupsDir.appendingPathComponent(root.lastPathComponent))
+            let backups = store.list()
+            facts.newestBackup = backups.map(\.date).max()
+            facts.backupCount = backups.count
+            facts.modsTotal = ModLibrary(dir: dirs.modsDir).mods().count
+            return facts
+        }.value
     }
 
-    private var showsLog: Bool {
-        switch result.outcome {
-        case .crashed, .failed: true
-        default: false
-        }
+    /// "Today, 17:18" (relative day names where the locale has them).
+    static func relative(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        formatter.doesRelativeDateFormatting = true
+        return formatter.string(from: date)
     }
 
-    private var symbol: String {
-        switch result.outcome {
-        case .finished, .restartRequested: "checkmark.circle.fill"
-        case .crashed: "bolt.trianglebadge.exclamationmark.fill"
-        case .failed: "exclamationmark.triangle.fill"
-        case .cancelled: "stop.circle.fill"
-        }
-    }
-
-    private var tint: Color {
-        switch result.outcome {
-        case .finished, .restartRequested: .green
-        case .crashed, .failed: .orange
-        case .cancelled: .secondary
-        }
-    }
-
-    private var title: Text {
-        switch result.outcome {
-        case .finished: Text("The game ended normally")
-        case .restartRequested: Text("The game restarted")
-        case .crashed(let signal): Text("The game crashed (\(signalName(signal)))")
-        case .failed(let status): Text("The game failed (exit status \(Int(status)))")
-        case .cancelled: Text("The game was stopped")
-        }
+    /// "2 hr, 14 min"; nil under a minute.
+    static func duration(_ seconds: TimeInterval) -> String? {
+        guard seconds >= 60 else { return nil }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .short
+        formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute]
+        if seconds >= 36000 { formatter.allowedUnits = [.hour] }
+        return formatter.string(from: seconds)
     }
 }

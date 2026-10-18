@@ -301,6 +301,37 @@ public final class GameProcess: @unchecked Sendable {
         throw GameProcessError.setupFailed("log file: no free name")
     }
 
+    /// A past run, read from its log: started at the time in the log's name, ended at the log's
+    /// last write.
+    public struct Session: Equatable, Sendable {
+        public var log: URL
+        public var start: Date
+        public var end: Date
+        public var duration: TimeInterval { max(0, end.timeIntervalSince(start)) }
+    }
+
+    /// The newest run in the logs folder (the home page's "last hunt"), nil when there is none.
+    public static func lastSession(logsDir: URL) -> Session? {
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: logsDir, includingPropertiesForKeys: [.contentModificationDateKey], options: []) else { return nil }
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.dateFormat = "yyyyMMdd-HHmmss"
+        var sessions: [(session: Session, attempt: Int)] = []
+        for url in urls where url.lastPathComponent.hasPrefix("run-") && url.pathExtension == "log" {
+            // run-YYYYMMDD-HHMMSS.log or run-YYYYMMDD-HHMMSS-<n>.log
+            let name = url.deletingPathExtension().lastPathComponent.dropFirst(4)
+            guard let start = parser.date(from: String(name.prefix(15))),
+                  let end = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            else { continue }
+            let attempt = Int(name.dropFirst(16)) ?? 1
+            sessions.append((Session(log: url, start: start, end: end), attempt))
+        }
+        return sessions.max {
+            $0.session.start != $1.session.start ? $0.session.start < $1.session.start : $0.attempt < $1.attempt
+        }?.session
+    }
+
     /// Deletes the oldest run-*.log files so that `keptLogs` remain, `current` among them.
     private static func pruneLogs(in dir: URL, keeping current: URL) {
         let fm = FileManager.default
