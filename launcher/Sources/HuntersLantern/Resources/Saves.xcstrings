@@ -199,6 +199,18 @@
         }
       }
     },
+    "delete" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "löschen"
+          }
+        }
+      }
+    },
     "Delete" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -283,6 +295,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diesen Charakter exportieren. Er kann deine lokale Netzwerkadresse (IPv4) enthalten: Gib die Datei nicht öffentlich weiter, wenn dir das wichtig ist. Das Importieren von Charakteren ist experimentell."
+          }
+        }
+      }
+    },
+    "export…" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "exportieren…"
           }
         }
       }
@@ -496,6 +520,18 @@
         }
       }
     },
+    "restore…" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wiederherstellen…"
+          }
+        }
+      }
+    },
     "Restore…" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -584,6 +620,18 @@
         }
       }
     },
+    "show in Finder" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "im Finder zeigen"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -624,6 +672,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Slot %lld: leer"
+          }
+        }
+      }
+    },
+    "Snapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnappschuss"
           }
         }
       }
@@ -679,6 +738,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Übernehmen…"
+          }
+        }
+      }
+    },
+    "take snapshot…" : {
+      "extractionState" : "manual",
+      "generatesSymbol" : false,
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schnappschuss anlegen…"
           }
         }
       }

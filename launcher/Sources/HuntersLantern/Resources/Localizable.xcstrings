@@ -1391,6 +1391,16 @@
         }
       }
     },
+    "off": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aus"
+          }
+        }
+      }
+    },
     "OK": {
       "localizations": {
         "de": {
@@ -1407,6 +1417,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aus"
+          }
+        }
+      }
+    },
+    "on": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "an"
           }
         }
       }

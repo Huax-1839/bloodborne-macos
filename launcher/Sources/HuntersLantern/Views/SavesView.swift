@@ -48,28 +48,14 @@ struct SavesView: View {
 
     var body: some View {
         PageContainer(title: "Saves") {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if let checkout = saves.checkout, saves.location == nil { checkoutOffer(checkout) }
-                    charactersCard
-                    backupsCard
-                    exchangeCard
-                    takeOverCard
-                }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 24)
-                .disabled(saves.working)
-            }
-            .overlay(alignment: .top) {
-                if saves.working {
-                    ProgressView()
-                        .controlSize(.small)
-                        .padding(10)
-                        .background(.regularMaterial, in: Capsule())
-                        .padding(.top, 6)
-                }
-            }
+            if saves.working { PrintProgress(fraction: nil) }
+            if let checkout = saves.checkout, saves.location == nil { checkoutOffer(checkout) }
+            charactersSection
+            backupsSection
+            exchangeSection
+            takeOverSection
         }
+        .disabled(saves.working)
         .onAppear { saves.bind(model) }
         .onChange(of: model.state.activeProfile) { saves.reload() }
         .onChange(of: model.isBusy) { saves.reload() }
@@ -109,60 +95,46 @@ struct SavesView: View {
 
     // MARK: Characters
 
-    private var charactersCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SavesHeading("Characters", symbol: "person.2")
+    private var charactersSection: some View {
+        PrintSection(s("Characters")) {
             if model.activeProfile.ownSaves {
-                s("The own saves of the profile “\(model.activeProfile.name)”.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                s("The saves all profiles share.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                PrintNote(s("The own saves of the profile “\(model.activeProfile.name)”."))
             }
             if saves.characters.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "moon.zzz").foregroundStyle(.secondary)
-                    s(saves.location == nil
-                      ? "No save yet. Start the game and create a character, or import a save below."
-                      : "No character in this save yet.")
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
+                PrintNote(s(saves.location == nil
+                            ? "No save yet. Start the game and create a character, or import a save below."
+                            : "No character in this save yet."))
             } else {
-                VStack(spacing: 0) {
-                    ForEach(saves.characters) { character in
-                        if character.id != saves.characters.first?.id { Divider() }
-                        characterRow(character)
-                    }
+                PrintRows {
+                    ForEach(saves.characters) { characterRow($0) }
                 }
             }
         }
-        .card()
     }
 
     private func characterRow(_ character: SaveLocation.Character) -> some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
             Text(verbatim: String(character.slot + 1))
-                .font(.callout.monospacedDigit().weight(.semibold))
-                .foregroundStyle(Theme.amber)
-                .frame(width: 26, height: 26)
-                .background(Theme.amber.opacity(0.14), in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: character.name.isEmpty ? "—" : character.name).font(.headline)
-                HStack(spacing: 14) {
-                    s("Level \(character.level)")
-                    s("Playtime \(Self.playtime(character.playtime)) h")
-                    s("\(character.echoes) Echoes")
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button { exportCharacter(character) } label: { s("Export…") }
+                .font(Print.mono())
+                .foregroundStyle(Print.textMuted)
+                .frame(width: 16, alignment: .leading)
+            Text(verbatim: character.name.isEmpty ? "—" : character.name)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            s("Level \(character.level)")
+            Text(verbatim: Self.playtime(character.playtime))
+                .font(Print.mono())
+                .foregroundStyle(Print.textSecondary)
+                .frame(width: 48, alignment: .trailing)
+            Text(verbatim: character.echoes.formatted())
+                .font(Print.mono())
+                .foregroundStyle(Print.textSecondary)
+                .frame(width: 64, alignment: .trailing)
+                .help(s("\(character.echoes) Echoes"))
+            Button { exportCharacter(character) } label: { s("export…") }
+                .buttonStyle(TextActionStyle())
         }
-        .padding(.vertical, 8)
+        .printRow()
     }
 
     /// Hours and minutes, h:mm.
@@ -172,128 +144,96 @@ struct SavesView: View {
 
     // MARK: Backups
 
-    private var backupsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SavesHeading("Backups", symbol: "clock.arrow.circlepath")
-            s("A backup is made automatically before each start; the last 10 are kept. Snapshots stay until you delete them. Backups share disk space with the saves until the game changes them.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+    private var backupsSection: some View {
+        PrintSection(s("Backups")) {
+            PrintNote(s("A backup is made automatically before each start; the last 10 are kept. Snapshots stay until you delete them. Backups share disk space with the saves until the game changes them."))
             if saves.backups.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "tray").foregroundStyle(.secondary)
-                    s("No backups yet.").foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
+                PrintNote(s("No backups yet."))
             } else {
-                VStack(spacing: 0) {
-                    ForEach(saves.backups) { backup in
-                        if backup.id != saves.backups.first?.id { Divider() }
-                        backupRow(backup)
-                    }
+                PrintRows {
+                    ForEach(saves.backups) { backupRow($0) }
                 }
             }
-            HStack {
-                Button { sheet = .snapshot } label: { s("Take snapshot…") }
-                    .disabled(saves.location == nil)
-                Button { saves.showBackupsInFinder() } label: { s("Show in Finder") }
-                Spacer()
-                s("Space used: \(ByteCountFormatter.string(fromByteCount: saves.totalSize, countStyle: .file))")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            PrintNote(s("Space used: \(ByteCountFormatter.string(fromByteCount: saves.totalSize, countStyle: .file))"))
+        } trailing: {
+            Button { sheet = .snapshot } label: { s("take snapshot…") }
+                .disabled(saves.location == nil)
+            Button { saves.showBackupsInFinder() } label: { s("show in Finder") }
         }
-        .card()
     }
 
     private func backupRow(_ backup: BackupStore.Backup) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: backup.automatic ? "clock.arrow.circlepath" : "bookmark.fill")
-                .foregroundStyle(backup.automatic ? Color.secondary : Theme.amber)
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                if let label = backup.label, !backup.automatic {
-                    Text(verbatim: label).font(.headline)
-                } else {
-                    s("Automatic backup").font(.headline)
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            if let label = backup.label, !backup.automatic {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(verbatim: label).lineLimit(1)
+                    Text(verbatim: "✦").foregroundStyle(Print.brass).accessibilityHidden(true)
                 }
-                HStack(spacing: 8) {
-                    Text(backup.date, format: .dateTime.year().month().day().hour().minute())
-                    Text(verbatim: "·")
-                    Text(verbatim: ByteCountFormatter.string(fromByteCount: backup.size, countStyle: .file))
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .help(s("Snapshot"))
+                Text(backup.date, format: .dateTime.year().month().day().hour().minute())
+                    .font(Print.text(14))
+                    .foregroundStyle(Print.textSecondary)
+            } else {
+                Text(backup.date, format: .dateTime.year().month().day().hour().minute())
             }
-            Spacer()
-            Button { pending = .restore(backup) } label: { s("Restore…") }
-            Button(role: .destructive) { deleting = backup } label: { s("Delete") }
+            Spacer(minLength: 8)
+            Text(verbatim: ByteCountFormatter.string(fromByteCount: backup.size, countStyle: .file))
+                .font(Print.mono())
+                .foregroundStyle(Print.textSecondary)
+            Button { pending = .restore(backup) } label: { s("restore…") }
+                .buttonStyle(TextActionStyle())
+            Button { deleting = backup } label: { s("delete") }
+                .buttonStyle(TextActionStyle())
         }
-        .padding(.vertical, 8)
+        .printRow()
     }
 
     // MARK: Export and import
 
-    private var exchangeCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SavesHeading("Export and import", symbol: "square.and.arrow.up.on.square")
-            s("A .lanternsave file holds the whole save (all characters and options). Use it to move your save to another Mac or to keep a copy. The game may have stored your local network address (an IPv4 address) in the save, so do not share the file publicly if that matters to you.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
+    private var exchangeSection: some View {
+        PrintSection(s("Export and import")) {
+            PrintNote(s("A .lanternsave file holds the whole save (all characters and options). Use it to move your save to another Mac or to keep a copy. The game may have stored your local network address (an IPv4 address) in the save, so do not share the file publicly if that matters to you."))
+            HStack(spacing: 16) {
                 Button { exportSave() } label: { s("Export save…") }
                     .disabled(saves.location == nil)
                 Button { chooseSaveToImport() } label: { s("Import save…") }
-                Spacer()
             }
-            Divider()
-            HStack(spacing: 8) {
-                s("Single characters").font(.headline)
-                SavesBadge("Experimental", tint: Theme.amber)
+            .buttonStyle(FrameActionStyle())
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                s("Single characters")
+                PrintTag(s("Experimental"))
             }
-            s("“Export” in the list above saves one character to a .lanternsave file. “Import character into slot…” puts it into a slot of this save, replacing what is in the slot. This works on the save files directly and has not been confirmed in the game yet: if the game does not like the result, restore the backup that is made first.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
-                Button { chooseCharacterToImport() } label: { s("Import character into slot…") }
-                    .disabled(saves.location == nil)
-                Spacer()
-            }
+            .padding(.top, 16)
+            PrintNote(s("“Export” in the list above saves one character to a .lanternsave file. “Import character into slot…” puts it into a slot of this save, replacing what is in the slot. This works on the save files directly and has not been confirmed in the game yet: if the game does not like the result, restore the backup that is made first."))
+            Button { chooseCharacterToImport() } label: { s("Import character into slot…") }
+                .buttonStyle(FrameActionStyle())
+                .disabled(saves.location == nil)
         }
-        .card()
     }
 
     // MARK: Take over
 
-    private var takeOverCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SavesHeading("Take over from a bbport checkout", symbol: "arrow.down.doc")
-            s("Copy the saves, the settings (bbport.ini) and, if you like, the shader cache from a bbport folder (macos/user and macos/bbport.ini) into the launcher. Your current saves are backed up first.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
+    private var takeOverSection: some View {
+        PrintSection(s("Take over from a bbport checkout")) {
+            PrintNote(s("Copy the saves, the settings (bbport.ini) and, if you like, the shader cache from a bbport folder (macos/user and macos/bbport.ini) into the launcher. Your current saves are backed up first."))
+            HStack(spacing: 16) {
                 Button { chooseCheckout() } label: { s("Choose folder…") }
                 if let checkout = saves.checkout, saves.location != nil {
                     Button { sheet = .migrate(checkout) } label: { s("Use this checkout (\(checkout.folder.lastPathComponent))…") }
                 }
-                Spacer()
             }
+            .buttonStyle(FrameActionStyle())
         }
-        .card()
     }
 
     /// The first-start offer of a dev build whose checkout holds saves.
     private func checkoutOffer(_ checkout: RepositoryMigration) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SavesHeading("Saves found", symbol: "sparkles")
-            s("This checkout (\(checkout.folder.lastPathComponent)) holds saves and settings. Do you want to take them over into the launcher?")
-            HStack {
-                Button { sheet = .migrate(checkout) } label: { s("Take over…") }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.ember)
-                Spacer()
-            }
+        PrintSection(s("Saves found")) {
+            PrintNote(s("This checkout (\(checkout.folder.lastPathComponent)) holds saves and settings. Do you want to take them over into the launcher?"),
+                      color: Print.textPrimary)
+            Button { sheet = .migrate(checkout) } label: { s("Take over…") }
+                .buttonStyle(FrameActionStyle())
         }
-        .card()
     }
 
     // MARK: Actions
@@ -394,45 +334,7 @@ struct SavesView: View {
     }
 }
 
-// MARK: - Small views
-
-/// A card's heading, from the Saves table.
-private struct SavesHeading: View {
-    let title: LocalizedStringKey
-    let symbol: String
-
-    init(_ title: LocalizedStringKey, symbol: String) {
-        self.title = title
-        self.symbol = symbol
-    }
-
-    var body: some View {
-        Label { Text(title, tableName: "Saves") } icon: { Image(systemName: symbol) }
-            .font(.caption.weight(.semibold))
-            .textCase(.uppercase)
-            .foregroundStyle(.secondary)
-    }
-}
-
-private struct SavesBadge: View {
-    let text: LocalizedStringKey
-    var tint: Color
-
-    init(_ text: LocalizedStringKey, tint: Color) {
-        self.text = text
-        self.tint = tint
-    }
-
-    var body: some View {
-        Text(text, tableName: "Saves")
-            .font(.caption2.weight(.semibold))
-            .textCase(.uppercase)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .foregroundStyle(tint)
-            .background(tint.opacity(0.14), in: Capsule())
-    }
-}
+// MARK: - Dialogs
 
 /// Names a snapshot.
 private struct SnapshotSheet: View {
@@ -441,23 +343,17 @@ private struct SnapshotSheet: View {
     let take: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            s("New snapshot").font(.display(.title2))
-            s("A snapshot keeps the saves as they are now until you delete it.")
-                .foregroundStyle(.secondary)
+        PrintDialog(title: s("New snapshot"), width: 420) {
+            PrintNote(s("A snapshot keeps the saves as they are now until you delete it."))
             TextField(text: $name, prompt: Text("Before the Orphan of Kos", tableName: "Saves")) { s("Name") }
                 .onSubmit(commit)
-            HStack {
-                Spacer()
-                Button(role: .cancel) { dismiss() } label: { s("Cancel") }
-                    .keyboardShortcut(.cancelAction)
-                Button(action: commit) { s("Save snapshot") }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(trimmed.isEmpty)
-            }
+        } actions: {
+            Button(role: .cancel) { dismiss() } label: { s("Cancel") }
+                .keyboardShortcut(.cancelAction)
+            Button(action: commit) { s("Save snapshot") }
+                .keyboardShortcut(.defaultAction)
+                .disabled(trimmed.isEmpty)
         }
-        .padding(24)
-        .frame(width: 420)
     }
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -478,41 +374,29 @@ private struct CharacterImportSheet: View {
     @State private var slot = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
-                s("Import character").font(.display(.title2))
-                SavesBadge("Experimental", tint: Theme.amber)
-            }
+        PrintDialog(title: s("Import character"), width: 460) {
+            PrintTag(s("Experimental"))
             if let character = manifest.character {
                 s("\(character.name), level \(character.level), playtime \(SavesView.playtime(character.playtime)) h")
-                    .font(.headline)
             }
-            Picker(selection: $slot) {
-                ForEach(0..<SaveFormat.slotCount, id: \.self) { index in
+            RegisterLine(s("Into slot")) {
+                PrintMenu(selection: $slot, options: Array(0..<SaveFormat.slotCount)) { index in
                     if let occupant = current.first(where: { $0.slot == index }) {
-                        s("Slot \(index + 1): \(occupant.name) (level \(occupant.level))").tag(index)
-                    } else {
-                        s("Slot \(index + 1): empty").tag(index)
+                        return s("Slot \(index + 1): \(occupant.name) (level \(occupant.level))")
                     }
+                    return s("Slot \(index + 1): empty")
                 }
-            } label: { s("Into slot") }
+            }
             if let occupant = current.first(where: { $0.slot == slot }) {
-                Label { s("“\(occupant.name)” in this slot is replaced.") } icon: { Image(systemName: "exclamationmark.triangle.fill") }
-                    .foregroundStyle(Theme.amber)
+                PrintNote(s("“\(occupant.name)” in this slot is replaced."), color: Print.danger)
             }
-            s("Only this slot is changed. An automatic backup of the current saves is made first. Importing a single character has not been confirmed in the game yet.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button(role: .cancel) { dismiss() } label: { s("Cancel") }
-                    .keyboardShortcut(.cancelAction)
-                Button { take(slot); dismiss() } label: { s("Import") }
-                    .keyboardShortcut(.defaultAction)
-            }
+            PrintNote(s("Only this slot is changed. An automatic backup of the current saves is made first. Importing a single character has not been confirmed in the game yet."))
+        } actions: {
+            Button(role: .cancel) { dismiss() } label: { s("Cancel") }
+                .keyboardShortcut(.cancelAction)
+            Button { take(slot); dismiss() } label: { s("Import") }
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(24)
-        .frame(width: 460)
     }
 }
 
@@ -526,43 +410,38 @@ private struct MigrationSheet: View {
     @State private var cacheSize: Int64 = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            s("Take over from a bbport checkout").font(.display(.title2))
+        PrintDialog(title: s("Take over from a bbport checkout")) {
             Text(verbatim: source.folder.lastPathComponent)
-                .font(.callout.monospaced())
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 6) {
+                .font(Print.mono())
+                .foregroundStyle(Print.textSecondary)
+            PrintRows {
                 if source.hasSaves {
-                    Label {
+                    Group {
                         if characters.isEmpty {
                             s("Saves (no characters yet)")
                         } else {
                             s("Saves: \(characters.map(\.name).joined(separator: ", "))")
                         }
-                    } icon: { Image(systemName: "checkmark.circle") }
+                    }
+                    .printRow()
                 }
                 if source.ini != nil {
-                    Label { s("Settings (bbport.ini)") } icon: { Image(systemName: "checkmark.circle") }
+                    s("Settings (bbport.ini)").printRow()
                 }
             }
             if source.hasCache {
                 Toggle(isOn: $includeCache) {
                     s("Also copy the shader cache (\(ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file))): saves the first start's shader compile")
                 }
+                .help(s("Also copy the shader cache (\(ByteCountFormatter.string(fromByteCount: cacheSize, countStyle: .file))): saves the first start's shader compile"))
             }
-            s("The saves in the launcher are replaced by these; they are backed up first (an automatic backup), so you can undo this. The settings file is kept aside as bbport.ini.before-migration. The folder you chose is not changed.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button(role: .cancel) { dismiss() } label: { s("Cancel") }
-                    .keyboardShortcut(.cancelAction)
-                Button { take(includeCache && source.hasCache); dismiss() } label: { s("Take over now") }
-                    .keyboardShortcut(.defaultAction)
-            }
+            PrintNote(s("The saves in the launcher are replaced by these; they are backed up first (an automatic backup), so you can undo this. The settings file is kept aside as bbport.ini.before-migration. The folder you chose is not changed."))
+        } actions: {
+            Button(role: .cancel) { dismiss() } label: { s("Cancel") }
+                .keyboardShortcut(.cancelAction)
+            Button { take(includeCache && source.hasCache); dismiss() } label: { s("Take over now") }
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(24)
-        .frame(width: 480)
         .task {
             characters = source.characters()
             cacheSize = source.cacheSize()
