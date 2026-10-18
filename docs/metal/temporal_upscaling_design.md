@@ -102,3 +102,28 @@ residual after motion compensation, sharpness, per-tile decay; contact sheets pe
   fixed at start, so this needs `BB_AUTO_RENDER_RES=1`.
 There is no camera-cut detector: a cut inside the game's 3D (a cutscene camera change) keeps the
 history until the game loses its camera for a frame; not observed in the clinic.
+
+## Output sharpening (2026-10-18)
+
+MetalFX has no sharpening of its own, so the menu's sharpness slider (`sharpen`, `sharpness`,
+default on at 0.3; `BB_FSR_SHARPNESS` overrides it, 0 is off) did nothing on Metal. Now the
+scaler writes an intermediate texture of the output's format and size, and RCAS
+(`taa_sharpen.comp`, the pass the Vulkan TAA path uses, D11 header) writes the scaler's old
+output texture from it: in the scaled session (`RunScaled`, before the UI is drawn on top) and
+on the live path (`RunLive`, into `live_output` before the merge; HDR there, which the shader's
+local colour scale handles). Strength 0..2 as on Vulkan (above 1 extrapolated). The log says
+once whether the pass runs (`Upscaler: output sharpening on|off`); the experiment bit
+`MtlNoSharpen` (bit 46 of the second number in `BB_TOGGLE_FILE`) turns it off while the game
+runs.
+
+Measured (m4air, 720p → 1080p, AC): "Upscale sharpen" takes 0.61 ms of GPU time a frame in
+Central Yharnam (labelled trace, 256 frames; MetalFX's own three encoders 2.2 ms). The shader
+reads every neighbour twice (its own range check, then `FsrRcasF`), so a dedicated kernel could
+likely halve that. FPS A/B could not resolve it: after an hour of runs the Air settled at
+~30 FPS uncapped within a minute either way. Image: in one run with the same camera (clinic,
+`dumpab.sh`), strength 1.0 visibly sharpens edges and fabric against off; whole-frame PSNR
+can't tell 0.3 from off (the animated flames' noise is larger).
+
+Pitfall found on the way: `BB_SETTINGS` reaches only `scripts/patches.py` (effects, model LOD as
+game patches), not the renderer's settings, so `BB_SETTINGS=...,sharpness=2` does nothing; use
+`BB_FSR_SHARPNESS` or the ini.

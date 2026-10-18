@@ -99,6 +99,8 @@ enum : std::uint64_t {
     MtlNoGeometry = 1ull << 44,
     /// Held passes encoded on the recording thread, not on the replay thread (P8.6, A/B).
     MtlNoReplayThread = 1ull << 45,
+    /// The MetalFX output is not sharpened (A/B of the sharpening pass on one view).
+    MtlNoSharpen = 1ull << 46,
 };
 inline bool Disabled(std::uint64_t bit) {
     return (__atomic_load_n(&runtime_disabled_optimizations, __ATOMIC_RELAXED) & bit) != 0;

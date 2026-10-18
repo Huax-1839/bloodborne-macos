@@ -796,6 +796,11 @@ After P10.1 (2026-10-17: lossless compression kept on textures no shader writes)
 ~14.9 ms a frame at 540p, ~18.2 ms at 720p and ~38 ms at native 1080p (busy union, typical
 frames, against 16.6 / 21.5 / 43.4 with the old usages in the same series).
 
+Output sharpening (2026-10-18): the menu's sharpness slider now works on Metal: RCAS
+(`taa_sharpen.comp`) after MetalFX, default 0.3 as before, 0.61 ms GPU a frame in Yharnam
+(`docs/metal/temporal_upscaling_design.md`, "Output sharpening"). Open: a cheaper kernel (the
+shader reads each neighbour twice); whether 0.3 stays the default is the user's call.
+
 How it got there, in short: P6 found the kernel's command buffer submission and residency churn
 as the main cost, not encoders; held passes and hoisting (P6.2) gave +17%; P7 closed the gaps
 (geometry-shader draws, frame interpolation, live resolution) and an autorelease leak; P8 showed
@@ -1520,3 +1525,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-18 | P13.1: the game's hardware vertex shaders lose `NoContraction` too, with an `Invariant` Position and `preserveInvariance`; the default (`BB_MTL_RELAX_VERTEX=0` off). Decided while the user was away, by their standing instruction to take the recommended option | Yharnam traces: G-buffer vertex channel 12.6 of 14.3 ms; the heaviest vertex shaders had 104–189 `optnone` helper calls; P9.1 kept vertex shaders strict only for bit-identical positions, which Metal's invariance guarantees. A B B A: GPU −31%, +38% FPS uncapped; images, temporal residuals, validation and Vulkan as for P9.1 | P13, P9.1, Metal shader cache (new tag) |
 | 2026-10-18 | P16.3 (part): the m4air profile renders the scene at 1280x720 instead of 960x540 (run.sh, launcher "MacBook Air" preset); effects, model LOD and upscaler unchanged (user's decision) | after P13.1, 720p runs 52 FPS uncapped in Central Yharnam, and the 720p cap passed the M3 rule over 10 min before P13.1; benches with `BB_PROFILE=m4air` now run at 720p, so earlier 540p numbers need `BB_RENDER_RES=960x540` for comparison |
 | 2026-10-18 | Housekeeping: FSR 4, FSR 4.1.1 and DLSS removed from the Vulkan backend (`vk_fsr4`, `fsr411/`, `vk_dlss`, `gpu/dlss_bridge`, the FSR-Vulkan patch, the fsr4 tools); `Upscaler` is Off, Fsr3, Taa, MetalFx, and ini values `fsr4`/`fsr411`/`dlss` load as `fsr3` | unreachable on macOS: MoltenVK has no compute shader derivatives, mixed float dot products or cooperative matrices, DLSS was compiled for Windows/Linux only. Vulkan m4air uncapped interleaved: 24.9/24.9 FPS before, 24.8/25.0 after, image PSNR 50 dB (run-to-run 36.5 dB) | — |
+| 2026-10-18 | Output sharpening on Metal: RCAS (`taa_sharpen.comp`) after MetalFX in the scaled and live paths, following the existing `sharpen`/`sharpness` settings (default on, 0.3), so the menu slider, until now dead on Metal, takes effect; experiment bit `MtlNoSharpen` turns it off at runtime. Asked for by the user ("improve the graphics without losing much FPS") | labelled trace: 0.61 ms GPU a frame in Yharnam at m4air; same-camera dumps: strength 1.0 visibly sharper than off; Vulkan unchanged (24.7 FPS, title 59 dB, clinic 40.9 dB) | Metal upscaler, default image on Metal |

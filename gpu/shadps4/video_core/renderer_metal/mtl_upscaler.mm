@@ -21,6 +21,7 @@
 #include "bbport_toggles.h"
 #include "common/assert.h"
 #include "video_core/frame_capture.h"
+#include "video_core/host_shaders_msl/taa_sharpen_comp_msl.h"
 #include "video_core/host_shaders_msl/upscale_merge_comp_msl.h"
 #include "video_core/motion_history.h"
 #include "video_core/renderer_metal/mtl_camera_motion.h"
@@ -264,6 +265,13 @@ struct Upscaler::Impl {
     id<MTLComputePipelineState> merge = nil; ///< upscale_merge.comp
     std::array<u32, 5> merge_slots{};        ///< its texture slots by binding
     bool merge_failed = false;
+    // Sharpening of the scaler's output (taa_sharpen.comp, RCAS; MetalFX has none of its own):
+    // the scaler writes `sharpen_input`, the pass writes the texture the scaler wrote before.
+    id<MTLComputePipelineState> sharpen = nil;
+    std::array<u32, 2> sharpen_slots{}; ///< its texture slots by binding (source, result)
+    bool sharpen_failed = false;
+    bool sharpen_reported = false; ///< whether the pass runs was logged
+    id<MTLTexture> sharpen_input = nil;
     std::array<float, 2> jitter_sign{1.0f, 1.0f}, motion_sign{1.0f, 1.0f};
     bool log_scaler = false;
     u32 log_frames = 0;
@@ -363,6 +371,85 @@ struct Upscaler::Impl {
         return merge;
     }
 
+    /// The sharpening pass (taa_sharpen.comp, D11); null when it did not compile.
+    id<MTLComputePipelineState> SharpenPipeline(Runtime& runtime) {
+        if (sharpen || sharpen_failed) {
+            return sharpen;
+        }
+        const HostShaders::Shader& shader = HostShaders::TAA_SHARPEN_COMP;
+        for (const HostShaders::Binding& binding : shader.bindings) {
+            if ((binding.kind == HostShaders::Binding::Kind::Texture ||
+                 binding.kind == HostShaders::Binding::Kind::StorageTexture) &&
+                binding.set == 0 && binding.binding < sharpen_slots.size()) {
+                sharpen_slots[binding.binding] = binding.msl_index;
+            }
+        }
+        id<MTLFunction> function = runtime.GetImpl().kernels.Function(shader, nullptr, 0);
+        NSError* error = nil;
+        if (function) {
+            sharpen = [dev.device newComputePipelineStateWithFunction:function error:&error];
+        }
+        if (!sharpen) {
+            sharpen_failed = true;
+            std::printf("Upscaler: the sharpening pass did not compile (%s); output unsharpened\n",
+                        ErrorText(error).c_str());
+        }
+        return sharpen;
+    }
+
+    /// What the scaler writes instead of `output` when it is sharpened into `output`: a texture
+    /// of its format and size; nil when the pass cannot run (it is off, did not compile, or
+    /// `output` cannot be written by a shader).
+    id<MTLTexture> SharpenInput(Scheduler& scheduler, Runtime& runtime, id<MTLTexture> output,
+                                MTLTextureUsage scaler_usage) {
+        const bool writable = output.usage & MTLTextureUsageShaderWrite;
+        if (!std::exchange(sharpen_reported, true)) {
+            std::printf("Upscaler: output sharpening %s (%ux%u, pixel format %u)\n",
+                        writable ? "on" : "off: the output is not shader-writable",
+                        u32(output.width), u32(output.height), u32(output.pixelFormat));
+        }
+        if (!writable || !SharpenPipeline(runtime)) {
+            return nil;
+        }
+        if (sharpen_input && (sharpen_input.pixelFormat != output.pixelFormat ||
+                              sharpen_input.width != output.width ||
+                              sharpen_input.height != output.height)) {
+            scheduler.DeferOperation([texture = std::move(sharpen_input)] { (void)texture; });
+            sharpen_input = nil;
+        }
+        if (!sharpen_input) {
+            MTLTextureDescriptor* descriptor =
+                [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:output.pixelFormat
+                                                                   width:output.width
+                                                                  height:output.height
+                                                               mipmapped:NO];
+            descriptor.usage = scaler_usage | MTLTextureUsageShaderRead;
+            descriptor.storageMode = MTLStorageModePrivate;
+            sharpen_input = [dev.device newTextureWithDescriptor:descriptor];
+            ASSERT_MSG(sharpen_input, "Failed allocating the MetalFX sharpening input");
+            sharpen_input.label = @"MetalFX sharpening input";
+        }
+        return sharpen_input;
+    }
+
+    /// RCAS of `source` into `result` (same size) at `strength` (0..2), on a compute encoder.
+    void EncodeSharpen(Scheduler& scheduler, id<MTLTexture> source, id<MTLTexture> result,
+                       float strength) {
+        scheduler.ComputeEncoder();
+        scheduler.LabelEncoder("Upscale sharpen");
+        id<MTLComputeCommandEncoder> compute = scheduler.GetImpl().compute;
+        const HostShaders::Shader& shader = HostShaders::TAA_SHARPEN_COMP;
+        [compute setComputePipelineState:sharpen];
+        [compute setTexture:source atIndex:sharpen_slots[0]];
+        [compute setTexture:result atIndex:sharpen_slots[1]];
+        [compute setBytes:&strength length:sizeof(strength) atIndex:0];
+        const NSUInteger w = result.width, h = result.height;
+        [compute dispatchThreadgroups:MTLSizeMake((w + shader.local_size[0] - 1) / shader.local_size[0],
+                                                  (h + shader.local_size[1] - 1) / shader.local_size[1],
+                                                  1)
+                threadsPerThreadgroup:MTLSizeMake(shader.local_size[0], shader.local_size[1], 1)];
+    }
+
     /// fs_tri + a sample into a color target of `format`.
     id<MTLRenderPipelineState> CopyPipeline(MTLPixelFormat format) {
         auto& pipeline = copy_pipelines[u32(format)];
@@ -428,6 +515,16 @@ void Retire(Scheduler& scheduler, Scaler& scaler) {
 bool Sampleable(id<MTLTexture> texture) {
     return texture.textureType == MTLTextureType2D && texture.sampleCount == 1 &&
            (texture.usage & MTLTextureUsageShaderRead);
+}
+
+/// The strength of the output sharpening (the menu's sharpness, 0..2; above 1 stronger than
+/// AMD's maximum, as on Vulkan); 0 when it is off (also by the experiment bit MtlNoSharpen).
+float SharpenStrength() {
+    const auto& settings = BbSettings::Get();
+    if (!settings.sharpen || BbToggle::Experiment(BbToggle::MtlNoSharpen)) {
+        return 0.0f;
+    }
+    return std::clamp(settings.sharpness.load(), 0.0f, 2.0f);
 }
 
 } // namespace
@@ -826,6 +923,11 @@ void Upscaler::RunScaled() {
         return;
     }
     ui.PrepareDepth(camera.Depth());
+    const float strength = SharpenStrength();
+    id<MTLTexture> sharpen_input =
+        strength > 0.0f
+            ? impl->SharpenInput(scheduler, runtime, impl->color.texture, scaler.outputTextureUsage)
+            : nil;
 
     // The frame and its depth are read by compute: the passes that wrote them end first.
     scheduler.EndRendering();
@@ -850,7 +952,7 @@ void Upscaler::RunScaled() {
         scaler.colorTexture = color_texture;
         scaler.depthTexture = depth_texture;
         scaler.motionTexture = impl->motion;
-        scaler.outputTexture = impl->color.texture;
+        scaler.outputTexture = sharpen_input ? sharpen_input : impl->color.texture;
         scaler.inputContentWidth = w;
         scaler.inputContentHeight = h;
         // Experiment bits of BB_TOGGLE_FILE (second number) flip the signs while the game
@@ -866,6 +968,9 @@ void Upscaler::RunScaled() {
         scaler.depthReversed = NO;
         scaler.preExposure = 1.0f;
         [scaler encodeToCommandBuffer:scheduler.GetImpl().EnsureCommandBuffer()];
+    }
+    if (sharpen_input) {
+        impl->EncodeSharpen(scheduler, sharpen_input, impl->color.texture, strength);
     }
     // What the frame interpolator takes from this frame (the presenter's PrepareFrame, which
     // follows this frame's last draw): the scaler's depth, motion and jitter, and the camera. The
@@ -1019,6 +1124,12 @@ void Upscaler::RunLive() {
         missing("output", impl->live_output, scaler.outputTextureUsage)) {
         return;
     }
+    // Sharpened, the scaler writes the sharpening input and the pass writes `live_output`.
+    const float strength = SharpenStrength();
+    id<MTLTexture> sharpen_input =
+        strength > 0.0f
+            ? impl->SharpenInput(scheduler, runtime, impl->live_output, scaler.outputTextureUsage)
+            : nil;
     // The motion pass on a compute encoder of its own: MetalFX encodes its own work into the
     // command buffer, so no encoder may be open when it does.
     scheduler.EndEncoder();
@@ -1029,7 +1140,7 @@ void Upscaler::RunLive() {
         scaler.colorTexture = color_input;
         scaler.depthTexture = depth_input;
         scaler.motionTexture = impl->motion;
-        scaler.outputTexture = impl->live_output;
+        scaler.outputTexture = sharpen_input ? sharpen_input : impl->live_output;
         scaler.inputContentWidth = w;
         scaler.inputContentHeight = h;
         // The experiment bits of BB_TOGGLE_FILE flip the signs as in RunScaled.
@@ -1043,6 +1154,9 @@ void Upscaler::RunLive() {
         scaler.depthReversed = NO;
         scaler.preExposure = 1.0f;
         [scaler encodeToCommandBuffer:scheduler.GetImpl().EnsureCommandBuffer()];
+    }
+    if (sharpen_input) {
+        impl->EncodeSharpen(scheduler, sharpen_input, impl->live_output, strength);
     }
     if (impl->log_scaler && impl->log_frames++ % 300 == 0) {
         std::printf("Upscaler: MetalFX live %ux%u -> %ux%u jitter %.3f,%.3f reset %d\n", w, h, ow,

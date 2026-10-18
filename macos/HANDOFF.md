@@ -95,7 +95,9 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
     and Vulkan unchanged. `BB_MTL_RELAX_VERTEX=0` off; its cache is `<title>-metal-relaxed-vs`
     (every vertex shader compiles once on first use after the update).
 - Also on Metal: geometry-shader draws as a compute pre-pass, MetalFX temporal upscaling (scaled
-  sessions and the live-resolution path with presets from the menu), MetalFX frame interpolation
+  sessions and the live-resolution path with presets from the menu) with RCAS sharpening after it
+  (the menu's sharpness slider, default 0.3, `BB_FSR_SHARPNESS=0` off; 0.61 ms GPU a frame in
+  Yharnam, 2026-10-18; note `BB_SETTINGS` only reaches the game patches, not this setting), MetalFX frame interpolation
   (`BB_FRAME_INTERPOLATION=1`, off by default), 30-min soaks without errors or memory growth, 10
   min with the validation layer clean.
 - Measured in Iosefka's clinic and, since P13, Central Yharnam (`BENCH_SAVE=pristine-savedata-yharnam`,
