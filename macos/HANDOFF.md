@@ -28,6 +28,15 @@ the L-M3 acceptance are the user's), first release waiting for the Sparkle key s
   The loaded but hidden HUD costs nothing measurable: clinic, m4air uncapped, 4 interleaved
   pairs in both orders, 52.6 FPS mean vs 53.1 with `MTL_HUD_ENABLED=0` (runs 42–63 FPS, the
   Air throttling).
+- Housekeeping (2026-10-18): FSR 4, FSR 4.1.1 and DLSS are gone from the Vulkan backend too
+  (unreachable on macOS; ini values `fsr4`/`fsr411`/`dlss` load as `fsr3`), with their tools
+  (`tools/fsr4*`, `tools/fsr4cap/`), the FSR-Vulkan patch and `gpu/dlss_bridge`; the Linux/Wine
+  tools in `tools/` (macos/bench replaces them); PGO, X11 and the Linux branches of
+  `gpu/CMakeLists.txt` (it now refuses to configure outside macOS). The runtime's C tests
+  (`tests/test_*.c`) and `test_probe`/`test_runtime`/`test_sema` run in `macos/test.sh` again.
+  `docs/MODS.md` is rewritten for macOS. Vulkan bench before/after: same FPS and image.
+  Known: `mtl-pipeline-core-test` fails its comparison with the MoltenVK `profile.bin` (before
+  this cleanup too; the Metal shader profile drifted from the Vulkan one).
 
 ## State
 

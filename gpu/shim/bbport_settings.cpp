@@ -23,6 +23,16 @@ float Clamp(float v, float lo, float hi) {
     return std::clamp(v, lo, hi);
 }
 
+/// The upscaler named `name` (an ini value or BB_UPSCALER), or -1. The names of the removed
+/// providers in older files (fsr4, fsr411, dlss) map to FSR 3.1.
+int ParseUpscaler(std::string_view name) {
+    if (name == "fsr4" || name == "fsr411" || name == "dlss") return UpscalerFsr3;
+    for (int u = 0; u < UpscalerCount; ++u) {
+        if (name == UpscalerName(u)) return u;
+    }
+    return -1;
+}
+
 void Set(Values& v, const std::string& key, const std::string& value) {
     const float f = float(std::atof(value.c_str()));
     const int i = std::atoi(value.c_str());
@@ -31,11 +41,7 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         else if (value == "ru") v.menu_language = MenuLanguage::Russian;
         else std::printf("Settings: unknown menu_language '%s' (expected en or ru)\n", value.c_str());
     } else if (key == "upscaler") {
-        for (int u = 0; u < UpscalerCount; ++u) {
-            if (value == UpscalerName(u)) {
-                v.upscaler = u;
-            }
-        }
+        if (const int u = ParseUpscaler(value); u >= 0) v.upscaler = u;
     } else if (key == "preset") {
         v.preset = std::clamp(i, 0, PresetCount - 1);
     } else if (key == "sharpen") {
@@ -58,10 +64,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.debug_view = std::clamp(i, 0, DebugViewCount - 1);
     } else if (key == "show_fps") {
         v.show_fps = i != 0;
-    } else if (key == "fsr4_auto_exposure") {
-        v.fsr4_auto_exposure = i != 0;
-    } else if (key == "fsr4_invert_jitter") {
-        v.fsr4_invert_jitter = i != 0;
     } else if (key == "model_lod") {
         v.model_lod = std::clamp(i, -2, 2);
     } else if (key == "live_resolution") {
@@ -125,10 +127,8 @@ void Load() {
     }
     // Environment overrides (scripts, A/B tests).
     if (const char* env = std::getenv("BB_UPSCALER")) {
-        v.upscaler = UpscalerOff;
-        for (int u = 0; u < UpscalerCount; ++u) {
-            if (std::strcmp(env, UpscalerName(u)) == 0) v.upscaler = u;
-        }
+        const int u = ParseUpscaler(env);
+        v.upscaler = u >= 0 ? u : UpscalerOff;
     }
     const std::pair<const char*, const char*> env_keys[] = {
         {"BB_FSR_SHARPNESS", "sharpness"},        {"BB_JITTER", "jitter"},
@@ -152,18 +152,8 @@ void Load() {
     v.startup_live_resolution = v.live_resolution;
 }
 
-void ConfigureUpscalerSupport(bool fsr4, bool fsr411) {
+void ConfigureUpscalerSupport() {
     auto& v = Get();
-    v.fsr4_supported = fsr4;
-    v.fsr411_supported = fsr4 && fsr411;
-    const int requested = v.upscaler;
-    if ((requested == UpscalerFsr4 && !v.fsr4_supported) ||
-        (requested == UpscalerFsr411 && !v.fsr411_supported)) {
-        v.fsr4_problem = "GPU does not support the selected FSR 4 shaders; using FSR 3.1";
-        std::printf("Upscaler: %s unsupported on this GPU; falling back to FSR 3.1 before the first frame\n",
-                    UpscalerName(requested));
-        v.upscaler = UpscalerFsr3;
-    }
     if (v.upscaler == UpscalerMetalFx) {
         std::printf("Upscaler: MetalFX is only available on Metal; using FSR 3.1\n");
         v.upscaler = UpscalerFsr3;
@@ -174,14 +164,10 @@ void ConfigureUpscalerSupport(bool fsr4, bool fsr411) {
 void ConfigureMetalUpscalers(bool metalfx) {
     auto& v = Get();
     v.fsr3_supported = false;
-    v.fsr4_supported = false;
-    v.fsr411_supported = false;
     v.taa_supported = false;
-    v.dlss_supported = false;
     v.metalfx_supported = metalfx;
     const int requested = v.upscaler;
-    if (requested == UpscalerFsr3 || IsFsr4(requested) || requested == UpscalerTaa ||
-        requested == UpscalerDlss) {
+    if (requested == UpscalerFsr3 || requested == UpscalerTaa) {
         const int use = metalfx ? UpscalerMetalFx : UpscalerOff;
         std::printf("Upscaler: %s is not available on Metal; using %s\n", UpscalerName(requested),
                     metalfx ? "MetalFX" : "off");
@@ -189,19 +175,6 @@ void ConfigureMetalUpscalers(bool metalfx) {
     } else if (requested == UpscalerMetalFx && !metalfx) {
         std::printf("Upscaler: metalfx is not available on this device; using off\n");
         v.upscaler = UpscalerOff;
-    }
-}
-
-void ConfigureDlssSupport(bool available, const char* problem) {
-    auto& v = Get();
-    v.dlss_supported = available;
-    static std::string kept;
-    kept = problem ? problem : "";
-    v.dlss_problem = available || kept.empty() ? nullptr : kept.c_str();
-    if (v.upscaler == UpscalerDlss && !available) {
-        std::printf("Upscaler: DLSS unavailable (%s); falling back to FSR 3.1\n",
-                    kept.empty() ? "the DLSS bridge or NVIDIA's DLSS library is missing" : kept.c_str());
-        v.upscaler = UpscalerFsr3;
     }
 }
 
@@ -251,8 +224,6 @@ void Save() {
     put("reactive_max", fixed(v.reactive_max, 2));
     put("debug_view", std::to_string(v.debug_view.load()));
     put("show_fps", flag(v.show_fps));
-    put("fsr4_auto_exposure", flag(v.fsr4_auto_exposure));
-    put("fsr4_invert_jitter", flag(v.fsr4_invert_jitter));
     // Read by patches.py at start.
     for (int e = 0; e < EffectCount; ++e) {
         put(Effects[e].key, flag(v.effects[e]));
@@ -319,8 +290,7 @@ const char* PresetName(int preset) {
 }
 
 const char* UpscalerName(int upscaler) {
-    static constexpr const char* names[UpscalerCount] = {"off", "fsr3", "fsr4", "fsr411", "taa", "dlss",
-                                                          "metalfx"};
+    static constexpr const char* names[UpscalerCount] = {"off", "fsr3", "taa", "metalfx"};
     return names[std::clamp(upscaler, 0, UpscalerCount - 1)];
 }
 

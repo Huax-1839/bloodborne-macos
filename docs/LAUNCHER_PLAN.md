@@ -98,7 +98,7 @@ v1 feature set (decided with the user):
     deps/Homebrew.
   - Shaders are compiled at run time and the font is embedded, so nothing else is read from the
     repo except `scripts/` and `patches/Bloodborne.xml`.
-  - Defaults relative to the cwd: `out/dump`, `fsr4_shaders`.
+  - Defaults relative to the cwd: `out/dump`.
   - Signing is ad hoc, without the hardened runtime. The code uses RWX pages
     (`bbport_guest_hooks.cpp`, `bbport_free_check.cpp`), so notarization would need
     `allow-unsigned-executable-memory`.
@@ -142,8 +142,8 @@ v1 feature set (decided with the user):
   outside the repository on Metal and Vulkan. `Contents/Frameworks` needs no `libvulkan*`
   symlinks (vulkan.hpp's loader falls back to the already loaded `libMoltenVK.dylib`). Category
   `public.app-category.games`, `GCSupportsGameMode`. Remaining cwd-relative defaults are only
-  for features that are off by default (`out/dump`: `BB_DUMP_DIR`; Vulkan FSR 4 assets:
-  `BB_FSR4_DIR`, `BB_FSR411_DIR`).
+  for features that are off by default (`out/dump`: `BB_DUMP_DIR`; the FSR 4 assets went with
+  FSR 4 on 2026-10-18).
 
 **D4 Pipeline: Python embedded in v1, Swift afterwards.**
 - `LanternCore` defines a `Pipeline` protocol: check game, prepare image, compile patches, build

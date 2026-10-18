@@ -243,32 +243,10 @@ std::condition_variable g_window_cv;
 bool g_window_ready;
 } // namespace
 
-#ifdef BB_PGO_GENERATE
-extern "C" void __gcov_dump(void);
-extern "C" void __gcov_reset(void);
-// Instrumented build (BB_PGO=generate): the game often ends through _exit (watchdog, guest
-// exit), which skips the profile write at exit. Write every 30 s and reset: the files sum the
-// intervals.
-static void StartProfileWriter() {
-    std::thread([] {
-        Common::SetCurrentThreadName("bb:pgo");
-        for (;;) {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
-            __gcov_dump();
-            __gcov_reset();
-            std::printf("PGO: profile written\n");
-        }
-    }).detach();
-}
-#endif
-
 extern "C" int bbgpu_init(const BbGpuConfig* config) {
     BbSettings::Load();
     // What the translator knows about this game (games/), before anything asks for it.
     Game::Select(config->serial);
-#ifdef BB_PGO_GENERATE
-    StartProfileWriter();
-#endif
     BbThreadCpu::Start();
     g_sdk_version = config->sdk_version;
     if (config->user_dir) setenv("BB_GPU_USER_DIR", config->user_dir, 0);

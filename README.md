@@ -222,11 +222,10 @@ licenses:
 - [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) (Apache-2.0)
 - [MoltenVK](https://github.com/KhronosGroup/MoltenVK) (Apache-2.0)
 - [half](https://half.sourceforge.net/) (MIT)
-- [FSR-Vulkan](https://github.com/FireBurn/FSR-Vulkan) by FireBurn and the AMD FidelityFX SDK (MIT)
+- [FSR-Vulkan](https://github.com/FireBurn/FSR-Vulkan) by FireBurn and the AMD FidelityFX SDK (MIT): FSR 3.1 on
+  the Vulkan backend
 - [LibAtrac9](https://github.com/Thealexbarney/LibAtrac9) (MIT)
 - [cpp-httplib](https://github.com/yhirose/cpp-httplib) (MIT)
-- the DLSS bridge and loader parts by [Supermedo](https://github.com/Supermedo/bloodborne_pc) and
-  [IFreemz](https://github.com/IFreemz/shadPS4-Bloodborne-DLSS-FSR)
 
 Game patches (`patches/Bloodborne.xml`) are by Kyo, Lance McDonald, auser1337, illusion, emoose
 and other community members.

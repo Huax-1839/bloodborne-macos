@@ -67,9 +67,6 @@ enum : std::uint64_t {
     // On by default (bit set: off): history of a thin feature this jitter phase missed is kept
     // when nothing moves. Static-camera flicker of railings/window bars p99.9 -45% (2026-10-03).
     TaaKeepNearerHistory = 1ull << 55,
-    /// FSR 4 (4.0 and 4.1.1) gets the motion vectors with y negated (motionVectorScale.y = -1); FSR 3
-    /// and TAA keep them. A/B of the vertical convention FSR 4 expects.
-    Fsr4MotionYFlip = 1ull << 56,
     SceneMipBias = 1ull << 57, ///< negative LOD bias of G-buffer samplers at reduced scene sizes
     /// The command stream is cut into segments recorded in parallel (BB_VK_RECORD_THREADS);
     /// bit set: no new cuts, one recording thread at a time.
@@ -86,9 +83,6 @@ enum : std::uint64_t {
     /// Camera motion vectors: the screen y sign derived from the G-buffer viewport, inverted
     /// (A/B of the y convention while the game runs).
     CameraYFlip = 1ull << 62,
-    /// FSR 4 on the scaled presets gets the tonemapped frame decoded to linear light (its output
-    /// encoded again); bit set: the encoded frame as before (A/B while the game runs).
-    Fsr4EncodedInput = 1ull << 63,
     // Bits 20-29 are used as raw debug toggles by the camera/object motion and the upscaler.
 };
 /// Experiment bits (second number of BB_TOGGLE_FILE) of the Metal backend's P6 measurements.

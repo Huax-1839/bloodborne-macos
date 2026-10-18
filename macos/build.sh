@@ -14,18 +14,14 @@ export PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR
 export MACOSX_DEPLOYMENT_TARGET=14.0
 CC="clang -arch x86_64"
 
-# Submodules and this port's changes to FSR-Vulkan, as build.sh does.
+# Submodules.
 if [[ ! -f gpu/third_party/fsr-vulkan/CMakeLists.txt ]]; then
     git submodule update --init --recursive
 fi
-for patch in gpu/patches/fsr-vulkan/*.patch; do
-    git -C gpu/third_party/fsr-vulkan apply --reverse --check "$PWD/$patch" 2>/dev/null ||
-        git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
-done
 
 cmake -S gpu -B "$out/gpu" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_PREFIX_PATH="$deps" -DCMAKE_FIND_ROOT_PATH="$deps" \
-    -DBB_LTO="${BB_LTO:-OFF}" -DBB_PGO=off -DBB_NET=OFF >/dev/null
+    -DBB_LTO="${BB_LTO:-OFF}" -DBB_NET=OFF >/dev/null
 echo "GPU library: LTO ${BB_LTO:-OFF}"
 if ! ninja -C "$out/gpu" bbgpu > "$out/gpu-build.log" 2>&1; then
     grep -E 'error|Error' "$out/gpu-build.log" | head -40 >&2

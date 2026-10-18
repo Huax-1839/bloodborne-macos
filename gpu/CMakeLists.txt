@@ -2,12 +2,13 @@
 # drivers, adapted to the native_probe runtime through shims in shim/.
 cmake_minimum_required(VERSION 3.24)
 project(bbgpu LANGUAGES C CXX)
-if (APPLE)
-    # The Metal backend (renderer_metal/) is Objective-C++ with ARC.
-    enable_language(OBJCXX)
-    set(CMAKE_OBJCXX_STANDARD 23)
-    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+if (NOT APPLE)
+    message(FATAL_ERROR "bbport for macOS builds on macOS only (Linux: the upstream project)")
 endif()
+# The Metal backend (renderer_metal/) is Objective-C++ with ARC.
+enable_language(OBJCXX)
+set(CMAKE_OBJCXX_STANDARD 23)
+set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -17,13 +18,9 @@ endif()
 # Frame pointers keep the loader's thread dumps (watchdog, SIGUSR2 sampling) walkable.
 add_compile_options(-fno-omit-frame-pointer)
 
-# bbport: link-time optimization (BB_LTO, default on) and profile-guided optimization
-# (BB_PGO: off, generate = instrumented build writing into BB_PGO_DIR, use = build with that
-# profile). Covers bbgpu and the static libraries linked into it. No -march: the same build
-# runs on the Steam Deck.
+# bbport: link-time optimization (BB_LTO, default on; macos/build.sh passes BB_LTO, default
+# OFF). Covers bbgpu and the static libraries linked into it.
 option(BB_LTO "Link-time optimization of bbgpu" ON)
-set(BB_PGO "off" CACHE STRING "Profile-guided optimization: off, generate, use")
-set(BB_PGO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pgo" CACHE PATH "Profile directory")
 if (BB_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT bb_ipo_ok OUTPUT bb_ipo_error)
@@ -32,18 +29,6 @@ if (BB_LTO)
     else()
         message(WARNING "LTO unavailable: ${bb_ipo_error}")
     endif()
-endif()
-if (BB_PGO STREQUAL "generate")
-    # Atomic counters: the GPU, recording, preparation and copy threads run the same code.
-    add_compile_options(-fprofile-generate=${BB_PGO_DIR} -fprofile-update=atomic)
-    add_link_options(-fprofile-generate=${BB_PGO_DIR})
-    add_compile_definitions(BB_PGO_GENERATE)
-elseif (BB_PGO STREQUAL "use")
-    # Partial training keeps unprofiled code optimized normally; counters from concurrent
-    # threads can be slightly inconsistent (correction). Functions changed since the profile
-    # (or built differently for it, bbgpu_init) are compiled without it.
-    add_compile_options(-fprofile-use=${BB_PGO_DIR} -fprofile-partial-training
-                        -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch)
 endif()
 
 find_package(Vulkan REQUIRED)
@@ -55,9 +40,6 @@ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(XXHASH REQUIRED IMPORTED_TARGET libxxhash)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
-if (NOT APPLE)
-    pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
-endif()
 find_package(miniz REQUIRED)
 find_package(Zydis REQUIRED)
 find_program(GLSLANG_COMPILER NAMES glslang glslangValidator REQUIRED)
@@ -75,9 +57,9 @@ set(SHADER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/shadps4/video_core/host_shaders)
 set(SHADER_INCLUDE ${CMAKE_CURRENT_BINARY_DIR}/include)
 set(SHADER_DIR ${SHADER_INCLUDE}/video_core/host_shaders)
 set(SHADER_HEADERS "")
-# bbport (docs/METAL_BACKEND_PLAN.md D11): on APPLE every host shader except the FSR4 ones (not
-# ported, D10) is also compiled to MSL: the same GLSL and defines -> a binary .spv (glslang) ->
-# <SHADER_NAME>_msl.h (tools/spirv_to_msl_header.cpp, SPIRV-Cross) for renderer_metal/.
+# bbport (docs/METAL_BACKEND_PLAN.md D11): every host shader is also compiled to MSL: the
+# same GLSL and defines -> a binary .spv (glslang) -> <SHADER_NAME>_msl.h
+# (tools/spirv_to_msl_header.cpp, SPIRV-Cross) for renderer_metal/.
 set(SHADER_MSL_DIR ${SHADER_INCLUDE}/video_core/host_shaders_msl)
 set(SHADER_MSL_SPV_DIR ${CMAKE_CURRENT_BINARY_DIR}/host_shaders_spv)
 set(SHADER_MSL_HEADERS "")
@@ -106,10 +88,8 @@ function(add_host_shader_msl FILENAME SHADER_NAME)
     set(SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS} ${OUT} PARENT_SCOPE)
 endfunction()
 function(add_host_shader FILENAME SHADER_NAME)
-    if (APPLE AND NOT SHADER_NAME MATCHES "^fsr4_")
-        add_host_shader_msl(${FILENAME} ${SHADER_NAME} ${ARGN})
-        set(SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS} PARENT_SCOPE)
-    endif()
+    add_host_shader_msl(${FILENAME} ${SHADER_NAME} ${ARGN})
+    set(SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS} PARENT_SCOPE)
     set(OUT ${SHADER_DIR}/${SHADER_NAME}.h)
     string(TOUPPER ${SHADER_NAME} SYMBOL)
     set(DEFINES ${ARGN})
@@ -135,9 +115,6 @@ add_host_shader(upscale_reactive.comp upscale_reactive_comp)
 add_host_shader(taa.comp taa_comp)
 add_host_shader(taa_sharpen.comp taa_sharpen_comp)
 add_host_shader(taa_sharpen.comp taa_sharpen_ldr_comp LDR_OUTPUT=1)
-add_host_shader(fsr4_color.comp fsr4_decode_comp)
-add_host_shader(fsr4_color.comp fsr4_encode_comp ENCODE=1)
-add_host_shader(fsr4_reactive.comp fsr4_reactive_comp)
 add_host_shader(buffer_multi_copy.comp buffer_multi_copy_comp)
 add_host_shader(occlusion_resolve.comp occlusion_resolve_comp)
 add_host_shader(gpu_timestamp.comp gpu_timestamp_comp)
@@ -151,14 +128,12 @@ foreach(BPP IN ITEMS 8 16 32 64 96 128)
     add_host_shader(tiling.comp tiling_macro_${BPP}_comp BITS_PER_PIXEL=${BPP} IS_MACRO_TILED=1)
 endforeach()
 add_custom_target(host_shaders DEPENDS ${SHADER_HEADERS})
-if (APPLE)
-    add_custom_target(host_shaders_msl DEPENDS ${SHADER_MSL_HEADERS})
-endif()
+add_custom_target(host_shaders_msl DEPENDS ${SHADER_MSL_HEADERS})
 
 file(GLOB_RECURSE VIDEO_CORE CONFIGURE_DEPENDS shadps4/video_core/*.cpp)
 file(GLOB_RECURSE RECOMPILER CONFIGURE_DEPENDS shadps4/shader_recompiler/*.cpp)
 list(FILTER VIDEO_CORE EXCLUDE REGEX "renderdoc\\.cpp$")
-# The Metal backend (renderer_metal/) is added on Apple only, below.
+# The Metal backend (renderer_metal/) is added below, with its own compile options.
 list(FILTER VIDEO_CORE EXCLUDE REGEX "/renderer_metal/")
 set(COMMON
     shadps4/common/decoder.cpp shadps4/common/error.cpp
@@ -181,92 +156,74 @@ add_library(bbgpu SHARED ${VIDEO_CORE} ${RECOMPILER} ${COMMON} ${SHIM_SOURCES} $
     shadps4/core/libraries/kernel/equeue.cpp ${AVPLAYER}
     shadps4/core/libraries/videodec/video_utils.cpp)
 add_dependencies(bbgpu host_shaders)
-if (APPLE)
-    add_dependencies(bbgpu host_shaders_msl)
+add_dependencies(bbgpu host_shaders_msl)
+# bbport: the Metal backend, Objective-C++ with ARC (docs/METAL_BACKEND_PLAN.md D4). It uses
+# macOS 15 APIs (residency sets) without per-call checks; the factory (presenter_api.cpp)
+# refuses BB_RENDERER=metal below macOS 15.
+file(GLOB_RECURSE RENDERER_METAL CONFIGURE_DEPENDS shadps4/video_core/renderer_metal/*.mm)
+target_sources(bbgpu PRIVATE ${RENDERER_METAL}
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/mtl_index_expand.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp)
+set_source_files_properties(${RENDERER_METAL} PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+# SPIRV-Cross (static, macos/deps; D5): SPIR-V -> MSL in renderer_metal/mtl_shader.mm. Its
+# version is the tag macos/build-deps.sh fetches (part of the MSL disk cache key).
+find_path(SPIRV_CROSS_INCLUDE_DIR spirv_cross/spirv_msl.hpp REQUIRED)
+find_library(SPIRV_CROSS_MSL_LIBRARY spirv-cross-msl REQUIRED)
+find_library(SPIRV_CROSS_GLSL_LIBRARY spirv-cross-glsl REQUIRED)
+find_library(SPIRV_CROSS_CORE_LIBRARY spirv-cross-core REQUIRED)
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/../macos/build-deps.sh SPIRV_CROSS_FETCH_LINE
+    REGEX "^fetch spirv-cross ")
+string(REGEX REPLACE "^fetch spirv-cross [^ ]+ ([^ ]+).*$" "\\1" SPIRV_CROSS_VERSION
+    "${SPIRV_CROSS_FETCH_LINE}")
+if (NOT SPIRV_CROSS_VERSION OR SPIRV_CROSS_VERSION STREQUAL SPIRV_CROSS_FETCH_LINE)
+    set(SPIRV_CROSS_VERSION "unknown")
 endif()
-if (APPLE)
-    # bbport: the Metal backend, Objective-C++ with ARC (docs/METAL_BACKEND_PLAN.md D4). It uses
-    # macOS 15 APIs (residency sets) without per-call checks; the factory (presenter_api.cpp)
-    # refuses BB_RENDERER=metal below macOS 15.
-    file(GLOB_RECURSE RENDERER_METAL CONFIGURE_DEPENDS shadps4/video_core/renderer_metal/*.mm)
-    target_sources(bbgpu PRIVATE ${RENDERER_METAL}
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/mtl_index_expand.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp)
-    set_source_files_properties(${RENDERER_METAL} PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    # SPIRV-Cross (static, macos/deps; D5): SPIR-V -> MSL in renderer_metal/mtl_shader.mm. Its
-    # version is the tag macos/build-deps.sh fetches (part of the MSL disk cache key).
-    find_path(SPIRV_CROSS_INCLUDE_DIR spirv_cross/spirv_msl.hpp REQUIRED)
-    find_library(SPIRV_CROSS_MSL_LIBRARY spirv-cross-msl REQUIRED)
-    find_library(SPIRV_CROSS_GLSL_LIBRARY spirv-cross-glsl REQUIRED)
-    find_library(SPIRV_CROSS_CORE_LIBRARY spirv-cross-core REQUIRED)
-    file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/../macos/build-deps.sh SPIRV_CROSS_FETCH_LINE
-        REGEX "^fetch spirv-cross ")
-    string(REGEX REPLACE "^fetch spirv-cross [^ ]+ ([^ ]+).*$" "\\1" SPIRV_CROSS_VERSION
-        "${SPIRV_CROSS_FETCH_LINE}")
-    if (NOT SPIRV_CROSS_VERSION OR SPIRV_CROSS_VERSION STREQUAL SPIRV_CROSS_FETCH_LINE)
-        set(SPIRV_CROSS_VERSION "unknown")
-    endif()
-    set_source_files_properties(shadps4/video_core/renderer_metal/mtl_shader.mm PROPERTIES
-        COMPILE_DEFINITIONS "BB_SPIRV_CROSS_VERSION=\"${SPIRV_CROSS_VERSION}\""
-        INCLUDE_DIRECTORIES "${SPIRV_CROSS_INCLUDE_DIR}")
-    # spirv.hpp only (the PerVertexKHR and RectList rewrites are plain C++ on SPIR-V words).
-    set_source_files_properties(shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp PROPERTIES
-        INCLUDE_DIRECTORIES "${SPIRV_CROSS_INCLUDE_DIR}")
-    target_link_libraries(bbgpu PRIVATE ${SPIRV_CROSS_MSL_LIBRARY} ${SPIRV_CROSS_GLSL_LIBRARY}
-        ${SPIRV_CROSS_CORE_LIBRARY})
-    # Build-time tool of the host shaders' MSL headers (add_host_shader_msl above; D11).
-    add_executable(spirv_to_msl_header tools/spirv_to_msl_header.cpp)
-    target_include_directories(spirv_to_msl_header PRIVATE shadps4 ${SPIRV_CROSS_INCLUDE_DIR})
-    target_link_libraries(spirv_to_msl_header PRIVATE ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY})
-endif()
-if (APPLE)
-    # The FPS counter (Metal performance HUD) and the text dialog's sheet (shim/bbport_mac_window).
-    target_sources(bbgpu PRIVATE shim/bbport_mac_window.mm)
-    set_source_files_properties(shim/bbport_mac_window.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
-    target_link_libraries(bbgpu PRIVATE "-framework AppKit")
-endif()
+set_source_files_properties(shadps4/video_core/renderer_metal/mtl_shader.mm PROPERTIES
+    COMPILE_DEFINITIONS "BB_SPIRV_CROSS_VERSION=\"${SPIRV_CROSS_VERSION}\""
+    INCLUDE_DIRECTORIES "${SPIRV_CROSS_INCLUDE_DIR}")
+# spirv.hpp only (the PerVertexKHR and RectList rewrites are plain C++ on SPIR-V words).
+set_source_files_properties(shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp PROPERTIES
+    INCLUDE_DIRECTORIES "${SPIRV_CROSS_INCLUDE_DIR}")
+target_link_libraries(bbgpu PRIVATE ${SPIRV_CROSS_MSL_LIBRARY} ${SPIRV_CROSS_GLSL_LIBRARY}
+    ${SPIRV_CROSS_CORE_LIBRARY})
+# Build-time tool of the host shaders' MSL headers (add_host_shader_msl above; D11).
+add_executable(spirv_to_msl_header tools/spirv_to_msl_header.cpp)
+target_include_directories(spirv_to_msl_header PRIVATE shadps4 ${SPIRV_CROSS_INCLUDE_DIR})
+target_link_libraries(spirv_to_msl_header PRIVATE ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY})
+# The FPS counter (Metal performance HUD) and the text dialog's sheet (shim/bbport_mac_window).
+target_sources(bbgpu PRIVATE shim/bbport_mac_window.mm)
+set_source_files_properties(shim/bbport_mac_window.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+target_link_libraries(bbgpu PRIVATE "-framework AppKit")
 target_include_directories(bbgpu PRIVATE shim layer games cp shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include)
 target_compile_definitions(bbgpu PRIVATE BOOST_ASIO_STANDALONE NDEBUG)
 # bbport: the Linux interfaces used here, for macOS (shim/bbport_platform.h), in every source.
 target_compile_options(bbgpu PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
 target_compile_options(bbgpu PRIVATE -Wno-deprecated-declarations -Wno-missing-field-initializers)
-if (APPLE)
-    # bbport (macOS): runtime symbols (runtime_memory_*, runtime_process_*) resolve against
-    # bb-probe when it loads the library.
-    target_link_options(bbgpu PRIVATE -undefined dynamic_lookup)
-    # Its libraries (SDL3, MoltenVK as libvulkan) come from ../lib next to bb-probe only: a
-    # second rpath into the build tree loaded MoltenVK twice.
-    set_target_properties(bbgpu PROPERTIES INSTALL_NAME_DIR "@rpath"
-        BUILD_WITH_INSTALL_RPATH ON INSTALL_RPATH "@loader_path/../lib")
-else()
-    # Loaded with bb-probe at startup (DT_NEEDED, never dlopen): thread_local access without a
-    # TLS descriptor call (_dl_tlsdesc_return was ~2% of the draw recording thread).
-    target_compile_options(bbgpu PRIVATE -ftls-model=initial-exec)
-    # Runtime symbols (runtime_memory_*, runtime_process_*) resolve against bb-probe.
-    target_link_options(bbgpu PRIVATE -Wl,--allow-shlib-undefined)
-endif()
-target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable ffx-vulkan::fsr4-v07-vulkan)
+# bbport (macOS): runtime symbols (runtime_memory_*, runtime_process_*) resolve against
+# bb-probe when it loads the library.
+target_link_options(bbgpu PRIVATE -undefined dynamic_lookup)
+# Its libraries (SDL3, MoltenVK as libvulkan) come from ../lib next to bb-probe only: a
+# second rpath into the build tree loaded MoltenVK twice.
+set_target_properties(bbgpu PROPERTIES INSTALL_NAME_DIR "@rpath"
+    BUILD_WITH_INSTALL_RPATH ON INSTALL_RPATH "@loader_path/../lib")
+target_link_libraries(bbgpu PRIVATE ffx-vulkan::portable)
 target_link_libraries(bbgpu PUBLIC Vulkan::Headers fmt::fmt Boost::headers magic_enum::magic_enum
     tsl::robin_map GPUOpen::VulkanMemoryAllocator PkgConfig::XXHASH PkgConfig::SDL3 miniz::miniz Zydis::Zydis sirit)
-if (APPLE)
-    # bbport (macOS): static FFmpeg by name; its pkg-config "-framework X" flags would be split.
-    target_include_directories(bbgpu PUBLIC ${FFMPEG_INCLUDE_DIRS})
-    target_link_directories(bbgpu PUBLIC ${FFMPEG_LIBRARY_DIRS})
-    target_link_libraries(bbgpu PUBLIC avformat avcodec swscale swresample avutil)
-    # bbport (macOS): FFmpeg's VideoToolbox/AudioToolbox decoders and SDL's Metal view.
-    target_link_libraries(bbgpu PUBLIC "-framework VideoToolbox" "-framework AudioToolbox"
-        "-framework CoreMedia" "-framework CoreVideo" "-framework CoreFoundation"
-        "-framework CoreServices" "-framework QuartzCore" "-framework Metal" "-framework MetalFX"
-        "-framework Foundation" "-framework Security" -lbz2 -lz -liconv)
-else()
-    target_link_libraries(bbgpu PUBLIC PkgConfig::FFMPEG PkgConfig::X11)
-endif()
+# bbport (macOS): static FFmpeg by name; its pkg-config "-framework X" flags would be split.
+target_include_directories(bbgpu PUBLIC ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(bbgpu PUBLIC ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(bbgpu PUBLIC avformat avcodec swscale swresample avutil)
+# bbport (macOS): FFmpeg's VideoToolbox/AudioToolbox decoders and SDL's Metal view.
+target_link_libraries(bbgpu PUBLIC "-framework VideoToolbox" "-framework AudioToolbox"
+    "-framework CoreMedia" "-framework CoreVideo" "-framework CoreFoundation"
+    "-framework CoreServices" "-framework QuartzCore" "-framework Metal" "-framework MetalFX"
+    "-framework Foundation" "-framework Security" -lbz2 -lz -liconv)
 
 # Explicit test targets; neither launches the game nor needs a Vulkan device.
 add_executable(motion-history-test EXCLUDE_FROM_ALL ../tests/test_motion_history.cpp)
@@ -307,369 +264,335 @@ add_executable(thread-cpu-test EXCLUDE_FROM_ALL ../tests/test_thread_cpu.cpp)
 target_compile_options(thread-cpu-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 target_include_directories(thread-cpu-test PRIVATE shim)
 
-if (APPLE)
-    # bbport: index expansion for topologies Metal lacks (renderer_metal/mtl_index_expand, P4.3d);
-    # plain C++, no Metal device.
-    add_executable(mtl-index-expand-test EXCLUDE_FROM_ALL ../tests/test_mtl_index_expand.cpp
-        shadps4/video_core/renderer_metal/mtl_index_expand.cpp)
-    # (Only the AmdGpu::PrimitiveType enum comes from the frontend; its header wants the logging
-    # headers, nothing of them is linked.)
-    target_compile_options(mtl-index-expand-test PRIVATE -UNDEBUG -Wall -Wextra -Werror
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-index-expand-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-index-expand-test PRIVATE fmt::fmt Boost::headers
-        magic_enum::magic_enum)
+# bbport: index expansion for topologies Metal lacks (renderer_metal/mtl_index_expand, P4.3d);
+# plain C++, no Metal device.
+add_executable(mtl-index-expand-test EXCLUDE_FROM_ALL ../tests/test_mtl_index_expand.cpp
+    shadps4/video_core/renderer_metal/mtl_index_expand.cpp)
+# (Only the AmdGpu::PrimitiveType enum comes from the frontend; its header wants the logging
+# headers, nothing of them is linked.)
+target_compile_options(mtl-index-expand-test PRIVATE -UNDEBUG -Wall -Wextra -Werror
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-index-expand-test PRIVATE shim shadps4)
+target_link_libraries(mtl-index-expand-test PRIVATE fmt::fmt Boost::headers
+    magic_enum::magic_enum)
 
-    # bbport: unit test of the Vulkan -> Metal enum conversions; needs a Metal device only.
-    add_executable(vk-to-mtl-test EXCLUDE_FROM_ALL ../tests/test_vk_to_mtl.mm
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm)
-    set_source_files_properties(../tests/test_vk_to_mtl.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(vk-to-mtl-test PRIVATE -UNDEBUG)
-    target_include_directories(vk-to-mtl-test PRIVATE shadps4)
-    target_link_libraries(vk-to-mtl-test PRIVATE Vulkan::Headers "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: unit test of the Vulkan -> Metal enum conversions; needs a Metal device only.
+add_executable(vk-to-mtl-test EXCLUDE_FROM_ALL ../tests/test_vk_to_mtl.mm
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm)
+set_source_files_properties(../tests/test_vk_to_mtl.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(vk-to-mtl-test PRIVATE -UNDEBUG)
+target_include_directories(vk-to-mtl-test PRIVATE shadps4)
+target_link_libraries(vk-to-mtl-test PRIVATE Vulkan::Headers "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: compiles every SPIR-V module of a shader cache directory to MSL and a MTLLibrary
-    # (renderer_metal/mtl_shader); needs a Metal device only, so it builds the few sources it
-    # uses instead of linking bbgpu.
-    add_executable(mtl-shader-test EXCLUDE_FROM_ALL ../tests/test_mtl_shader.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_shader.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    # (mtl_shader.mm keeps its SPIRV-Cross include directory and version from the block above.)
-    target_compile_options(mtl-shader-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-shader-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-shader-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: compiles every SPIR-V module of a shader cache directory to MSL and a MTLLibrary
+# (renderer_metal/mtl_shader); needs a Metal device only, so it builds the few sources it
+# uses instead of linking bbgpu.
+add_executable(mtl-shader-test EXCLUDE_FROM_ALL ../tests/test_mtl_shader.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_shader.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+# (mtl_shader.mm keeps its SPIRV-Cross include directory and version from the block above.)
+target_compile_options(mtl-shader-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-shader-test PRIVATE shim shadps4)
+target_link_libraries(mtl-shader-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: PerVertexKHR rewrite (renderer_metal/mtl_spirv_pervertex, P3.1b): the game's shaders
-    # compile and small shaders render the right vertex values on the GPU (see mtl-shader-test).
-    add_executable(mtl-pervertex-test EXCLUDE_FROM_ALL ../tests/test_mtl_pervertex.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_pervertex.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-pervertex-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-pervertex-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-pervertex-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: PerVertexKHR rewrite (renderer_metal/mtl_spirv_pervertex, P3.1b): the game's shaders
+# compile and small shaders render the right vertex values on the GPU (see mtl-shader-test).
+add_executable(mtl-pervertex-test EXCLUDE_FROM_ALL ../tests/test_mtl_pervertex.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_pervertex.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-pervertex-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-pervertex-test PRIVATE shim shadps4)
+target_link_libraries(mtl-pervertex-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: RectList vertex shader rewrite (renderer_metal/mtl_spirv_rectlist, P4.3d): a small
-    # shader renders the extrapolated 4th corner on the GPU and the game's RectList vertex shaders
-    # rewrite and compile (see mtl-pervertex-test).
-    add_executable(mtl-rectlist-test EXCLUDE_FROM_ALL ../tests/test_mtl_rectlist.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_rectlist.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-rectlist-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-rectlist-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-rectlist-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: RectList vertex shader rewrite (renderer_metal/mtl_spirv_rectlist, P4.3d): a small
+# shader renders the extrapolated 4th corner on the GPU and the game's RectList vertex shaders
+# rewrite and compile (see mtl-pervertex-test).
+add_executable(mtl-rectlist-test EXCLUDE_FROM_ALL ../tests/test_mtl_rectlist.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_rectlist.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_rectlist.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-rectlist-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-rectlist-test PRIVATE shim shadps4)
+target_link_libraries(mtl-rectlist-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: command buffers, ticks, deferred operations and the fence chain of the Metal
-    # backend (renderer_metal/mtl_scheduler, P4.2); needs a Metal device only (see mtl-shader-test).
-    add_executable(mtl-scheduler-test EXCLUDE_FROM_ALL ../tests/test_mtl_scheduler.mm
-        shadps4/video_core/renderer_metal/mtl_scheduler.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_device.mm
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_scheduler.mm
-        shadps4/video_core/renderer_metal/mtl_scheduler.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_device.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-scheduler-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-scheduler-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-scheduler-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH "-framework Metal" "-framework Foundation")
-endif()
+# bbport: command buffers, ticks, deferred operations and the fence chain of the Metal
+# backend (renderer_metal/mtl_scheduler, P4.2); needs a Metal device only (see mtl-shader-test).
+add_executable(mtl-scheduler-test EXCLUDE_FROM_ALL ../tests/test_mtl_scheduler.mm
+    shadps4/video_core/renderer_metal/mtl_scheduler.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_device.mm
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_scheduler.mm
+    shadps4/video_core/renderer_metal/mtl_scheduler.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_device.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-scheduler-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-scheduler-test PRIVATE shim shadps4)
+target_link_libraries(mtl-scheduler-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the render command list of the Metal backend (renderer_metal/mtl_render_list, P6.2a):
-    # the same commands issued directly and recorded then replayed draw the same pixels; needs a
-    # Metal device only (see mtl-shader-test).
-    add_executable(mtl-render-list-test EXCLUDE_FROM_ALL ../tests/test_mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm)
-    set_source_files_properties(../tests/test_mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-render-list-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-render-list-test PRIVATE shim shadps4)
-    target_link_libraries(mtl-render-list-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the render command list of the Metal backend (renderer_metal/mtl_render_list, P6.2a):
+# the same commands issued directly and recorded then replayed draw the same pixels; needs a
+# Metal device only (see mtl-shader-test).
+add_executable(mtl-render-list-test EXCLUDE_FROM_ALL ../tests/test_mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm)
+set_source_files_properties(../tests/test_mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-render-list-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-render-list-test PRIVATE shim shadps4)
+target_link_libraries(mtl-render-list-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the Metal implementation of the cache backend (renderer_metal/mtl_runtime, P2.4):
-    # buffers, textures, views, samplers, transfers, the detiling and fault parser kernels. Links
-    # bbgpu (the shared Buffer/Image/StreamBuffer code is in it) and needs a Metal device only.
-    add_executable(mtl-runtime-test EXCLUDE_FROM_ALL ../tests/test_mtl_runtime.mm)
-    set_source_files_properties(../tests/test_mtl_runtime.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-runtime-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-runtime-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    # bbgpu looks the runtime_* services up in the executable (the test defines them).
-    target_link_options(mtl-runtime-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-runtime-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the Metal implementation of the cache backend (renderer_metal/mtl_runtime, P2.4):
+# buffers, textures, views, samplers, transfers, the detiling and fault parser kernels. Links
+# bbgpu (the shared Buffer/Image/StreamBuffer code is in it) and needs a Metal device only.
+add_executable(mtl-runtime-test EXCLUDE_FROM_ALL ../tests/test_mtl_runtime.mm)
+set_source_files_properties(../tests/test_mtl_runtime.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-runtime-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-runtime-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+# bbgpu looks the runtime_* services up in the executable (the test defines them).
+target_link_options(mtl-runtime-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-runtime-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the sampler LOD bias of the Metal backend (renderer_metal/mtl_runtime MakeLimits and
-    # CreateSampler): a mip chain of solid colours sampled in a fragment shader with the guest and
-    # the scene mip bias, the selected mip checked per pixel; needs a Metal device only.
-    add_executable(mtl-sampler-bias-test EXCLUDE_FROM_ALL ../tests/test_mtl_sampler_bias.mm)
-    set_source_files_properties(../tests/test_mtl_sampler_bias.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-sampler-bias-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-sampler-bias-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    # bbgpu looks the runtime_* services up in the executable (the test defines them).
-    target_link_options(mtl-sampler-bias-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-sampler-bias-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the sampler LOD bias of the Metal backend (renderer_metal/mtl_runtime MakeLimits and
+# CreateSampler): a mip chain of solid colours sampled in a fragment shader with the guest and
+# the scene mip bias, the selected mip checked per pixel; needs a Metal device only.
+add_executable(mtl-sampler-bias-test EXCLUDE_FROM_ALL ../tests/test_mtl_sampler_bias.mm)
+set_source_files_properties(../tests/test_mtl_sampler_bias.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-sampler-bias-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-sampler-bias-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+# bbgpu looks the runtime_* services up in the executable (the test defines them).
+target_link_options(mtl-sampler-bias-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-sampler-bias-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: transfers of the guest formats Metal has no texture for (renderer_metal/
-    # mtl_format_convert, P2.4 follow-up): RGB8/16/32 and the packed depth formats, uploaded,
-    # sampled and downloaded byte exact through the runtime's entry points. Links bbgpu, needs a
-    # Metal device only.
-    add_executable(mtl-format-convert-test EXCLUDE_FROM_ALL ../tests/test_mtl_format_convert.mm)
-    set_source_files_properties(../tests/test_mtl_format_convert.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-format-convert-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-format-convert-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    target_link_options(mtl-format-convert-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-format-convert-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: transfers of the guest formats Metal has no texture for (renderer_metal/
+# mtl_format_convert, P2.4 follow-up): RGB8/16/32 and the packed depth formats, uploaded,
+# sampled and downloaded byte exact through the runtime's entry points. Links bbgpu, needs a
+# Metal device only.
+add_executable(mtl-format-convert-test EXCLUDE_FROM_ALL ../tests/test_mtl_format_convert.mm)
+set_source_files_properties(../tests/test_mtl_format_convert.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-format-convert-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-format-convert-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+target_link_options(mtl-format-convert-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-format-convert-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the reduced scene targets of the live-resolution path on Metal (renderer_metal/
-    # mtl_scene_targets, P7.5 L2): proxy copies in both directions, values checked; links bbgpu,
-    # needs a Metal device only.
-    add_executable(mtl-scene-targets-test EXCLUDE_FROM_ALL ../tests/test_mtl_scene_targets.mm)
-    set_source_files_properties(../tests/test_mtl_scene_targets.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-scene-targets-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-scene-targets-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    target_link_options(mtl-scene-targets-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-scene-targets-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the reduced scene targets of the live-resolution path on Metal (renderer_metal/
+# mtl_scene_targets, P7.5 L2): proxy copies in both directions, values checked; links bbgpu,
+# needs a Metal device only.
+add_executable(mtl-scene-targets-test EXCLUDE_FROM_ALL ../tests/test_mtl_scene_targets.mm)
+set_source_files_properties(../tests/test_mtl_scene_targets.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-scene-targets-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-scene-targets-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+target_link_options(mtl-scene-targets-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-scene-targets-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the Metal pipeline cache core's profile, capabilities and serialized pipeline part
-    # (renderer_metal/mtl_pipeline_cache, P4.3a); links bbgpu, needs a Metal device only.
-    add_executable(mtl-pipeline-core-test EXCLUDE_FROM_ALL ../tests/test_mtl_pipeline_core.mm)
-    set_source_files_properties(../tests/test_mtl_pipeline_core.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-pipeline-core-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-pipeline-core-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    target_link_options(mtl-pipeline-core-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-pipeline-core-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the Metal pipeline cache core's profile, capabilities and serialized pipeline part
+# (renderer_metal/mtl_pipeline_cache, P4.3a); links bbgpu, needs a Metal device only.
+add_executable(mtl-pipeline-core-test EXCLUDE_FROM_ALL ../tests/test_mtl_pipeline_core.mm)
+set_source_files_properties(../tests/test_mtl_pipeline_core.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-pipeline-core-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-pipeline-core-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+target_link_options(mtl-pipeline-core-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-pipeline-core-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: the coordinate conventions of the Metal rasterizer's recording (renderer_metal/
-    # mtl_raster_util.h, P4.3b): viewport conversion, front face, scissor clamp; links bbgpu
-    # (VkToMtl), needs a Metal device only.
-    add_executable(mtl-raster-test EXCLUDE_FROM_ALL ../tests/test_mtl_raster.mm)
-    set_source_files_properties(../tests/test_mtl_raster.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-raster-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-raster-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    target_link_options(mtl-raster-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-raster-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-endif()
+# bbport: the coordinate conventions of the Metal rasterizer's recording (renderer_metal/
+# mtl_raster_util.h, P4.3b): viewport conversion, front face, scissor clamp; links bbgpu
+# (VkToMtl), needs a Metal device only.
+add_executable(mtl-raster-test EXCLUDE_FROM_ALL ../tests/test_mtl_raster.mm)
+set_source_files_properties(../tests/test_mtl_raster.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-raster-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-raster-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+target_link_options(mtl-raster-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-raster-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
 
-if (APPLE)
-    # bbport: compiles the MSL of every host shader header (host_shaders_msl, D11) and creates its
-    # function (and a compute pipeline); needs a Metal device only (see mtl-shader-test).
-    add_executable(msl-host-shaders-test EXCLUDE_FROM_ALL ../tests/test_msl_host_shaders.mm)
-    set_source_files_properties(../tests/test_msl_host_shaders.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(msl-host-shaders-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(msl-host-shaders-test PRIVATE shim shadps4 ${SHADER_INCLUDE})
-    target_link_libraries(msl-host-shaders-test PRIVATE "-framework Metal" "-framework Foundation")
-    add_dependencies(msl-host-shaders-test host_shaders_msl)
-endif()
+# bbport: compiles the MSL of every host shader header (host_shaders_msl, D11) and creates its
+# function (and a compute pipeline); needs a Metal device only (see mtl-shader-test).
+add_executable(msl-host-shaders-test EXCLUDE_FROM_ALL ../tests/test_msl_host_shaders.mm)
+set_source_files_properties(../tests/test_msl_host_shaders.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(msl-host-shaders-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(msl-host-shaders-test PRIVATE shim shadps4 ${SHADER_INCLUDE})
+target_link_libraries(msl-host-shaders-test PRIVATE "-framework Metal" "-framework Foundation")
+add_dependencies(msl-host-shaders-test host_shaders_msl)
 
-if (APPLE)
-    # bbport: the tiling kernel (host_shaders/tiling.comp) and a one-thread-per-texel reference
-    # kernel (tests/tiling_reference.comp, compiled to MSL like the shipped one, names
-    # tiling_ref_*) checked byte for byte in both directions against an addrlib CPU reference
-    # (tests/tiling_cpu_reference.h: padded layout, unique in-bounds addresses), on the game's
-    # tile modes; any nondeterministic or skipped check fails; and the GPU time of both. Links bbgpu (TileManager::MakeDispatch, the tiling tables) and needs a Metal device
-    # only.
-    set(SAVED_SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS})
-    set(SHADER_MSL_HEADERS "")
-    foreach(BPP IN ITEMS 8 16 32 64 96 128)
-        add_host_shader_msl(../../../../tests/tiling_reference.comp tiling_ref_micro_${BPP}_comp BITS_PER_PIXEL=${BPP} IS_MACRO_TILED=0)
-        add_host_shader_msl(../../../../tests/tiling_reference.comp tiling_ref_macro_${BPP}_comp BITS_PER_PIXEL=${BPP} IS_MACRO_TILED=1)
-    endforeach()
-    add_custom_target(mtl_tiling_reference_shaders DEPENDS ${SHADER_MSL_HEADERS})
-    set(SHADER_MSL_HEADERS ${SAVED_SHADER_MSL_HEADERS})
-    add_executable(mtl-tiling-test EXCLUDE_FROM_ALL ../tests/test_mtl_tiling.mm
-        ../tests/test_gpu_runtime_stubs.cpp)
-    set_source_files_properties(../tests/test_mtl_tiling.mm PROPERTIES
-        COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-tiling-test PRIVATE -UNDEBUG -fPIC
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-tiling-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
-    target_link_options(mtl-tiling-test PRIVATE -Wl,-export_dynamic)
-    target_link_libraries(mtl-tiling-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
-    add_dependencies(mtl-tiling-test host_shaders_msl mtl_tiling_reference_shaders)
-endif()
+# bbport: the tiling kernel (host_shaders/tiling.comp) and a one-thread-per-texel reference
+# kernel (tests/tiling_reference.comp, compiled to MSL like the shipped one, names
+# tiling_ref_*) checked byte for byte in both directions against an addrlib CPU reference
+# (tests/tiling_cpu_reference.h: padded layout, unique in-bounds addresses), on the game's
+# tile modes; any nondeterministic or skipped check fails; and the GPU time of both. Links bbgpu (TileManager::MakeDispatch, the tiling tables) and needs a Metal device
+# only.
+set(SAVED_SHADER_MSL_HEADERS ${SHADER_MSL_HEADERS})
+set(SHADER_MSL_HEADERS "")
+foreach(BPP IN ITEMS 8 16 32 64 96 128)
+    add_host_shader_msl(../../../../tests/tiling_reference.comp tiling_ref_micro_${BPP}_comp BITS_PER_PIXEL=${BPP} IS_MACRO_TILED=0)
+    add_host_shader_msl(../../../../tests/tiling_reference.comp tiling_ref_macro_${BPP}_comp BITS_PER_PIXEL=${BPP} IS_MACRO_TILED=1)
+endforeach()
+add_custom_target(mtl_tiling_reference_shaders DEPENDS ${SHADER_MSL_HEADERS})
+set(SHADER_MSL_HEADERS ${SAVED_SHADER_MSL_HEADERS})
+add_executable(mtl-tiling-test EXCLUDE_FROM_ALL ../tests/test_mtl_tiling.mm
+    ../tests/test_gpu_runtime_stubs.cpp)
+set_source_files_properties(../tests/test_mtl_tiling.mm PROPERTIES
+    COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-tiling-test PRIVATE -UNDEBUG -fPIC
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-tiling-test PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/half/include)
+target_link_options(mtl-tiling-test PRIVATE -Wl,-export_dynamic)
+target_link_libraries(mtl-tiling-test PRIVATE bbgpu "-framework Metal" "-framework Foundation")
+add_dependencies(mtl-tiling-test host_shaders_msl mtl_tiling_reference_shaders)
 
-if (APPLE)
-    # bbport: builds a Metal pipeline for every key of a Vulkan pipeline cache directory
-    # (renderer_metal/mtl_pso_cache); needs a Metal device only (see mtl-shader-test).
-    add_executable(mtl-pipeline-test EXCLUDE_FROM_ALL ../tests/test_mtl_pipeline.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
-        shadps4/video_core/amdgpu/pixel_format.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_pipeline.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-pipeline-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-pipeline-test PRIVATE shim shadps4 third_party/half/include)
-    target_link_libraries(mtl-pipeline-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: builds a Metal pipeline for every key of a Vulkan pipeline cache directory
+# (renderer_metal/mtl_pso_cache); needs a Metal device only (see mtl-shader-test).
+add_executable(mtl-pipeline-test EXCLUDE_FROM_ALL ../tests/test_mtl_pipeline.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
+    shadps4/video_core/amdgpu/pixel_format.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_pipeline.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-pipeline-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-pipeline-test PRIVATE shim shadps4 third_party/half/include)
+target_link_libraries(mtl-pipeline-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: the tessellation path (renderer_metal/mtl_tessellation, mtl_shader's variants,
-    # PsoCache::GetTessellationPipeline, P4.4): small GLSL shaders draw patches into targets that
-    # are read back, and the game's tessellated pipelines build; needs a Metal device only (see
-    # mtl-pipeline-test).
-    add_executable(mtl-tessellation-test EXCLUDE_FROM_ALL ../tests/test_mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
-        shadps4/video_core/amdgpu/pixel_format.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-tessellation-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-tessellation-test PRIVATE shim shadps4 third_party/half/include)
-    target_link_libraries(mtl-tessellation-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: the tessellation path (renderer_metal/mtl_tessellation, mtl_shader's variants,
+# PsoCache::GetTessellationPipeline, P4.4): small GLSL shaders draw patches into targets that
+# are read back, and the game's tessellated pipelines build; needs a Metal device only (see
+# mtl-pipeline-test).
+add_executable(mtl-tessellation-test EXCLUDE_FROM_ALL ../tests/test_mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
+    shadps4/video_core/amdgpu/pixel_format.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-tessellation-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-tessellation-test PRIVATE shim shadps4 third_party/half/include)
+target_link_libraries(mtl-tessellation-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
-if (APPLE)
-    # bbport: the geometry-shader path (renderer_metal/mtl_geometry, mtl_spirv_geometry, mtl_shader's
-    # GeometryKernel variant, PsoCache::GetGeometryPipeline, P7.1): small GLSL shaders (points ->
-    # two quads) run as kernels and draw strips into targets that are read back; needs a Metal
-    # device only (see mtl-pipeline-test).
-    add_executable(mtl-geometry-test EXCLUDE_FROM_ALL ../tests/test_mtl_geometry.mm
-        shadps4/video_core/renderer_metal/mtl_geometry.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
-        shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
-        shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
-        shadps4/video_core/amdgpu/pixel_format.cpp
-        shim/common/logging/log.cpp shadps4/common/error.cpp
-        shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
-        shadps4/common/thread.cpp)
-    set_source_files_properties(../tests/test_mtl_geometry.mm
-        shadps4/video_core/renderer_metal/mtl_geometry.mm
-        shadps4/video_core/renderer_metal/mtl_pso_cache.mm
-        shadps4/video_core/renderer_metal/mtl_tessellation.mm
-        shadps4/video_core/renderer_metal/mtl_render_list.mm
-        shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
-        shadps4/video_core/renderer_metal/vk_to_mtl.mm
-        PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
-    target_compile_options(mtl-geometry-test PRIVATE -UNDEBUG
-        -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
-    target_include_directories(mtl-geometry-test PRIVATE shim shadps4 third_party/half/include)
-    target_link_libraries(mtl-geometry-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
-        magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
-        ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
-        "-framework Foundation")
-endif()
+# bbport: the geometry-shader path (renderer_metal/mtl_geometry, mtl_spirv_geometry, mtl_shader's
+# GeometryKernel variant, PsoCache::GetGeometryPipeline, P7.1): small GLSL shaders (points ->
+# two quads) run as kernels and draw strips into targets that are read back; needs a Metal
+# device only (see mtl-pipeline-test).
+add_executable(mtl-geometry-test EXCLUDE_FROM_ALL ../tests/test_mtl_geometry.mm
+    shadps4/video_core/renderer_metal/mtl_geometry.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/mtl_spirv_pervertex.cpp
+    shadps4/video_core/renderer_metal/mtl_spirv_geometry.cpp
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    shadps4/video_core/renderer_vulkan/liverpool_to_vk.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_blend.cpp shadps4/common/number_utils.cpp
+    shadps4/video_core/renderer_vulkan/vk_pipeline_serialization.cpp
+    shadps4/video_core/amdgpu/pixel_format.cpp
+    shim/common/logging/log.cpp shadps4/common/error.cpp
+    shadps4/common/path_util.cpp shadps4/common/string_util.cpp shadps4/common/io_file.cpp
+    shadps4/common/thread.cpp)
+set_source_files_properties(../tests/test_mtl_geometry.mm
+    shadps4/video_core/renderer_metal/mtl_geometry.mm
+    shadps4/video_core/renderer_metal/mtl_pso_cache.mm
+    shadps4/video_core/renderer_metal/mtl_tessellation.mm
+    shadps4/video_core/renderer_metal/mtl_render_list.mm
+    shadps4/video_core/renderer_metal/mtl_shader.mm shadps4/video_core/renderer_metal/mtl_device.mm
+    shadps4/video_core/renderer_metal/vk_to_mtl.mm
+    PROPERTIES COMPILE_OPTIONS "-fobjc-arc;-Wno-unguarded-availability-new")
+target_compile_options(mtl-geometry-test PRIVATE -UNDEBUG
+    -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_platform.h)
+target_include_directories(mtl-geometry-test PRIVATE shim shadps4 third_party/half/include)
+target_link_libraries(mtl-geometry-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers
+    magic_enum::magic_enum PkgConfig::XXHASH ${SPIRV_CROSS_MSL_LIBRARY}
+    ${SPIRV_CROSS_GLSL_LIBRARY} ${SPIRV_CROSS_CORE_LIBRARY} "-framework Metal"
+    "-framework Foundation")
 
 add_executable(scene-resolution-test EXCLUDE_FROM_ALL ../tests/test_scene_resolution.cpp ../tests/test_gpu_runtime_stubs.cpp)
 target_include_directories(scene-resolution-test PRIVATE shim shadps4 third_party/gcn/include)
@@ -701,19 +624,14 @@ set_source_files_properties(../tests/test_translation_memory.cpp PROPERTIES
     COMPILE_OPTIONS "-fvisibility=hidden;-fvisibility-inlines-hidden")
 target_link_libraries(translation-memory-test PRIVATE bbgpu)
 
-# bbport: FSR 4 benchmark outside the game (tools/fsr4_bench.cpp): ninja -C out/gpu fsr4-bench.
 add_executable(upscaler-support-test EXCLUDE_FROM_ALL ../tests/test_upscaler_support.cpp
     shim/bbport_settings.cpp)
 target_include_directories(upscaler-support-test PRIVATE shim)
 target_compile_options(upscaler-support-test PRIVATE -UNDEBUG)
 
-add_executable(fsr4-bench EXCLUDE_FROM_ALL tools/fsr4_bench.cpp
-    shadps4/video_core/renderer_vulkan/fsr411/fsr411.cpp)
-target_include_directories(fsr4-bench PRIVATE shadps4/video_core/renderer_vulkan/fsr411)
-target_link_libraries(fsr4-bench PRIVATE ffx-vulkan::fsr4-v07-vulkan ffx-vulkan::fsr4-v07-assets Vulkan::Vulkan)
-
-# bbport online module (gpu/bbnet, libbbnet.so): built when its libraries are there (shell.nix);
-# BB_NET=OFF leaves it out. Without it the port plays offline.
+# bbport online module (gpu/bbnet): built when its libraries are there; macos/build.sh passes
+# BB_NET=OFF (not ported to macOS yet, docs/LAUNCHER_PLAN.md D12). Without it the port plays
+# offline.
 option(BB_NET "Build the online module (shadNet)" ON)
 if (BB_NET)
     find_package(Protobuf CONFIG QUIET)

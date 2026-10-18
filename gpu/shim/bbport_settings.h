@@ -9,12 +9,8 @@
 
 namespace BbSettings {
 
-enum Upscaler : int { UpscalerOff = 0, UpscalerFsr3 = 1, UpscalerFsr4 = 2, UpscalerFsr411 = 3,
-                      UpscalerTaa = 4, UpscalerDlss = 5, UpscalerMetalFx = 6, UpscalerCount };
-/// FSR 4 v07 or FSR 4.1.1: the same inputs, settings and placement in the frame.
-inline bool IsFsr4(int upscaler) {
-    return upscaler == UpscalerFsr4 || upscaler == UpscalerFsr411;
-}
+enum Upscaler : int { UpscalerOff = 0, UpscalerFsr3 = 1, UpscalerTaa = 2, UpscalerMetalFx = 3,
+                      UpscalerCount };
 enum Preset : int { NativeAA = 0, Quality, Balanced, Performance, UltraPerformance, PresetCount };
 enum DebugView : int { DebugNone = 0, DebugReactive = 1, DebugMotion = 2, DebugViewCount };
 enum class MenuLanguage { English, Russian };
@@ -67,9 +63,6 @@ struct Values {
     std::atomic<float> reactive_max{0.9f};
     std::atomic<int> debug_view{DebugNone};
     std::atomic<bool> show_fps{false}; ///< the Metal performance HUD (bbport_mac_window.h)
-    // FSR 4 checks (bbport.ini, Vulkan): the provider's auto exposure, the jitter sign it is given.
-    std::atomic<bool> fsr4_auto_exposure{true};
-    std::atomic<bool> fsr4_invert_jitter{false};
     std::atomic<int> active_render_width{1920}, active_render_height{1080};
     /// Applied at start (patches.py); the menu shows when a restart is needed.
     std::atomic<bool> effects[EffectCount]{};
@@ -78,15 +71,9 @@ struct Values {
     /// Live resolution and preset changes (run.sh): 0 off by default (startup patch, fastest
     /// on the Steam Deck and older GPUs), -1 auto (strong discrete GPUs), 1 on. On restart.
     std::atomic<int> live_resolution{0};
-    /// Why FSR 4 cannot run (assets, device features), or null. Set by the renderer.
-    std::atomic<const char*> fsr4_problem{nullptr};
-    std::atomic<bool> fsr4_supported{false}, fsr411_supported{false};
     /// The providers each backend offers (the menus list a provider only when set): the Vulkan
     /// backend has FSR 3.1 and TAA, the Metal backend only MetalFX (ConfigureMetalUpscalers).
     std::atomic<bool> fsr3_supported{true}, taa_supported{true}, metalfx_supported{false};
-    /// DLSS (gpu/dlss_bridge, NVIDIA RTX) is ready, or why not (null before the device exists).
-    std::atomic<bool> dlss_supported{false};
-    std::atomic<const char*> dlss_problem{nullptr};
 
     /// Startup settings for the explicit BB_RENDER_RES compatibility patch only.
     int startup_preset = NativeAA;
@@ -105,15 +92,13 @@ struct Values {
 Values& Get();
 /// Reads the file, then the environment overrides. Called once at start.
 void Load();
-/// Checks the loaded choice before the first frame (Vulkan); unsupported FSR 4 uses FSR 3.1,
-/// and so does MetalFX, which only exists on Metal.
-void ConfigureUpscalerSupport(bool fsr4, bool fsr411);
-/// The Metal backend, before the first frame: FSR 3.1/4/4.1.1, TAA and DLSS do not exist there,
+/// Checks the loaded choice before the first frame (Vulkan): MetalFX only exists on Metal, so
+/// it becomes FSR 3.1.
+void ConfigureUpscalerSupport();
+/// The Metal backend, before the first frame: FSR 3.1 and TAA do not exist there,
 /// MetalFX (`metalfx`: the device supports MTLFXTemporalScaler) is the only provider besides
 /// Off. A loaded choice of an absent provider becomes MetalFX (Off without it) and is printed.
 void ConfigureMetalUpscalers(bool metalfx);
-/// After device creation: DLSS availability; a DLSS setting falls back to FSR 3.1 without it.
-void ConfigureDlssSupport(bool available, const char* problem);
 /// Startup-patched scene dimensions cannot change until run.sh prepares a new image.
 bool FixedRenderSession();
 int RenderPreset();

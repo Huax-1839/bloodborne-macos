@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Counterpart: renderer_vulkan/vk_temporal_upscaler.cpp (the UI composition of a scaled session and
-// its temporal background, RunScaled; MetalFX instead of FSR 3, no FSR 4, TAA or DLSS: D10).
+// its temporal background, RunScaled; MetalFX instead of FSR 3, no TAA: D10).
 
 #import <Metal/Metal.h>
 #import <MetalFX/MetalFX.h>

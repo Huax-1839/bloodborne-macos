@@ -231,7 +231,7 @@ the amount of geometry and pixels the game asks for.
 | `vk_indirect_guard`, `vk_shader_hle` | `mtl_*` | Port (shaders via D11) |
 | `vk_gpu_profiler`, `vk_timestamps`, `vk_gpu_labels`, `vk_breadcrumbs`, `vk_frame_capture` | `mtl_debug` | Counter sample buffers, debug groups, `MTLCaptureManager`, texture readback |
 | `shim/imgui/renderer` (Vulkan) | `imgui_impl_metal` | D9 |
-| `vk_dlss`, `vk_fsr4`, `fsr411/` | — | Not ported |
+| `vk_dlss`, `vk_fsr4`, `fsr411/` | — | Not ported; removed from the Vulkan backend too (2026-10-18, §9) |
 
 ## 5. Phases
 
@@ -1519,3 +1519,4 @@ Every deviation from the plan as first written (§0), newest last.
 | 2026-10-18 | New phase P13 (heavier scenes: Central Yharnam), started at the user's request, measured on AC only (the user was away: no battery runs) | §8 open item 1; every earlier number came from the clinic | P13, `docs/PERFORMANCE_YHARNAM_2026-10-18.md` |
 | 2026-10-18 | P13.1: the game's hardware vertex shaders lose `NoContraction` too, with an `Invariant` Position and `preserveInvariance`; the default (`BB_MTL_RELAX_VERTEX=0` off). Decided while the user was away, by their standing instruction to take the recommended option | Yharnam traces: G-buffer vertex channel 12.6 of 14.3 ms; the heaviest vertex shaders had 104–189 `optnone` helper calls; P9.1 kept vertex shaders strict only for bit-identical positions, which Metal's invariance guarantees. A B B A: GPU −31%, +38% FPS uncapped; images, temporal residuals, validation and Vulkan as for P9.1 | P13, P9.1, Metal shader cache (new tag) |
 | 2026-10-18 | P16.3 (part): the m4air profile renders the scene at 1280x720 instead of 960x540 (run.sh, launcher "MacBook Air" preset); effects, model LOD and upscaler unchanged (user's decision) | after P13.1, 720p runs 52 FPS uncapped in Central Yharnam, and the 720p cap passed the M3 rule over 10 min before P13.1; benches with `BB_PROFILE=m4air` now run at 720p, so earlier 540p numbers need `BB_RENDER_RES=960x540` for comparison |
+| 2026-10-18 | Housekeeping: FSR 4, FSR 4.1.1 and DLSS removed from the Vulkan backend (`vk_fsr4`, `fsr411/`, `vk_dlss`, `gpu/dlss_bridge`, the FSR-Vulkan patch, the fsr4 tools); `Upscaler` is Off, Fsr3, Taa, MetalFx, and ini values `fsr4`/`fsr411`/`dlss` load as `fsr3` | unreachable on macOS: MoltenVK has no compute shader derivatives, mixed float dot products or cooperative matrices, DLSS was compiled for Windows/Linux only. Vulkan m4air uncapped interleaved: 24.9/24.9 FPS before, 24.8/25.0 after, image PSNR 50 dB (run-to-run 36.5 dB) | — |

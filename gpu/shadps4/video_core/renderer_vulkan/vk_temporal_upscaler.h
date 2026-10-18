@@ -20,8 +20,6 @@
 
 #include "common/types.h"
 #include "video_core/renderer_vulkan/vk_common.h"
-#include "video_core/renderer_vulkan/vk_dlss.h"
-#include "video_core/renderer_vulkan/vk_fsr4.h"
 #include "video_core/texture_cache/image.h"
 #include "video_core/ui_compositor.h"
 
@@ -133,8 +131,7 @@ public:
     void DumpPresented(vk::Image image, u32 width, u32 height, vk::Format format);
 
 private:
-    /// bbport: views of guest images the upscaler reads, kept across frames: FSR 4 registers
-    /// images by view in a registry of eight (a new view per frame filled it at Native AA).
+    /// bbport: views of guest images the upscaler reads, kept across frames.
     vk::ImageView CachedView(const VideoCore::Image& image, vk::Format format,
                              vk::ImageAspectFlags aspect);
     struct ViewEntry {
@@ -179,19 +176,8 @@ private:
     void CreatePipelines();
     /// Records the reactive mask pass; false when there is no snapshot this frame.
     bool RecordReactive(vk::ImageView color_view);
-    /// FSR 4 is selected, possible in this session (not BB_RENDER_RES) and has not failed.
-    [[nodiscard]] bool UseFsr4() const;
-    /// bbport: DLSS selected and the bridge is ready (NVIDIA RTX, gpu/dlss_bridge).
-    [[nodiscard]] bool UseDlss() const;
-    /// Records DLSS into `cmdbuf` (output in General). `hdr`: linear scene color input.
-    bool RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource& color,
-                    const Dlss::Resource& depth, u32 w, u32 h, u32 ow, u32 oh, float frame_ms,
-                    bool hdr);
-    /// Records FSR 4 into output_image; on a permanent failure FSR 3 takes over.
-    bool RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image color, Fsr4Upscaler::Image depth,
-                    u32 w, u32 h, u32 ow, u32 oh, float frame_ms);
     void RecordTaa(vk::CommandBuffer cmdbuf, vk::ImageView color, vk::ImageView depth);
-    /// Sharpness above 1 for FSR 3/4 (their RCAS stops at 1): one more RCAS pass over the target
+    /// Sharpness above 1 for FSR 3 (its RCAS stops at 1): one more RCAS pass over the target
     /// (output_image, or the 8-bit UI image with ldr) in General layout after the upscaler.
     void ExtraSharpen(vk::Image target, bool ldr, u32 w, u32 h);
 
@@ -258,11 +244,7 @@ private:
     std::unordered_map<VAddr, DisplayImage> displays;
     FfxVkPortableUpscaleContext* context = nullptr;
     bool resources_ready = false; ///< images below match width/height/out size
-    bool resources_fsr4 = false;  ///< made for FSR 4 (no FSR 3 context)
     bool resources_taa = false;
-    std::unique_ptr<Fsr4Upscaler> fsr4;
-    bool fsr4_failed = false;
-    bool dlss_failed = false;
     VideoCore::UniqueImage motion_image;
     VideoCore::UniqueImage output_image;
     vk::UniqueImageView motion_view;
@@ -288,26 +270,6 @@ private:
     vk::UniquePipelineLayout taa_sharpen_pipeline_layout;
     vk::UniquePipeline taa_sharpen_pipeline;
     vk::UniquePipeline taa_sharpen_ldr_pipeline;
-    // bbport: FSR 4 in linear light on the scaled presets (fsr4_color.comp): the decoded input
-    // and the passes that decode it and encode the output again.
-    VideoCore::UniqueImage fsr4_linear_image;
-    bool fsr4_linear_frame = false; ///< this frame's FSR 4 input was decoded (and the output encoded)
-    vk::UniqueImageView fsr4_linear_view;
-    vk::UniqueDescriptorSetLayout fsr4_decode_desc_layout;
-    vk::UniquePipelineLayout fsr4_decode_pipeline_layout;
-    vk::UniquePipeline fsr4_decode_pipeline;
-    vk::UniqueDescriptorSetLayout fsr4_encode_desc_layout;
-    vk::UniquePipelineLayout fsr4_encode_pipeline_layout;
-    vk::UniquePipeline fsr4_encode_pipeline;
-    vk::UniqueSampler fsr4_linear_sampler;
-    vk::UniqueDescriptorSetLayout fsr4_reactive_desc_layout;
-    vk::UniquePipelineLayout fsr4_reactive_pipeline_layout;
-    vk::UniquePipeline fsr4_reactive_pipeline;
-    /// bbport: FSR 4 takes no reactive mask: its output is blended with `color` (the frame it
-    /// upscaled, render size, General layout, same colour space as the output) where the mask
-    /// marks blended effects (fsr4_reactive.comp). Recorded after FSR 4 into `cmdbuf`.
-    void RecordFsr4Reactive(vk::CommandBuffer cmdbuf, vk::ImageView color, u32 w, u32 h, u32 ow,
-                            u32 oh);
     // ExtraSharpen: a copy of the upscaled frame (RCAS reads neighbours) and the target views.
     VideoCore::UniqueImage extra_sharpen_image;
     vk::UniqueImageView extra_sharpen_view;
