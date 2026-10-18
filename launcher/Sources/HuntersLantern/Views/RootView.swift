@@ -276,8 +276,7 @@ struct GoCommands: Commands {
     }
 }
 
-/// The window's AppKit side: moved by its background, no full screen and no zoom (the layout is
-/// fixed at 960 × 600); reports the title bar's height.
+/// The window's AppKit side: a transparent title bar, moved by its background.
 private struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { ConfiguringView() }
     func updateNSView(_ nsView: NSView, context: Context) {}
