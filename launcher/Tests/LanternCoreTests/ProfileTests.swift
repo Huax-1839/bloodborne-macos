@@ -33,6 +33,29 @@ final class ProfileTests: XCTestCase {
         XCTAssertNil(ProfileStore(dir: dir).profile(copy.id))
     }
 
+    /// The first edit of a preset: a user copy with the edit, the preset itself unchanged.
+    func testUserCopyOfPreset() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var store = ProfileStore(dir: dir)
+        var edited = Profile.air
+        edited.frameRate = .fps60
+        let copy = edited.userCopy(name: store.uniqueName("MacBook Air (customised)"))
+        try store.save(copy)
+        XCTAssertFalse(copy.builtin)
+        XCTAssertNotEqual(copy.id, Profile.air.id)
+        XCTAssertEqual(copy.basedOn, Profile.air.id)
+        XCTAssertEqual(copy.frameRate, .fps60)
+        XCTAssertEqual(store.profile(Profile.air.id), .air)
+        XCTAssertEqual(ProfileStore(dir: dir).profile(copy.id), copy)
+        // A copy of the copy still points at the preset; a second copy gets its own name.
+        let again = copy.userCopy(name: store.uniqueName("MacBook Air (customised)"))
+        XCTAssertEqual(again.basedOn, Profile.air.id)
+        XCTAssertEqual(again.name, "MacBook Air (customised) 2")
+        XCTAssertEqual(store.uniqueName("macbook air"), "macbook air 2")
+        XCTAssertEqual(store.uniqueName("Mine"), "Mine")
+    }
+
     func testExpertVariableNames() {
         for name in ["BB_VBLANK_HZ", "MVK_CONFIG_LOG_LEVEL", "ROSETTA_ADVERTISE_AVX", "BB_X1"] {
             XCTAssertTrue(ExpertVariables.isValidName(name), name)

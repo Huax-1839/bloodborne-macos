@@ -34,8 +34,10 @@ extension Effect: CodingKeyRepresentable {}
 public struct Profile: Codable, Identifiable, Equatable, Sendable {
     public var id: String
     public var name: String
-    /// A built-in preset (not stored, not editable: duplicate it to change it).
+    /// A built-in preset (not stored, never changed: the first edit makes a user copy).
     public var builtin: Bool = false
+    /// The built-in preset a user copy was made from (`userCopy`), if it was made from one.
+    public var basedOn: String?
     /// Values not measured on that hardware (presets for chips we did not have).
     public var unmeasured: Bool = false
     public var frameRate: FrameRate = .fps30
@@ -65,6 +67,16 @@ public struct Profile: Codable, Identifiable, Equatable, Sendable {
         self.name = name
     }
 
+    /// A user profile with these settings under a new id; it remembers the preset it came from.
+    public func userCopy(name: String) -> Profile {
+        var copy = self
+        copy.id = UUID().uuidString.lowercased()
+        copy.name = name
+        copy.basedOn = builtin ? id : basedOn
+        copy.builtin = false
+        return copy
+    }
+
     public func isOn(_ effect: Effect) -> Bool { effects[effect] ?? effect.defaultOn }
 
     /// The bbport.ini keys this profile writes before a launch (D7).
@@ -83,6 +95,7 @@ extension Profile {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(id: try c.decode(String.self, forKey: .id), name: try c.decode(String.self, forKey: .name))
         builtin = c.decode(.builtin, or: false)
+        basedOn = c.decodeLenient(.basedOn)
         unmeasured = c.decode(.unmeasured, or: false)
         frameRate = c.decode(.frameRate, or: .fps30)
         renderer = c.decode(.renderer, or: .automatic)

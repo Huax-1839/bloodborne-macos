@@ -333,6 +333,9 @@ v1 feature set (decided with the user):
   - "Pro" and "Max" are conservative estimates, marked as unmeasured until someone with that
     hardware confirms them. Only an M4 Air is available here.
   - "Vanilla" = defaults without mods or patches beyond the FPS patch.
+  - Presets never change. Since 2026-10-19 (§9) the first edit of one on any page saves a user
+    copy ("MacBook Air (customised)", `basedOn` the preset) and makes it active; the pages offer
+    the way back to the preset. Importing a mod does not copy a preset.
 - **Warnings**: battery power, Low Power Mode, a high thermal state.
 
 **D17 Artwork.**
@@ -640,3 +643,9 @@ Found during the inventory (fix when the task touching the file comes up):
   (`sce_sys/pic1.png` of the user's copy, read at run time) as a plate, the profile and the main
   action under it, two short lists (hunters, last hunts), less text. The settings column and the
   register on the home page are gone; the style and tokens stay.
+- 2026-10-19 (orchestrator, after the design critique; user agreed to the step): built-in
+  presets are copied on the first edit instead of making Settings, Mods and Patches read-only
+  behind a "duplicate to edit" step. Evidence: the default profile is a preset, so the most
+  common wishes (60 FPS, a mod) hit a disabled page whose fix needed the profile model first.
+  Profiles stay complete packages (the fixed point); a copy records the preset it came from
+  (`Profile.basedOn`), copy names are made unique (`ProfileStore.uniqueName`).

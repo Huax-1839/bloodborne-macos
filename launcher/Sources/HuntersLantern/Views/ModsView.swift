@@ -7,8 +7,8 @@ import UniformTypeIdentifiers
 /// A literal from this page's string table (Mods.xcstrings).
 private func m(_ key: LocalizedStringKey) -> Text { Text(key, tableName: "Mods") }
 
-/// Mods: the library, and the active profile's mod set (on/off and load order, D10). A built-in
-/// profile is read-only.
+/// Mods: the library, and the active profile's mod set (on/off and load order, D10). Switching a
+/// mod on in a built-in profile makes a user copy of it (AppModel.saveProfile).
 struct ModsView: View {
     @EnvironmentObject private var model: AppModel
     @StateObject private var library = ModsModel()
@@ -23,7 +23,9 @@ struct ModsView: View {
     var body: some View {
         let profile = model.activeProfile
         PageContainer(title: "Mods") {
-            if profile.builtin { builtinSection(profile) }
+            PrintSection(Text(verbatim: profile.name)) {
+                ProfileEditLine(profile: profile, showsName: false)
+            }
             addActions
             if library.loaded && library.mods.isEmpty {
                 emptyState
@@ -78,14 +80,6 @@ struct ModsView: View {
 
     // MARK: Header
 
-    private func builtinSection(_ profile: Profile) -> some View {
-        PrintSection(Text(verbatim: profile.name)) {
-            PrintNote(m("This is a built-in profile and has no mods. Duplicate it to switch mods on."))
-            Button { model.duplicateProfile(profile) } label: { m("Duplicate to edit") }
-                .buttonStyle(FrameActionStyle())
-        }
-    }
-
     private var addActions: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {
@@ -125,7 +119,7 @@ struct ModsView: View {
                 // high as its rows (the page scrolls, not the list).
                 List {
                     ForEach(Array(enabled.enumerated()), id: \.element.id) { index, mod in
-                        row(mod, enabled: true, readOnly: profile.builtin, order: index + 1)
+                        row(mod, enabled: true, order: index + 1)
                             .font(Print.text())
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
@@ -146,7 +140,7 @@ struct ModsView: View {
         if !others.isEmpty {
             PrintSection(m(enabled.isEmpty ? "Mods" : "Available")) {
                 PrintRows {
-                    ForEach(others) { row($0, enabled: false, readOnly: profile.builtin, order: nil) }
+                    ForEach(others) { row($0, enabled: false, order: nil) }
                 }
             }
         }
@@ -155,7 +149,7 @@ struct ModsView: View {
         }
     }
 
-    private func row(_ mod: Mod, enabled: Bool, readOnly: Bool, order: Int?) -> some View {
+    private func row(_ mod: Mod, enabled: Bool, order: Int?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             if let order {
                 Text(verbatim: String(order))
@@ -189,7 +183,7 @@ struct ModsView: View {
             }
             Button { setEnabled(mod, !enabled) } label: { m(enabled ? "switch off" : "switch on") }
                 .buttonStyle(TextActionStyle())
-                .disabled(readOnly || (!mod.isValid && !enabled))
+                .disabled(!mod.isValid && !enabled)
             Button { renaming = mod } label: { m("rename…") }
                 .buttonStyle(TextActionStyle())
             Button { NSWorkspace.shared.activateFileViewerSelecting([mod.url]) } label: { m("show in Finder") }
@@ -269,7 +263,8 @@ struct ModsView: View {
         Task { await add([url]) }
     }
 
-    /// Imports, then switches the new mods on in a custom profile (at the end: they load last).
+    /// Imports, then switches the new mods on in a custom profile (at the end: they load last); a
+    /// built-in one is not copied just for an import.
     private func add(_ urls: [URL]) async {
         let added = await library.add(urls)
         let profile = model.activeProfile
@@ -283,7 +278,6 @@ struct ModsView: View {
 
     private func setEnabled(_ mod: Mod, _ on: Bool) {
         var profile = model.activeProfile
-        guard !profile.builtin else { return }
         var names = profile.mods ?? []
         names.removeAll { $0 == mod.name }
         if on { names.append(mod.name) }
@@ -294,7 +288,6 @@ struct ModsView: View {
     /// Reorders the switched-on mods; names in the profile without a folder keep their places.
     private func move(_ from: IndexSet, _ to: Int, in enabled: [Mod]) {
         var profile = model.activeProfile
-        guard !profile.builtin else { return }
         var order = enabled.map(\.name)
         order.move(fromOffsets: from, toOffset: to)
         var next = order.makeIterator()

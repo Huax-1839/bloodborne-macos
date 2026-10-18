@@ -381,16 +381,6 @@
         }
       }
     },
-    "Built-in profiles stay as they are.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eingebaute Profile sind fest."
-          }
-        }
-      }
-    },
     "cancel": {
       "generatesSymbol": false,
       "localizations": {
@@ -418,6 +408,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Änderungen werden in diesem Profil gespeichert."
+          }
+        }
+      }
+    },
+    "%@ (customised)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (angepasst)"
+          }
+        }
+      }
+    },
+    "“%@” stays as it is: your change is in the new profile “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ bleibt, wie es ist: Deine Änderung steht im neuen Profil „%@“."
+          }
+        }
+      }
+    },
+    "A built-in profile: your first change makes a copy of your own, and “%@” stays as it is.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein mitgeliefertes Profil: Deine erste Änderung legt eine eigene Kopie an, „%@“ bleibt, wie es ist."
+          }
+        }
+      }
+    },
+    "Changes are saved in this profile, a copy of “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Änderungen werden in diesem Profil gespeichert, einer Kopie von „%@“."
+          }
+        }
+      }
+    },
+    "back to “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zurück zu „%@“"
           }
         }
       }
@@ -663,16 +703,6 @@
         }
       }
     },
-    "copy to change": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "zum Ändern kopieren"
-          }
-        }
-      }
-    },
     "crashed": {
       "localizations": {
         "de": {
@@ -871,16 +901,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dupliziere das Profil, um Variablen hinzuzufügen. Mitgelieferte Profile lassen sich nicht ändern."
-          }
-        }
-      }
-    },
-    "Duplicate to edit": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zum Bearbeiten duplizieren"
           }
         }
       }
@@ -2283,16 +2303,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Das lässt sich nicht rückgängig machen."
-          }
-        }
-      }
-    },
-    "This is a built-in profile and cannot be changed. Duplicate it to make your own.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dies ist ein mitgeliefertes Profil und lässt sich nicht ändern. Dupliziere es, um ein eigenes zu erstellen."
           }
         }
       }

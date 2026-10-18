@@ -22,7 +22,7 @@ public struct ProfileStore: Sendable {
 
     public func profile(_ id: String?) -> Profile? { all.first { $0.id == id } }
 
-    /// Saves a user profile (a built-in one cannot be changed: duplicate it).
+    /// Saves a user profile (a built-in one is never stored: save a `userCopy` of it).
     public mutating func save(_ profile: Profile) throws {
         precondition(!profile.builtin, "built-in profiles are not stored")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -34,12 +34,18 @@ public struct ProfileStore: Sendable {
 
     /// A user copy of any profile.
     public mutating func duplicate(_ profile: Profile, name: String) throws -> Profile {
-        var copy = profile
-        copy.id = UUID().uuidString.lowercased()
-        copy.name = name
-        copy.builtin = false
+        let copy = profile.userCopy(name: uniqueName(name))
         try save(copy)
         return copy
+    }
+
+    /// `name`, or "name 2", "name 3", … when a profile already has it.
+    public func uniqueName(_ name: String) -> String {
+        let taken = Set(all.map { $0.name.lowercased() })
+        guard taken.contains(name.lowercased()) else { return name }
+        var number = 2
+        while taken.contains("\(name) \(number)".lowercased()) { number += 1 }
+        return "\(name) \(number)"
     }
 
     public mutating func delete(_ id: String) throws {

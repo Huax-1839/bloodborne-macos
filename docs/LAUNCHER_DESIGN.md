@@ -54,7 +54,7 @@ as little text as possible.
 - Native title bar, transparent, traffic lights over the sidebar; the window drags by its
   background.
 - Sidebar (192 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
-  rule, then Profile, Mods, Patches, Spielstände with small counts in mono `text-muted`; at the
+  rule, then Profile, Mods, Patches, Spielstände with small counts in mono `text-secondary`; at the
   bottom Spielordner, Diagnose, Einstellungen. The current page in `text-primary` with ✦ in
   `brass` before it, the others `text-secondary`, brass on hover. Every page opens in the main
   area (no sheets).
@@ -147,5 +147,8 @@ artwork from the game other than the user's own `sce_sys/pic1.png` on the overvi
   raised to pass; empty rows, counts, slot numbers and the version use `text-secondary`, so
   `text-muted` is left for disabled controls and ornaments. Notes stay at 14: 15 was tried and is
   barely visible while it breaks the scale; larger text needs a window that can grow.
-- The Mods page no longer names the profile its mod set belongs to; the Controller section of
-  Advanced holds one line and could join Window.
+- Settings, Mods, Patches and the expert variables open with the active profile's name and
+  what a change does (`ProfileEditLine`): a built-in profile is copied on the first change
+  ("… (angepasst)", made active, a notice in the status bar), a copy of a preset offers "zurück
+  zu „…“". Nothing on those pages is disabled for a preset any more.
+- The Controller section of Advanced holds one line and could join Window.

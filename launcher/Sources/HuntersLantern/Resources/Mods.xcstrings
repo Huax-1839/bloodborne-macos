@@ -152,17 +152,6 @@
         }
       }
     },
-    "Duplicate to edit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zum Bearbeiten duplizieren"
-          }
-        }
-      }
-    },
     "Mods" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -370,17 +359,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Die Mod wird in allen Profilen ausgeschaltet. Du kannst sie aus dem Papierkorb zurückholen."
-          }
-        }
-      }
-    },
-    "This is a built-in profile and has no mods. Duplicate it to switch mods on." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das ist ein eingebautes Profil ohne Mods. Dupliziere es, um Mods einzuschalten."
           }
         }
       }

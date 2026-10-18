@@ -2,7 +2,8 @@
 import LanternCore
 import SwiftUI
 
-/// Graphics: the active profile's pre-launch settings. A built-in profile is read-only.
+/// Graphics: the active profile's pre-launch settings. Editing a built-in profile makes a user
+/// copy of it (AppModel.saveProfile).
 struct GraphicsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var customSize = false
@@ -14,13 +15,10 @@ struct GraphicsView: View {
         let profile = model.activeProfile
         PageContainer(title: "Settings") {
             ProfileEditLine(profile: profile)
-            Group {
-                performance
-                display
-                effects
-                saves
-            }
-            .disabled(profile.builtin)
+            performance
+            display
+            effects
+            saves
         }
         .onAppear(perform: syncSize)
         .onChange(of: model.state.activeProfile) { syncSize() }
@@ -103,14 +101,13 @@ struct GraphicsView: View {
 
     // MARK: Bindings
 
-    /// A binding to one field of the active profile; a change saves it (nothing for a built-in profile).
+    /// A binding to one field of the active profile; a change saves it.
     private func edit<T>(_ keyPath: WritableKeyPath<Profile, T>) -> Binding<T> {
         Binding(
             get: { model.activeProfile[keyPath: keyPath] },
             set: { value in
                 var profile = model.activeProfile
-                guard !profile.builtin else { return }
-                profile[keyPath: keyPath] = value
+                        profile[keyPath: keyPath] = value
                 model.saveProfile(profile)
             })
     }
@@ -120,8 +117,7 @@ struct GraphicsView: View {
             get: { model.activeProfile.isOn(effect) },
             set: { value in
                 var profile = model.activeProfile
-                guard !profile.builtin else { return }
-                profile.effects[effect] = value == effect.defaultOn ? nil : value
+                        profile.effects[effect] = value == effect.defaultOn ? nil : value
                 model.saveProfile(profile)
             })
     }
@@ -131,8 +127,7 @@ struct GraphicsView: View {
             get: { model.activeProfile.iniValues["upscaler"] ?? "" },
             set: { value in
                 var profile = model.activeProfile
-                guard !profile.builtin else { return }
-                profile.iniValues["upscaler"] = value.isEmpty ? nil : value
+                        profile.iniValues["upscaler"] = value.isEmpty ? nil : value
                 model.saveProfile(profile)
             })
     }
@@ -164,8 +159,7 @@ struct GraphicsView: View {
                 }
                 customSize = false
                 var profile = model.activeProfile
-                guard !profile.builtin else { return }
-                profile.renderResolution = value.isEmpty ? nil : value
+                        profile.renderResolution = value.isEmpty ? nil : value
                 model.saveProfile(profile)
             })
     }
@@ -180,7 +174,6 @@ struct GraphicsView: View {
         guard let size = Self.parseSize(customText) else { return }
         customText = size
         var profile = model.activeProfile
-        guard !profile.builtin else { return }
         profile.renderResolution = size
         model.saveProfile(profile)
     }
@@ -197,8 +190,9 @@ struct GraphicsView: View {
     }
 }
 
-/// The line at the top of a profile's settings: the profile's name and, for a built-in profile
-/// (read-only), the way to a copy that can be changed. (Belongs in the kit if other pages need it.)
+/// The line at the top of a profile's settings: the profile's name and what a change does. A
+/// built-in profile is copied on the first change; a copy of one offers the way back to it.
+/// (Belongs in the kit if other pages need it.)
 struct ProfileEditLine: View {
     @EnvironmentObject private var model: AppModel
     let profile: Profile
@@ -211,19 +205,24 @@ struct ProfileEditLine: View {
                     .font(Print.text(16))
                     .foregroundStyle(Print.textPrimary)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                if profile.builtin {
-                    Text("Built-in profiles stay as they are.")
+            if profile.builtin {
+                PrintNote(Text("A built-in profile: your first change makes a copy of your own, and “\(profile.name)” stays as it is."))
+            } else if let preset {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    Text("Changes are saved in this profile, a copy of “\(preset.name)”.")
                         .font(Print.text(14))
                         .foregroundStyle(Print.textSecondary)
-                    Button { model.duplicateProfile(profile) } label: { Text("copy to change") }
+                    Button { model.returnToPreset(of: profile) } label: { Text("back to “\(preset.name)”") }
                         .buttonStyle(TextActionStyle())
-                } else {
-                    Text("Changes are saved in this profile.")
-                        .font(Print.text(14))
-                        .foregroundStyle(Print.textSecondary)
                 }
+            } else {
+                PrintNote(Text("Changes are saved in this profile."))
             }
         }
+    }
+
+    /// The built-in preset this profile was copied from, when it still exists.
+    private var preset: Profile? {
+        profile.basedOn.flatMap { model.profiles.profile($0) }.flatMap { $0.builtin ? $0 : nil }
     }
 }

@@ -83,34 +83,30 @@ private struct ExpertVariablesSection: View {
         let profile = model.activeProfile
         PrintSection(Text("Expert variables (profile “\(profile.name)”)")) {
             PrintNote(Text("Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting."))
-            if profile.builtin {
-                ProfileEditLine(profile: profile, showsName: false)
-            }
+            ProfileEditLine(profile: profile, showsName: false)
             if !profile.environment.isEmpty {
                 PrintRows {
                     ForEach(profile.environment.keys.sorted(), id: \.self) { name in
-                        VariableRow(name: name, value: profile.environment[name] ?? "", editable: !profile.builtin) { value in
+                        VariableRow(name: name, value: profile.environment[name] ?? "") { value in
                             set(name, value)
                         }
                     }
                 }
             }
-            if !profile.builtin {
-                HStack(spacing: 16) {
-                    TextField("Name", text: $newName, prompt: Text(verbatim: "BB_…"))
-                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
-                        .frame(width: 200)
-                    TextField("Value", text: $newValue)
-                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
-                    Button("Add", action: add)
-                        .buttonStyle(FrameActionStyle())
-                        .disabled(!validName)
-                }
-                .padding(.top, 8)
-                if !newName.isEmpty && !validName {
-                    PrintNote(Text("Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores."),
-                              color: Print.danger)
-                }
+            HStack(spacing: 16) {
+                TextField("Name", text: $newName, prompt: Text(verbatim: "BB_…"))
+                    .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                    .frame(width: 200)
+                TextField("Value", text: $newValue)
+                    .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                Button("Add", action: add)
+                    .buttonStyle(FrameActionStyle())
+                    .disabled(!validName)
+            }
+            .padding(.top, 8)
+            if !newName.isEmpty && !validName {
+                PrintNote(Text("Names start with BB_, MVK_ or ROSETTA_ and use capital letters, digits and underscores."),
+                          color: Print.danger)
             }
         }
     }
@@ -127,7 +123,6 @@ private struct ExpertVariablesSection: View {
     /// nil removes the variable.
     private func set(_ name: String, _ value: String?) {
         var profile = model.activeProfile
-        guard !profile.builtin else { return }
         profile.environment[name] = value
         model.saveProfile(profile)
     }
@@ -138,7 +133,6 @@ private struct ExpertVariablesSection: View {
 private struct VariableRow: View {
     let name: String
     let value: String
-    let editable: Bool
     let onChange: (String?) -> Void
     @State private var text = ""
     @FocusState private var focused: Bool
@@ -149,20 +143,14 @@ private struct VariableRow: View {
                 .font(Print.mono())
                 .foregroundStyle(Print.textPrimary)
         } value: {
-            if editable {
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    TextField("Value", text: $text)
-                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
-                        .frame(width: 240)
-                        .focused($focused)
-                        .onSubmit { onChange(text) }
-                    Button { onChange(nil) } label: { Text("remove") }
-                        .buttonStyle(TextActionStyle())
-                }
-            } else {
-                Text(verbatim: value)
-                    .font(Print.mono())
-                    .foregroundStyle(Print.textSecondary)
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                TextField("Value", text: $text)
+                    .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                    .frame(width: 240)
+                    .focused($focused)
+                    .onSubmit { onChange(text) }
+                Button { onChange(nil) } label: { Text("remove") }
+                    .buttonStyle(TextActionStyle())
             }
         }
         .printRow()

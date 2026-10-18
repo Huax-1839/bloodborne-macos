@@ -217,12 +217,32 @@ final class AppModel: ObservableObject {
 
     // MARK: Profiles
 
+    /// Saves an edited profile. An edited built-in preset becomes a user copy, which is made the
+    /// active profile; the preset itself never changes.
     func saveProfile(_ profile: Profile) {
+        guard profile.builtin else {
+            do {
+                try profiles.save(profile)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            return
+        }
+        let copy = profile.userCopy(name: profiles.uniqueName(String(localized: "\(profile.name) (customised)")))
         do {
-            try profiles.save(profile)
+            try profiles.save(copy)
         } catch {
             errorMessage = error.localizedDescription
+            return
         }
+        state.activeProfile = copy.id
+        notice = String(localized: "“\(profile.name)” stays as it is: your change is in the new profile “\(copy.name)”.")
+    }
+
+    /// Makes the preset a user copy was made from the active profile again (the copy stays).
+    func returnToPreset(of profile: Profile) {
+        guard let preset = profile.basedOn.flatMap({ profiles.profile($0) }), preset.builtin else { return }
+        state.activeProfile = preset.id
     }
 
     func duplicateProfile(_ profile: Profile) {
@@ -366,9 +386,7 @@ final class AppModel: ObservableObject {
     private func takeIntoProfile(_ keys: [String: String], profile: Profile) {
         var target = profile
         if target.builtin {
-            target.id = UUID().uuidString.lowercased()
-            target.name = String(localized: "\(profile.name) (changed in game)")
-            target.builtin = false
+            target = profile.userCopy(name: profiles.uniqueName(String(localized: "\(profile.name) (changed in game)")))
             target.unmeasured = false
         }
         for (key, value) in keys {

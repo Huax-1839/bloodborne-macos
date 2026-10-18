@@ -17,12 +17,11 @@ struct PatchesView: View {
         let profile = model.activeProfile
         let store = page.store
         PageContainer(title: "Patches") {
-            header(profile)
-            Group {
-                frameRate(store, profile)
-                extras(store, profile)
+            PrintSection(Text(verbatim: profile.name)) {
+                ProfileEditLine(profile: profile, showsName: false)
             }
-            .disabled(profile.builtin)
+            frameRate(store, profile)
+            extras(store, profile)
             external(store, profile)
             managed(store, profile)
         }
@@ -31,21 +30,6 @@ struct PatchesView: View {
     }
 
     // MARK: Sections
-
-    @ViewBuilder
-    private func header(_ profile: Profile) -> some View {
-        if profile.builtin {
-            PrintSection(Text(verbatim: profile.name)) {
-                PrintNote(p("This is a built-in profile and cannot be changed. Duplicate it to make your own."))
-                Button { model.duplicateProfile(profile) } label: { p("Duplicate to edit") }
-                    .buttonStyle(FrameActionStyle())
-            }
-        } else {
-            PrintSection(Text(verbatim: profile.name)) {
-                PrintNote(p("Your choices are saved in this profile."))
-            }
-        }
-    }
 
     @ViewBuilder
     private func frameRate(_ store: PatchStore, _ profile: Profile) -> some View {
@@ -161,7 +145,6 @@ struct PatchesView: View {
                     ForEach(file.patches) { patch in
                         toggle(patch, profile)
                             .printRow()
-                            .disabled(profile.builtin)
                     }
                 }
             } trailing: {
@@ -241,9 +224,7 @@ struct PatchesView: View {
         Binding(
             get: { PatchStore.isOn(patch, in: model.activeProfile) },
             set: { on in
-                let profile = model.activeProfile
-                guard !profile.builtin else { return }
-                model.saveProfile(PatchStore.setting(patch, on: on, in: profile))
+                model.saveProfile(PatchStore.setting(patch, on: on, in: model.activeProfile))
             })
     }
 

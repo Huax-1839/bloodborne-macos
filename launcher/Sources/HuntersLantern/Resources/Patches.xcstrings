@@ -45,17 +45,6 @@
         }
       }
     },
-    "Duplicate to edit": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zum Bearbeiten duplizieren"
-          }
-        }
-      }
-    },
     "External patches": {
       "extractionState": "manual",
       "localizations": {
@@ -250,28 +239,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diese Datei gehört zu einem anderen Spiel und wird übersprungen."
-          }
-        }
-      }
-    },
-    "This is a built-in profile and cannot be changed. Duplicate it to make your own.": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Das ist ein eingebautes Profil und lässt sich nicht ändern. Dupliziere es, um ein eigenes zu erstellen."
-          }
-        }
-      }
-    },
-    "Your choices are saved in this profile.": {
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Auswahl wird in diesem Profil gespeichert."
           }
         }
       }
