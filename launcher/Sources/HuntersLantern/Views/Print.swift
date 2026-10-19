@@ -191,12 +191,16 @@ extension EnvironmentValues {
 /// The main action: an accent rectangle, full width, 72 high, Cormorant 28. On hover it flickers
 /// like a gas lamp (irregular brightness, at most ±4 %), not with Reduce Motion.
 struct MainActionStyle: ButtonStyle {
+    /// The game runs: the disabled button shows that state legibly.
+    var busy = false
+
     func makeBody(configuration: Configuration) -> some View {
-        Styled(configuration: configuration)
+        Styled(configuration: configuration, busy: busy)
     }
 
     private struct Styled: View {
         let configuration: ButtonStyleConfiguration
+        let busy: Bool
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var hovering = false
@@ -206,10 +210,12 @@ struct MainActionStyle: ButtonStyle {
             TimelineView(.animation(paused: !flicker)) { timeline in
                 configuration.label
                     .font(Print.display(28))
-                    .foregroundStyle(enabled ? Print.textPrimary : Print.textMuted)
+                    // Disabled while the game runs is a state to read ("Die Jagd läuft …"), not a
+                    // dead control: secondary text then, muted only when nothing can start.
+                    .foregroundStyle(enabled ? Print.textPrimary : busy ? Print.textSecondary : Print.textMuted)
                     .frame(maxWidth: .infinity, minHeight: 72, maxHeight: 72)
                     .background(fill.brightness(flicker ? Self.gaslight(timeline.date) : 0))
-                    .overlay(Rectangle().strokeBorder(enabled ? Color.clear : Print.line, lineWidth: 1))
+                    .overlay(Rectangle().strokeBorder(enabled ? Color.clear : busy ? Print.brass.opacity(0.6) : Print.line, lineWidth: 1))
             }
             .contentShape(Rectangle())
             .onHover { hovering = $0 }

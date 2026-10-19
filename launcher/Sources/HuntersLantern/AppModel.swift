@@ -66,6 +66,7 @@ final class AppModel: ObservableObject {
         Print.scale = Print.scale(forSize: state.textSize)
         self.state = state
         instanceLock = dirs.acquireInstanceLock()
+        renameLegacyCopies()
         setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
         try? dirs.create()
         // Another launcher on this data folder may be importing: its scratch folders stay.
@@ -80,6 +81,12 @@ final class AppModel: ObservableObject {
 
     var activeGame: Game? { library.game(state.activeGame) ?? library.games.first }
     var activeProfile: Profile { profiles.profile(state.activeProfile) ?? .air }
+    /// A start is possible: a game, a runtime, nothing running (the main button and ⌘R).
+    var canPlay: Bool {
+        guard !isBusy, activeGame != nil, case .success = runtime else { return false }
+        return true
+    }
+
     /// The game runs (or is being prepared): the launcher's settings are read-only (D7).
     var isBusy: Bool { phase != nil }
 
@@ -249,6 +256,18 @@ final class AppModel: ObservableObject {
             try profiles.save(profile)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Copies an earlier version made on a preset's first edit were named "… (angepasst)"; now that
+    /// word means an adjusted preset, so they become "… (Kopie)" (once, on start).
+    private func renameLegacyCopies() {
+        for var profile in profiles.custom where profile.basedOn != nil {
+            for suffix in [" (angepasst)", " (customised)"] where profile.name.hasSuffix(suffix) {
+                let base = String(profile.name.dropLast(suffix.count))
+                profile.name = profiles.uniqueName(String(localized: "\(base) (copy)"))
+                try? profiles.save(profile)
+            }
         }
     }
 

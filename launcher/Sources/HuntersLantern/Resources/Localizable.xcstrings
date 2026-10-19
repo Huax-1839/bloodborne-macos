@@ -3036,16 +3036,6 @@
         }
       }
     },
-    "All profiles": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alle Profile"
-          }
-        }
-      }
-    },
     "The hunt ended in a crash": {
       "localizations": {
         "de": {
@@ -3386,26 +3376,6 @@
         }
       }
     },
-    "Try again with Vulkan": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mit Vulkan erneut versuchen"
-          }
-        }
-      }
-    },
-    "The game crashed.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Das Spiel ist abgestürzt."
-          }
-        }
-      }
-    },
     "Last hunt crashed": {
       "localizations": {
         "de": {
@@ -3482,6 +3452,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anzeige"
+          }
+        }
+      }
+    },
+    "Progress": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortschritt"
+          }
+        }
+      }
+    },
+    "Switch to Vulkan and start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Vulkan umstellen und starten"
+          }
+        }
+      }
+    },
+    "The profile's renderer becomes Vulkan; the Graphics page sets it back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Renderer des Profils wird Vulkan; die Seite „Grafik“ stellt ihn zurück."
+          }
+        }
+      }
+    },
+    "“%@” now uses Vulkan. The Graphics page sets the renderer back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ verwendet jetzt Vulkan. Die Seite „Grafik“ stellt den Renderer zurück."
+          }
+        }
+      }
+    },
+    "Copy a report": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bericht kopieren"
           }
         }
       }

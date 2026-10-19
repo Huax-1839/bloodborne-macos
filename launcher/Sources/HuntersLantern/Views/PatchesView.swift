@@ -113,7 +113,7 @@ struct PatchesView: View {
                 model.page = target
             } label: {
                 if target == .advanced {
-                    p("Set on the Advanced page")
+                    p("Set on the Settings page")
                 } else {
                     p("Set on the Graphics page")
                 }

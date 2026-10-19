@@ -113,8 +113,12 @@ public struct ProfileStore: Sendable {
         self.adjustments = adjustments
     }
 
+    /// The profile as JSON for comparing: effects only where they differ from the game's default,
+    /// so a stored "on" and an unstored default compare equal (no adjustment that changes nothing).
     private static func object(_ profile: Profile) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: JSONEncoder.lantern.encode(profile)) as? [String: Any] ?? [:]
+        var normal = profile
+        normal.effects = profile.effects.filter { $0.value != $0.key.defaultOn }
+        return try JSONSerialization.jsonObject(with: JSONEncoder.lantern.encode(normal)) as? [String: Any] ?? [:]
     }
 
     private func presetFile(_ id: String) -> URL { dir.appendingPathComponent("presets", isDirectory: true).appendingPathComponent(id + ".json") }

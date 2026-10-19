@@ -79,6 +79,13 @@ public struct Profile: Codable, Identifiable, Equatable, Sendable {
 
     public func isOn(_ effect: Effect) -> Bool { effects[effect] ?? effect.defaultOn }
 
+    /// An effect's state as a key path (`\.[effectOn: effect]`): reading gives the effective
+    /// state, writing stores only a state that differs from the game's default.
+    public subscript(effectOn effect: Effect) -> Bool {
+        get { isOn(effect) }
+        set { effects[effect] = newValue == effect.defaultOn ? nil : newValue }
+    }
+
     /// The bbport.ini keys this profile writes before a launch (D7).
     public var iniKeys: [(String, String)] {
         var keys = Effect.allCases.map { ($0.rawValue, isOn($0) ? "1" : "0") }

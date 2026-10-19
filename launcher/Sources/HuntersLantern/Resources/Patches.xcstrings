@@ -155,13 +155,13 @@
         }
       }
     },
-    "Set on the Advanced page": {
+    "Set on the Settings page": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auf der Seite „Erweitert“ einstellen"
+            "value": "Auf der Seite „Einstellungen“ einstellen"
           }
         }
       }

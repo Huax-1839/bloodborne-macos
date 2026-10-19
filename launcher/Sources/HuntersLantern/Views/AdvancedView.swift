@@ -156,7 +156,7 @@ private struct VariableRow: View {
         } value: {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
                 TextField("Value", text: $text)
-                    .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                    .textFieldStyle(PrintFieldStyle(font: Print.mono(), focused: focused))
                     .frame(width: 240)
                     .focused($focused)
                     .onSubmit { onChange(text) }

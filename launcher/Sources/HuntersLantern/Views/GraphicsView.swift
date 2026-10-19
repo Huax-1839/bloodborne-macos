@@ -2,8 +2,8 @@
 import LanternCore
 import SwiftUI
 
-/// Graphics: the active profile's pre-launch settings. Editing a built-in profile makes a user
-/// copy of it (AppModel.saveProfile).
+/// Graphics: the active profile's pre-launch settings and expert variables. A preset keeps edits as
+/// its adjustment; changed lines say what the preset had ("war 30 FPS") and can be reset one by one.
 struct GraphicsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var customSize = false
@@ -73,7 +73,7 @@ struct GraphicsView: View {
             if showsCustom {
                 RegisterLine(Text("Custom size")) {
                     TextField("Width×Height", text: $customText)
-                        .textFieldStyle(PrintFieldStyle(font: Print.mono()))
+                        .textFieldStyle(PrintFieldStyle(font: Print.mono(), focused: customFocused))
                         .multilineTextAlignment(.trailing)
                         .frame(width: 160)
                         .focused($customFocused)
@@ -101,9 +101,9 @@ struct GraphicsView: View {
         PrintSection(Text("Effects")) {
             ForEach(Effect.allCases, id: \.self) { effect in
                 Toggle(isOn: effectBinding(effect)) {
-                    adjusted(Text(effect.label), \.effectStates[effect], { ValueNames.onOff($0 ?? effect.defaultOn) })
+                    adjusted(Text(effect.label), \.[effectOn: effect], ValueNames.onOff)
                 }
-                .resettable(\.effectStates[effect], { ValueNames.onOff($0 ?? effect.defaultOn) }, in: self)
+                .resettable(\.[effectOn: effect], ValueNames.onOff, in: self)
             }
         }
     }
@@ -147,22 +147,14 @@ struct GraphicsView: View {
             })
     }
 
-    private func effectBinding(_ effect: Effect) -> Binding<Bool> {
-        Binding(
-            get: { model.activeProfile.isOn(effect) },
-            set: { value in
-                var profile = model.activeProfile
-                        profile.effects[effect] = value == effect.defaultOn ? nil : value
-                model.saveProfile(profile)
-            })
-    }
+    private func effectBinding(_ effect: Effect) -> Binding<Bool> { edit(\.[effectOn: effect]) }
 
     private var upscaler: Binding<String> {
         Binding(
             get: { model.activeProfile.iniValues["upscaler"] ?? "" },
             set: { value in
                 var profile = model.activeProfile
-                        profile.iniValues["upscaler"] = value.isEmpty ? nil : value
+                profile.iniValues["upscaler"] = value.isEmpty ? nil : value
                 model.saveProfile(profile)
             })
     }
@@ -194,7 +186,7 @@ struct GraphicsView: View {
                 }
                 customSize = false
                 var profile = model.activeProfile
-                        profile.renderResolution = value.isEmpty ? nil : value
+                profile.renderResolution = value.isEmpty ? nil : value
                 model.saveProfile(profile)
             })
     }

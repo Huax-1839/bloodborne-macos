@@ -74,12 +74,6 @@ extension Profile {
         set { iniValues["upscaler"] = newValue }
     }
 
-    /// An effect's stored state (nil: the game's default), as a key path for adjusted lines.
-    var effectStates: [Effect: Bool] {
-        get { effects }
-        set { effects = newValue }
-    }
-
     /// "960×540", or "Automatic" when the upscaler preset decides.
     var sceneSizeText: Text {
         guard let size = renderResolution else { return Text("Automatic") }

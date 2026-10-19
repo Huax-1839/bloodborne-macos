@@ -95,6 +95,24 @@ final class ProfileTests: XCTestCase {
         XCTAssertFalse(store.isAdjusted(Profile.air.id))
     }
 
+    /// An effect switched off and on again is no adjustment, though the preset stores it and the
+    /// edit leaves it to the default.
+    func testEffectBackToDefaultIsNoAdjustment() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var store = ProfileStore(dir: dir)
+        XCTAssertEqual(Profile.air.effects[.ambientOcclusion], true)
+        var edited = Profile.air
+        edited[effectOn: .ambientOcclusion] = false
+        try store.save(edited)
+        XCTAssertTrue(store.isAdjusted(Profile.air.id))
+        edited[effectOn: .ambientOcclusion] = true
+        XCTAssertNil(edited.effects[.ambientOcclusion])
+        try store.save(edited)
+        XCTAssertFalse(store.isAdjusted(Profile.air.id))
+        XCTAssertTrue(try XCTUnwrap(store.profile(Profile.air.id)).isOn(.ambientOcclusion))
+    }
+
     /// An adjustment that cannot be read is kept aside; the shipped preset stands meanwhile.
     func testUnreadablePresetAdjustment() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

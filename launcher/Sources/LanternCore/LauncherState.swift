@@ -38,7 +38,7 @@ public struct LauncherState: Codable, Equatable, Sendable {
         firstRunDone = c.decode(.firstRunDone, or: false)
         pkgToolPath = c.decodeLenient(.pkgToolPath)
         // An earlier version wrote largeText: true for "larger".
-        textSize = c.decode(.textSize, or: c.decode(.largeText, or: false) ? 1 : 0)
+        textSize = min(max(c.decode(.textSize, or: c.decode(.largeText, or: false) ? 1 : 0), 0), 2)
     }
 
     /// The saved state, else the defaults; a file that cannot be read is kept aside

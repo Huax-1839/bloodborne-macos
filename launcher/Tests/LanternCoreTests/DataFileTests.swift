@@ -100,4 +100,21 @@ final class DataFileTests: XCTestCase {
         XCTAssertEqual(try files().filter { $0.hasPrefix("games.json.unreadable-") }.count, 2)
         XCTAssertFalse(try files().contains("games.json"))
     }
+
+    /// The text size: an earlier file's largeText becomes "larger"; a value out of range is clamped;
+    /// only textSize is written back.
+    func testTextSizeMigration() throws {
+        func load(_ json: String) throws -> LauncherState {
+            try JSONDecoder().decode(LauncherState.self, from: Data(json.utf8))
+        }
+        XCTAssertEqual(try load(#"{"largeText": true}"#).textSize, 1)
+        XCTAssertEqual(try load(#"{"largeText": false}"#).textSize, 0)
+        XCTAssertEqual(try load(#"{"textSize": 2, "largeText": true}"#).textSize, 2)
+        XCTAssertEqual(try load(#"{"textSize": 9}"#).textSize, 2)
+        var state = LauncherState()
+        state.textSize = 1
+        let written = String(decoding: try JSONEncoder().encode(state), as: UTF8.self)
+        XCTAssertTrue(written.contains("textSize"))
+        XCTAssertFalse(written.contains("largeText"))
+    }
 }

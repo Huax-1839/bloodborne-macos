@@ -331,31 +331,23 @@ struct PrintMenu<Value: Hashable>: View {
 /// given, mono for paths and variables).
 struct PrintFieldStyle: TextFieldStyle {
     var font: Font = Print.text(16)
+    /// The caller's focus, when it tracks it: the edge turns brass (the plain field draws no
+    /// focus). Taken from the caller, so the field never has two focus bindings.
+    var focused = false
 
     func _body(configuration: TextField<Self._Label>) -> some View {
-        Field(field: configuration, font: font)
-    }
-
-    /// The field's edge turns brass while it has the keyboard focus (the plain field draws none).
-    private struct Field: View {
-        let field: TextField<PrintFieldStyle._Label>
-        let font: Font
-        @FocusState private var focused: Bool
-
-        var body: some View {
-            field
-                .textFieldStyle(.plain)
-                .focused($focused)
-                .font(font)
-                .foregroundStyle(Print.textPrimary)
-                .padding(.horizontal, 8)
-                .frame(minHeight: 32)
-                .background(Print.bgBase, in: RoundedRectangle(cornerRadius: 2))
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1).padding(.horizontal, 1).padding(.top, 1)
-                }
-                .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(focused ? Print.brass : Print.lineInput, lineWidth: 1))
-        }
+        configuration
+            .textFieldStyle(.plain)
+            .font(font)
+            .foregroundStyle(Print.textPrimary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4 * Print.scale)
+            .frame(minHeight: 32 * Print.scale)
+            .background(Print.bgBase, in: RoundedRectangle(cornerRadius: 2))
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1).padding(.horizontal, 1).padding(.top, 1)
+            }
+            .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(focused ? Print.brass : Print.lineInput, lineWidth: 1))
     }
 }
 
@@ -427,6 +419,7 @@ struct PrintProgress: View {
         .frame(height: 1)
         .clipped()
         .accessibilityElement()
+        .accessibilityLabel(Text("Progress"))
         .accessibilityValue(fraction.map { Text("\(Int($0 * 100)) %") } ?? Text("…"))
     }
 }

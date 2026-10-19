@@ -13,6 +13,22 @@ struct HomeView: View {
     @State private var power = PowerConditions.current()
 
     var body: some View {
+        // The overview fits the window; when it cannot (smallest window, large text, the outcome
+        // card), it scrolls rather than pushing the status bar out.
+        ViewThatFits(in: .vertical) {
+            overview
+            ScrollView { overview }
+        }
+        .task {
+            // Battery, Low Power Mode and heat change while the launcher is open.
+            while !Task.isCancelled {
+                power = PowerConditions.current()
+                try? await Task.sleep(for: .seconds(20))
+            }
+        }
+    }
+
+    private var overview: some View {
         VStack(alignment: .leading, spacing: 0) {
             plate
             VStack(alignment: .leading, spacing: 0) {
@@ -36,13 +52,6 @@ struct HomeView: View {
             // A large window gets margins, not a band stretched across it.
             .frame(maxWidth: Print.column + 2 * Print.inset)
             .frame(maxWidth: .infinity)
-        }
-        .task {
-            // Battery, Low Power Mode and heat change while the launcher is open.
-            while !Task.isCancelled {
-                power = PowerConditions.current()
-                try? await Task.sleep(for: .seconds(20))
-            }
         }
     }
 
@@ -92,7 +101,7 @@ struct HomeView: View {
                         .disabled(!canPlay)
                 }
             }
-            .buttonStyle(MainActionStyle())
+            .buttonStyle(MainActionStyle(busy: model.isBusy))
             .frame(width: 240)
             .keyboardShortcut(.defaultAction)
         }
@@ -134,10 +143,7 @@ struct HomeView: View {
         .help(Text("Profile"))
     }
 
-    private var canPlay: Bool {
-        guard model.activeGame != nil, !model.isBusy, case .success = model.runtime else { return false }
-        return true
-    }
+    private var canPlay: Bool { model.canPlay }
 
     @ViewBuilder
     private var mainLabel: some View {
@@ -287,27 +293,48 @@ private struct OutcomeCard: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
-                // The thing to try, as an action: the profile's renderer becomes Vulkan, then it starts.
-                if canTryVulkan {
-                    Button { tryVulkan() } label: { Text("Try again with Vulkan") }
-                        .buttonStyle(FrameActionStyle())
+            // One row when it fits; else the framed actions first and the text actions under them
+            // (smallest window, large text), never a cut label.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    frameActions
+                    textActions
                 }
-                Button { copyReport() } label: { Text(copied ? "Copied" : "Copy for a bug report") }
-                    .buttonStyle(FrameActionStyle())
-                Group {
-                    if let log = result.log {
-                        Button("log") { NSWorkspace.shared.open(log) }
-                    }
-                    Button("diagnostics") { model.page = .diagnostics }
-                    Spacer(minLength: 0)
-                    Button("close") { model.lastResult = nil }
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: 16) { frameActions }
+                    HStack(alignment: .firstTextBaseline, spacing: 16) { textActions }
                 }
-                .buttonStyle(TextActionStyle())
             }
             .padding(.top, 4)
         }
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder private var frameActions: some View {
+        // The thing to try, as an action: the profile's renderer becomes Vulkan, then it starts.
+        if canTryVulkan {
+            Button { tryVulkan() } label: { Text("Switch to Vulkan and start") }
+                .buttonStyle(FrameActionStyle())
+                .help(Text("The profile's renderer becomes Vulkan; the Graphics page sets it back."))
+                .fixedSize()
+        }
+        Button { copyReport() } label: { Text(copied ? "Copied" : "Copy a report") }
+            .buttonStyle(FrameActionStyle())
+            .help(Text("Copy for a bug report"))
+            .fixedSize()
+    }
+
+    @ViewBuilder private var textActions: some View {
+        Group {
+            if let log = result.log {
+                Button("log") { NSWorkspace.shared.open(log) }
+            }
+            Button("diagnostics") { model.page = .diagnostics }
+            Spacer(minLength: 0)
+            Button("close") { model.lastResult = nil }
+        }
+        .buttonStyle(TextActionStyle())
+        .fixedSize()
     }
 
     private var canTryVulkan: Bool {
@@ -318,15 +345,14 @@ private struct OutcomeCard: View {
         var profile = model.activeProfile
         profile.renderer = .vulkan
         model.saveProfile(profile)
+        model.notice = String(localized: "“\(profile.name)” now uses Vulkan. The Graphics page sets the renderer back.")
         model.lastResult = nil
         model.play()
     }
 
     /// Plain words first; the signal is in the log lines and the report.
     private var summary: Text {
-        let what: Text = if case .crashed = result.outcome { Text("The game crashed.") } else {
-            HomeView.failure(result.outcome) ?? Text(verbatim: "")
-        }
+        let what: Text? = if case .crashed = result.outcome { nil } else { HomeView.failure(result.outcome) }
         let when = minutes.map { $0 < 1 ? Text("It ran for less than a minute.") : Text("It ran for \($0) min.") }
         let safe = Text("Your saves were backed up before the start.")
         return [what, when, safe].compactMap { $0 }.reduce(Text(verbatim: "")) { $0 + $1 + Text(verbatim: " ") }
@@ -356,9 +382,11 @@ private struct Line<Actions: View>: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            // An error needs its whole text: it wraps, up to three lines.
             text
                 .foregroundStyle(color)
-                .lineLimit(1)
+                .lineLimit(color == Print.danger ? 3 : 1)
+                .fixedSize(horizontal: false, vertical: color == Print.danger)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
             actions

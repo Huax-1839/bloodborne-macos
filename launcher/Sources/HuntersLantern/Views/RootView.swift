@@ -112,7 +112,8 @@ private struct Sidebar: View {
             row(.game) { Text("Game folder") }
             Section {
                 row(.profiles) { Text(verbatim: model.activeProfile.name) }
-                    .help(Text("All profiles"))
+                    .help(Text("Profile: \(model.activeProfile.name)"))
+                    .accessibilityLabel(Text("Profile: \(model.activeProfile.name)"))
                 row(.graphics) { Text("Graphics") }
                 row(.mods, count: facts.modsTotal > 0 ? "\(model.activeProfile.mods?.count ?? 0)/\(facts.modsTotal)" : nil) {
                     Text("Mods")
@@ -151,7 +152,7 @@ private struct Sidebar: View {
     private func header(_ title: Text) -> some View {
         title
             .font(Print.smallCaps(12))
-            .tracking(12 * 0.1 * Print.scale)
+            .tracking(12 * 0.12 * Print.scale)
             .foregroundStyle(Print.textSecondary)
             .padding(.leading, 24)
             .padding(.top, 16)
@@ -350,19 +351,20 @@ struct GoCommands: Commands {
         CommandMenu("Go") {
             Button("Overview") { model.page = .home }.keyboardShortcut("0")
             Divider()
-            Button("Profiles") { model.page = .profiles }.keyboardShortcut("1")
-            Button("Graphics") { model.page = .graphics }.keyboardShortcut("2")
-            Button("Mods") { model.page = .mods }.keyboardShortcut("3")
-            Button("Patches") { model.page = .patches }.keyboardShortcut("4")
+            Button("Game folder") { model.page = .game }.keyboardShortcut("1")
             Divider()
-            Button("Game folder") { model.page = .game }.keyboardShortcut("5")
+            Button("Profiles") { model.page = .profiles }.keyboardShortcut("2")
+            Button("Graphics") { model.page = .graphics }.keyboardShortcut("3")
+            Button("Mods") { model.page = .mods }.keyboardShortcut("4")
+            Button("Patches") { model.page = .patches }.keyboardShortcut("5")
+            Divider()
             Button("Saves") { model.page = .saves }.keyboardShortcut("6")
             Button("Settings") { model.page = .advanced }.keyboardShortcut("7")
             Button("Diagnostics") { model.page = .diagnostics }.keyboardShortcut("8")
             Divider()
             Button("Begin the Hunt") { model.play() }
                 .keyboardShortcut("r")
-                .disabled(model.isBusy || model.activeGame == nil)
+                .disabled(!model.canPlay)
         }
     }
 }

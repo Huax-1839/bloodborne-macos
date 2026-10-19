@@ -121,9 +121,18 @@ as little text as possible.
   brass and its context menu resets just that line; the overview says "angepasst" next to the
   profile; the Profiles page tags it "Angepasst" and drops "Empfohlen". Profile rows show "use"
   and "mehr ▾" (duplicate, reset, rename, export, delete; also the context menu).
-- The outcome card leads with "Das Spiel ist abgestürzt." and offers "Mit Vulkan erneut
-  versuchen" (sets the renderer, starts); the status bar says "Letzte Jagd abgestürzt". Without a
-  game the status dot is neutral. Text fields edge in brass while focused. The tags
+- The outcome card's heading says the crash; its text says the saves are safe, then the last
+  log lines; actions "Auf Vulkan umstellen und starten" (changes the profile's renderer and says
+  so in the status bar) and "Bericht kopieren", then Diagnose and schließen (a second row when
+  the window is narrow). The status bar says "Letzte Jagd abgestürzt". The overview scrolls when
+  it cannot fit (smallest window, large text, the card). While the game runs, the main button
+  reads "Die Jagd läuft …" in secondary text with a brass edge. Errors on the overview wrap to
+  three lines. Without a game the status dot is neutral. Text fields whose caller tracks focus
+  edge in brass. Go menu in sidebar order: ⌘0 overview, ⌘1 Spielordner, ⌘2–⌘5 Profile, Grafik,
+  Mods, Patches, ⌘6–⌘8 Spielstände, Einstellungen, Diagnose; ⌘R only when a start is possible.
+- Effects are compared by their effective state (stored "on" equals the default), so switching
+  one off and on again leaves no adjustment. Copies from the copy-on-edit builds named
+  "… (angepasst)" are renamed "… (Kopie)" once. The tags
   "Mitgeliefert" and "Nicht gemessen" are secondary, so a caution never looks like "Empfohlen".
 - Focus: 1 px `brass` outline, visible for keyboard use only.
 
