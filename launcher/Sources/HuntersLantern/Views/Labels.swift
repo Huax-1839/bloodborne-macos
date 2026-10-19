@@ -68,6 +68,18 @@ enum UpscalerOption {
 }
 
 extension Profile {
+    /// The upscaler at start (iniValues["upscaler"]), as a key path for adjusted lines.
+    var upscalerValue: String? {
+        get { iniValues["upscaler"] }
+        set { iniValues["upscaler"] = newValue }
+    }
+
+    /// An effect's stored state (nil: the game's default), as a key path for adjusted lines.
+    var effectStates: [Effect: Bool] {
+        get { effects }
+        set { effects = newValue }
+    }
+
     /// "960×540", or "Automatic" when the upscaler preset decides.
     var sceneSizeText: Text {
         guard let size = renderResolution else { return Text("Automatic") }
@@ -116,3 +128,97 @@ enum AdjustmentLabels {
         }
     }
 }
+
+/// The same names as strings, for sentences that list values ("Bildrate 60 → 30").
+enum ValueNames {
+    static func frameRate(_ rate: FrameRate) -> String {
+        switch rate {
+        case .fps30: String(localized: "30 FPS")
+        case .fps60: String(localized: "60 FPS")
+        case .fps90: String(localized: "90 FPS")
+        case .uncapped: String(localized: "Uncapped")
+        }
+    }
+
+    static func renderer(_ choice: RendererChoice) -> String {
+        switch choice {
+        case .automatic: String(localized: "Automatic")
+        case .metal: String(localized: "Metal")
+        case .vulkan: String(localized: "Vulkan (MoltenVK)")
+        }
+    }
+
+    static func sceneSize(_ size: String?) -> String {
+        size.map { $0.replacingOccurrences(of: "x", with: "×") } ?? String(localized: "Automatic")
+    }
+
+    static func modelDetail(_ level: Int) -> String {
+        switch level {
+        case -2: String(localized: "Highest")
+        case 1: String(localized: "Lower")
+        case 2: String(localized: "Lowest")
+        default: String(localized: "Default")
+        }
+    }
+
+    static func upscaler(_ name: String?) -> String {
+        switch name {
+        case nil: String(localized: "Keep the game's setting")
+        case "off": String(localized: "Off")
+        case "fsr3": String(localized: "FSR 3.1")
+        case "metalfx": String(localized: "MetalFX")
+        case let other?: other
+        }
+    }
+
+    static func effect(_ effect: Effect) -> String {
+        switch effect {
+        case .chromaticAberration: String(localized: "Chromatic aberration")
+        case .depthOfField: String(localized: "Depth of field")
+        case .motionBlur: String(localized: "Motion blur")
+        case .ambientOcclusion: String(localized: "Ambient occlusion")
+        case .gameAntiAliasing: String(localized: "Anti-aliasing")
+        case .dynamicShadows: String(localized: "Dynamic shadows")
+        case .reflections: String(localized: "Reflections (experimental)")
+        }
+    }
+
+    static func onOff(_ on: Bool) -> String { on ? String(localized: "on") : String(localized: "off") }
+
+    /// What going from `current` to `target` changes, setting by setting: "Bildrate 60 → 30,
+    /// Tiefenschärfe aus → an, Mods".
+    static func changes(from current: Profile, to target: Profile) -> String {
+        var parts: [String] = []
+        func step(_ name: String, _ from: String, _ to: String) { parts.append("\(name) \(from) → \(to)") }
+        if current.frameRate != target.frameRate {
+            step(String(localized: "frame rate"), frameRate(current.frameRate), frameRate(target.frameRate))
+        }
+        if current.modelLOD != target.modelLOD {
+            step(String(localized: "model detail"), modelDetail(current.modelLOD), modelDetail(target.modelLOD))
+        }
+        if current.renderer != target.renderer {
+            step(String(localized: "renderer"), renderer(current.renderer), renderer(target.renderer))
+        }
+        if current.renderResolution != target.renderResolution {
+            step(String(localized: "scene size"), sceneSize(current.renderResolution), sceneSize(target.renderResolution))
+        }
+        if current.iniValues["upscaler"] != target.iniValues["upscaler"] {
+            step(String(localized: "upscaler"), upscaler(current.iniValues["upscaler"]), upscaler(target.iniValues["upscaler"]))
+        }
+        for e in Effect.allCases where current.isOn(e) != target.isOn(e) {
+            step(effect(e), onOff(current.isOn(e)), onOff(target.isOn(e)))
+        }
+        if current.ownSaves != target.ownSaves {
+            step(String(localized: "own saves"), onOff(current.ownSaves), onOff(target.ownSaves))
+        }
+        if current.mods != target.mods { parts.append(String(localized: "mods")) }
+        if current.patches != target.patches { parts.append(String(localized: "patches")) }
+        if current.environment != target.environment { parts.append(String(localized: "expert variables")) }
+        var rest = current.iniValues, other = target.iniValues
+        rest["upscaler"] = nil
+        other["upscaler"] = nil
+        if rest != other { parts.append(String(localized: "display")) }
+        return parts.joined(separator: ", ")
+    }
+}
+

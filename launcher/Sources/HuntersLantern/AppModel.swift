@@ -17,7 +17,7 @@ final class AppModel: ObservableObject {
     @Published var state: LauncherState {
         didSet {
             try? state.save(dirs.stateFile)
-            Print.scale = state.largeText ? Print.largeScale : 1
+            Print.scale = Print.scale(forSize: state.textSize)
         }
     }
 
@@ -63,7 +63,7 @@ final class AppModel: ObservableObject {
         profiles = ProfileStore(dir: dirs.profilesDir)
         var setAside: [URL] = []
         let state = LauncherState.load(dirs.stateFile, setAside: &setAside)
-        Print.scale = state.largeText ? Print.largeScale : 1
+        Print.scale = Print.scale(forSize: state.textSize)
         self.state = state
         instanceLock = dirs.acquireInstanceLock()
         setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
@@ -119,7 +119,7 @@ final class AppModel: ObservableObject {
     /// Import path (c): base and update PKG through the external PKG tool, then (b).
     func importPKGs(base: URL, update: URL) async {
         guard let tool = pkgTool else {
-            errorMessage = String(localized: "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game page.")
+            errorMessage = String(localized: "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game folder page.")
             return
         }
         await runImport { runtime, progress in

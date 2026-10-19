@@ -15,10 +15,18 @@ struct AdvancedView: View {
     ]
 
     var body: some View {
-        PageContainer(title: "Advanced") {
+        PageContainer(title: "Settings") {
             PrintSection(Text("Launcher")) {
-                Toggle("Larger text", isOn: $model.state.largeText)
-                PrintNote(Text("Sets the launcher's own text a size larger. The game's text size is set in the game's menu."))
+                RegisterLine(Text("Text size")) {
+                    ChoiceWords(selection: $model.state.textSize, options: [0, 1, 2]) { size in
+                        switch size {
+                        case 1: Text("larger")
+                        case 2: Text("large")
+                        default: Text("normal")
+                        }
+                    }
+                }
+                PrintNote(Text("The size of the launcher's own text. The game's text size is set in the game's menu."))
             }
             PrintSection(Text("Window")) {
                 Toggle("Start in fullscreen", isOn: $model.state.settings.fullscreen)

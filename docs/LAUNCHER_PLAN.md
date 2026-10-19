@@ -669,3 +669,8 @@ Found during the inventory (fix when the task touching the file comes up):
   With it (orchestrator): expert variables moved to Grafik, Erweitert holds only launcher-wide
   settings plus "Größerer Text"; the empty overview's main action adds the game; arrow keys in
   the sidebar, focus outline inside the switch's button style, outcome and notices announced.
+- 2026-10-19 (user): the sidebar is a native list (keyboard and VoiceOver), in the print style;
+  its selection fill is switched off on the underlying table. With it (orchestrator, fourth
+  critique round): fixed sidebar positions, "Einstellungen" for the launcher page (⌘,), own
+  saves switched on the Saves page, per-line "war …" markers and resets for adjusted presets,
+  a Vulkan retry on the outcome card, three text sizes, focused text fields in brass.

@@ -221,16 +221,6 @@
         }
       }
     },
-    "Advanced": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Erweitert"
-          }
-        }
-      }
-    },
     "Ambient occlusion": {
       "localizations": {
         "de": {
@@ -1580,16 +1570,6 @@
         }
       }
     },
-    "Own saves for this profile": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eigene Spielstände für dieses Profil"
-          }
-        }
-      }
-    },
     "PKG tool": {
       "localizations": {
         "de": {
@@ -2526,12 +2506,12 @@
         }
       }
     },
-    "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game page.": {
+    "No PKG tool found. Install ps4-pkg-tools and choose its program on the Game folder page.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kein PKG-Werkzeug gefunden. Installiere ps4-pkg-tools und wähle das Programm auf der Seite „Spiel“ aus."
+            "value": "Kein PKG-Werkzeug gefunden. Installiere ps4-pkg-tools und wähle sein Programm auf der Seite „Spielordner“."
           }
         }
       }
@@ -2716,12 +2696,12 @@
         }
       }
     },
-    "Next: add your own copy of the game on the Game page. The app contains no game files.": {
+    "Next: add your own copy of the game on the Game folder page. The app contains no game files.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Als Nächstes: Füge deine eigene Kopie des Spiels auf der Seite „Spiel“ hinzu. Die App enthält keine Spieldateien."
+            "value": "Als Nächstes: Füge auf der Seite „Spielordner“ deine eigene Kopie des Spiels hinzu. Die App enthält keine Spieldateien."
           }
         }
       }
@@ -3116,16 +3096,6 @@
         }
       }
     },
-    "If it happens again, try Vulkan as the renderer on the Graphics page.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Passiert es wieder, stelle auf der Seite „Grafik“ Vulkan als Renderer ein."
-          }
-        }
-      }
-    },
     "Give this profile its own saves?": {
       "localizations": {
         "de": {
@@ -3222,16 +3192,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zurücksetzen"
-          }
-        }
-      }
-    },
-    "Your changes to %@ are removed, and the profile's own settings apply again.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Änderungen an %@ werden entfernt, und die eigenen Einstellungen des Profils gelten wieder."
           }
         }
       }
@@ -3366,22 +3326,162 @@
         }
       }
     },
-    "Larger text": {
+    "The size of the launcher's own text. The game's text size is set in the game's menu.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Größerer Text"
+            "value": "Die Größe des Launcher-Texts. Die Textgröße im Spiel stellst du im Menü des Spiels ein."
           }
         }
       }
     },
-    "Sets the launcher's own text a size larger. The game's text size is set in the game's menu.": {
+    "Settings": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stellt den Text des Launchers eine Stufe größer. Die Textgröße im Spiel stellst du im Menü des Spiels ein."
+            "value": "Einstellungen"
+          }
+        }
+      }
+    },
+    "was %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "war %@"
+          }
+        }
+      }
+    },
+    "Reset to “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurücksetzen auf „%@“"
+          }
+        }
+      }
+    },
+    "Back to the profile's own settings: %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück zu den eigenen Einstellungen des Profils: %@."
+          }
+        }
+      }
+    },
+    "adjusted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "angepasst"
+          }
+        }
+      }
+    },
+    "Try again with Vulkan": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Vulkan erneut versuchen"
+          }
+        }
+      }
+    },
+    "The game crashed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel ist abgestürzt."
+          }
+        }
+      }
+    },
+    "Last hunt crashed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte Jagd abgestürzt"
+          }
+        }
+      }
+    },
+    "Own saves for the profile “%@”": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Spielstände für das Profil „%@“"
+          }
+        }
+      }
+    },
+    "more": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mehr"
+          }
+        }
+      }
+    },
+    "Text size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Textgröße"
+          }
+        }
+      }
+    },
+    "normal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "normal"
+          }
+        }
+      }
+    },
+    "larger": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "größer"
+          }
+        }
+      }
+    },
+    "large": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "groß"
+          }
+        }
+      }
+    },
+    "display": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anzeige"
           }
         }
       }

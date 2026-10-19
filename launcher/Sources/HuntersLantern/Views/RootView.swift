@@ -40,7 +40,7 @@ struct RootView: View {
             StatusBar()
         }
         // Fonts read Print.scale when built: a new text size builds the window anew.
-        .id(model.state.largeText)
+        .id(model.state.textSize)
         .frame(minWidth: Print.window.width, maxWidth: .infinity, minHeight: Print.window.height, maxHeight: .infinity)
         .background(Print.bgBase)
         .foregroundStyle(Print.textPrimary)
@@ -97,93 +97,137 @@ struct RootView: View {
 
 // MARK: - Sidebar
 
-/// The pages: the game first (its overview, and the game folder while there is no game); then
-/// the active profile, named, as the frame of the pages that belong to it (graphics, mods,
-/// patches); the launcher's own pages at the bottom (saves are shared by the profiles). The
-/// current page is marked with ✦; the arrow keys move between pages.
+/// The pages, as a native list (arrow keys, Tab, VoiceOver's "3 of 9") set in the print style:
+/// the game's overview and its folder; the active profile, named, as the frame of the pages that
+/// belong to it (graphics, mods, patches); the launcher's own pages (saves, shared by the
+/// profiles; settings; diagnostics). Positions never move. The current page is marked with ✦.
 private struct Sidebar: View {
     @EnvironmentObject private var model: AppModel
     let facts: LibraryFacts
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        List(selection: selection) {
             // The game's name once there is one; before that the plate carries the app's.
-            item(.home) {
-                model.activeGame == nil ? Text("Overview") : Text(verbatim: "Bloodborne")
+            row(.home) { model.activeGame == nil ? Text("Overview") : Text(verbatim: "Bloodborne") }
+            row(.game) { Text("Game folder") }
+            Section {
+                row(.profiles) { Text(verbatim: model.activeProfile.name) }
+                    .help(Text("All profiles"))
+                row(.graphics) { Text("Graphics") }
+                row(.mods, count: facts.modsTotal > 0 ? "\(model.activeProfile.mods?.count ?? 0)/\(facts.modsTotal)" : nil) {
+                    Text("Mods")
+                }
+                row(.patches) { Text("Patches") }
+            } header: {
+                header(Text("Profile"))
             }
-            Rectangle()
-                .fill(Print.brass)
-                .opacity(0.4)
-                .frame(height: 1)
-                .padding(.vertical, 16)
-                .accessibilityHidden(true)
-            // Without a game the way to one comes first.
-            if noGame {
-                item(.game) { Text("Game folder") }
-                    .padding(.bottom, 16)
-            }
-            Text("Profile")
-                .font(Print.smallCaps(12))
-                .tracking(1.2)
-                .foregroundStyle(Print.textSecondary)
-                .padding(.leading, 24)
-                .padding(.bottom, 4)
-                .accessibilityAddTraits(.isHeader)
-            item(.profiles) { Text(verbatim: model.activeProfile.name) }
-                .help(Text("All profiles"))
-                .accessibilityLabel(Text("Profile: \(model.activeProfile.name)"))
-            item(.graphics) { Text("Graphics") }
-            item(.mods, count: facts.modsTotal > 0 ? "\(model.activeProfile.mods?.count ?? 0)/\(facts.modsTotal)" : nil) {
-                Text("Mods")
-            }
-            item(.patches) { Text("Patches") }
-            Spacer(minLength: 0)
-            if !noGame { item(.game) { Text("Game folder") } }
-            item(.saves, count: facts.characters.isEmpty ? nil : "\(facts.characters.count)") { Text("Saves") }
-            item(.advanced) { Text("Advanced") }
-            item(.diagnostics) { Text("Diagnostics") }
-        }
-        .onMoveCommand { direction in
-            let order = pages
-            guard let index = order.firstIndex(of: model.page) else { return }
-            switch direction {
-            case .up: model.page = order[max(index - 1, 0)]
-            case .down: model.page = order[min(index + 1, order.count - 1)]
-            default: break
+            Section {
+                row(.saves, count: facts.characters.isEmpty ? nil : "\(facts.characters.count)") { Text("Saves") }
+                row(.advanced) { Text("Settings") }
+                row(.diagnostics) { Text("Diagnostics") }
+            } header: {
+                header(Text("Launcher"))
             }
         }
-        .padding(.top, 64)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .scrollIndicators(.never)
+        // The ✦ marks the current page; the list's own selection fill would be a second mark.
+        .background(SelectionFillRemover())
+        .environment(\.defaultMinListRowHeight, 32)
+        .padding(.top, 56)
+        .padding(.horizontal, 16)
         .frame(width: Print.sidebar)
         .frame(maxHeight: .infinity)
         .background(Print.bgRaised)
         .overlay(alignment: .trailing) { Rectangle().fill(Print.line).frame(width: 1) }
     }
 
-    private var noGame: Bool { model.library.games.isEmpty }
-
-    /// The sidebar's pages in their order, for the arrow keys.
-    private var pages: [Page] {
-        noGame ? [.home, .game, .profiles, .graphics, .mods, .patches, .saves, .advanced, .diagnostics]
-               : [.home, .profiles, .graphics, .mods, .patches, .game, .saves, .advanced, .diagnostics]
+    private var selection: Binding<Page?> {
+        Binding(get: { model.page }, set: { if let page = $0 { model.page = page } })
     }
 
-    private func item(_ page: Page, count: String? = nil, @ViewBuilder label: () -> Text) -> some View {
-        Button { model.page = page } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                label()
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if let count {
-                    Text(verbatim: count)
-                        .font(Print.mono())
-                        .foregroundStyle(Print.textSecondary)
-                }
+    /// A group's name: small caps over a brass hairline, like a section of the page.
+    private func header(_ title: Text) -> some View {
+        title
+            .font(Print.smallCaps(12))
+            .tracking(12 * 0.1 * Print.scale)
+            .foregroundStyle(Print.textSecondary)
+            .padding(.leading, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .top) { Rectangle().fill(Print.brass).opacity(0.4).frame(height: 1).padding(.top, 4) }
+    }
+
+    private func row(_ page: Page, count: String? = nil, @ViewBuilder label: () -> Text) -> some View {
+        SidebarRow(current: model.page == page, label: label(), count: count)
+            .tag(page)
+            .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+}
+
+/// A sidebar entry: Garamond 16; the current page in the text colour with ✦ in brass before it,
+/// the others secondary, brass on hover.
+private struct SidebarRow: View {
+    let current: Bool
+    let label: Text
+    let count: String?
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(verbatim: current ? "✦" : "")
+                .font(Print.text(16))
+                .foregroundStyle(Print.brass)
+                .frame(width: 16, alignment: .leading)
+                .accessibilityHidden(true)
+            // The list sets its own font on its rows: each text names its face itself.
+            label
+                .font(Print.text(16))
+                .lineLimit(1)
+                .foregroundStyle(hovering ? Print.brass : current ? Print.textPrimary : Print.textSecondary)
+            Spacer(minLength: 0)
+            if let count {
+                Text(verbatim: count)
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textSecondary)
             }
         }
-        .buttonStyle(SidebarItemStyle(current: model.page == page))
-        .accessibilityAddTraits(model.page == page ? .isSelected : [])
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(Print.hover, value: hovering)
+    }
+}
+
+/// Turns off the selection fill of the sidebar's list (its NSTableView), keeping the selection,
+/// the arrow keys and VoiceOver. SwiftUI has no modifier for it; the table is found by walking the
+/// window's views for the one inside the sidebar's width.
+private struct SelectionFillRemover: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Finder() }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { (nsView as? Finder)?.apply() }
+    }
+
+    private final class Finder: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { self.apply() }
+        }
+
+        func apply() {
+            guard let root = window?.contentView else { return }
+            for table in Self.tables(in: root) where table.convert(table.bounds, to: nil).minX < Print.sidebar {
+                table.selectionHighlightStyle = .none
+            }
+        }
+
+        private static func tables(in view: NSView) -> [NSTableView] {
+            (view as? NSTableView).map { [$0] } ?? view.subviews.flatMap(tables)
+        }
     }
 }
 
@@ -196,7 +240,9 @@ private struct StatusBar: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(verbatim: "●")
-                .foregroundStyle(dotOK ? Print.ok : Print.danger)
+                // No game yet is the first step, not a fault: a neutral dot.
+                .foregroundStyle(model.activeGame == nil && model.errorMessage == nil ? Print.textSecondary
+                                 : dotOK ? Print.ok : Print.danger)
                 .accessibilityHidden(true)
             message
                 .foregroundStyle(model.errorMessage != nil ? Print.danger : Print.textSecondary)
@@ -246,6 +292,7 @@ private struct StatusBar: View {
         if model.phase == .running { return Text("Game running") }
         if model.phase != nil { return Text("Preparing") }
         if !game.check.ok { return Text("Check failed") }
+        if let result = model.lastResult, case .crashed = result.outcome { return Text("Last hunt crashed") }
         if let result = model.lastResult, HomeView.failure(result.outcome) != nil { return Text("Last run failed") }
         return Text("Ready")
     }
@@ -310,7 +357,7 @@ struct GoCommands: Commands {
             Divider()
             Button("Game folder") { model.page = .game }.keyboardShortcut("5")
             Button("Saves") { model.page = .saves }.keyboardShortcut("6")
-            Button("Advanced") { model.page = .advanced }.keyboardShortcut("7")
+            Button("Settings") { model.page = .advanced }.keyboardShortcut("7")
             Button("Diagnostics") { model.page = .diagnostics }.keyboardShortcut("8")
             Divider()
             Button("Begin the Hunt") { model.play() }

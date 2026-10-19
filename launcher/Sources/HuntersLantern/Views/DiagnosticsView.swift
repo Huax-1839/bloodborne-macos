@@ -143,7 +143,7 @@ private struct LogRow: View {
             Text(verbatim: chosen ? "✦" : "")
                 .font(Print.text(16))
                 .foregroundStyle(Print.brass)
-                .frame(width: 16, alignment: .leading)
+                .frame(minWidth: 16, alignment: .leading)
                 .accessibilityHidden(true)
             Text(verbatim: name)
                 .font(Print.mono())

@@ -941,17 +941,6 @@
         }
       }
     },
-    "The saves all profiles share. A profile can keep its own instead (Graphics page, Saves)." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Spielstände, die alle Profile teilen. Ein Profil kann stattdessen eigene haben (Seite „Grafik“, Abschnitt Spielstände)."
-          }
-        }
-      }
-    },
     "Character" : {
       "extractionState" : "manual",
       "localizations" : {

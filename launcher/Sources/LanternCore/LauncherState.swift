@@ -9,8 +9,23 @@ public struct LauncherState: Codable, Equatable, Sendable {
     public var firstRunDone = false
     /// The PKG tool the user chose (when it is not found on its own).
     public var pkgToolPath: String?
-    /// The launcher's own text a size larger (its fonts are fixed sizes, not the system's).
-    public var largeText = false
+
+    private enum CodingKeys: String, CodingKey {
+        case activeGame, activeProfile, settings, firstRunDone, pkgToolPath, textSize, largeText
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encodeIfPresent(activeGame, forKey: .activeGame)
+        try c.encode(activeProfile, forKey: .activeProfile)
+        try c.encode(settings, forKey: .settings)
+        try c.encode(firstRunDone, forKey: .firstRunDone)
+        try c.encodeIfPresent(pkgToolPath, forKey: .pkgToolPath)
+        try c.encode(textSize, forKey: .textSize)
+    }
+    /// The launcher's own text size: 0 normal, 1 larger, 2 large (its fonts are fixed sizes, not
+    /// the system's).
+    public var textSize = 0
 
     public init() {}
 
@@ -22,7 +37,8 @@ public struct LauncherState: Codable, Equatable, Sendable {
         settings = c.decode(.settings, or: LauncherSettings())
         firstRunDone = c.decode(.firstRunDone, or: false)
         pkgToolPath = c.decodeLenient(.pkgToolPath)
-        largeText = c.decode(.largeText, or: false)
+        // An earlier version wrote largeText: true for "larger".
+        textSize = c.decode(.textSize, or: c.decode(.largeText, or: false) ? 1 : 0)
     }
 
     /// The saved state, else the defaults; a file that cannot be read is kept aside

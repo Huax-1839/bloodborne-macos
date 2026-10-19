@@ -108,7 +108,7 @@ struct PatchesView: View {
                 }
             }
             .foregroundStyle(Print.textSecondary)
-            .frame(width: 96, alignment: .trailing)
+            .frame(minWidth: 96, alignment: .trailing)
             Button {
                 model.page = target
             } label: {

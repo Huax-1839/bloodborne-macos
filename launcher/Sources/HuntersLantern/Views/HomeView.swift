@@ -78,7 +78,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 8) {
                 meta
                     .font(Print.smallCaps())
-                    .tracking(14 * 0.12)
+                    .tracking(14 * 0.12 * Print.scale)
                     .foregroundStyle(Print.textSecondary)
                 if model.activeGame != nil { profileMenu }
             }
@@ -119,6 +119,10 @@ struct HomeView: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(verbatim: model.activeProfile.name)
+                // What starts is not the shipped preset: said where the game is started.
+                if model.profiles.isAdjusted(model.activeProfile.id) {
+                    Text("adjusted").font(Print.text(14)).foregroundStyle(Print.brass)
+                }
                 Text(verbatim: "▾").foregroundStyle(Print.brass).accessibilityHidden(true)
             }
         }
@@ -283,10 +287,12 @@ private struct OutcomeCard: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if model.activeProfile.renderer != .vulkan && MacHost.macOSMajor >= 15 {
-                PrintNote(Text("If it happens again, try Vulkan as the renderer on the Graphics page."))
-            }
             HStack(alignment: .firstTextBaseline, spacing: 16) {
+                // The thing to try, as an action: the profile's renderer becomes Vulkan, then it starts.
+                if canTryVulkan {
+                    Button { tryVulkan() } label: { Text("Try again with Vulkan") }
+                        .buttonStyle(FrameActionStyle())
+                }
                 Button { copyReport() } label: { Text(copied ? "Copied" : "Copy for a bug report") }
                     .buttonStyle(FrameActionStyle())
                 Group {
@@ -304,8 +310,23 @@ private struct OutcomeCard: View {
         .accessibilityElement(children: .contain)
     }
 
+    private var canTryVulkan: Bool {
+        model.activeProfile.renderer != .vulkan && RendererChoice.automaticResolved == .metal
+    }
+
+    private func tryVulkan() {
+        var profile = model.activeProfile
+        profile.renderer = .vulkan
+        model.saveProfile(profile)
+        model.lastResult = nil
+        model.play()
+    }
+
+    /// Plain words first; the signal is in the log lines and the report.
     private var summary: Text {
-        let what = HomeView.failure(result.outcome) ?? Text(verbatim: "")
+        let what: Text = if case .crashed = result.outcome { Text("The game crashed.") } else {
+            HomeView.failure(result.outcome) ?? Text(verbatim: "")
+        }
         let when = minutes.map { $0 < 1 ? Text("It ran for less than a minute.") : Text("It ran for \($0) min.") }
         let safe = Text("Your saves were backed up before the start.")
         return [what, when, safe].compactMap { $0 }.reduce(Text(verbatim: "")) { $0 + $1 + Text(verbatim: " ") }
@@ -362,7 +383,7 @@ private struct ListSection<Rows: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(Print.smallCaps())
-                .tracking(14 * 0.12)
+                .tracking(14 * 0.12 * Print.scale)
                 .foregroundStyle(Print.textSecondary)
                 .padding(.bottom, 8)
                 .accessibilityAddTraits(.isHeader)
@@ -388,7 +409,7 @@ private struct ListRow: View {
                 Text(verbatim: lead)
                     .font(Print.mono())
                     .foregroundStyle(Print.textSecondary)
-                    .frame(width: 16, alignment: .leading)
+                    .frame(minWidth: 16, alignment: .leading)
             }
             label
                 .foregroundStyle(highlight ? Print.brass : Print.textPrimary)

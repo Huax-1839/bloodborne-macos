@@ -103,9 +103,9 @@ public struct ProfileStore: Sendable {
                 presets.append(profile)
                 adjustments[shipped.id] = delta.keys.filter { !Self.fixedKeys.contains($0) }.sorted()
             } catch {
+                // Kept aside (named only if the move worked), the shipped preset used meanwhile.
                 let aside = url.deletingPathExtension().appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
-                try? FileManager.default.moveItem(at: url, to: aside)
-                setAside.append(aside)
+                if (try? FileManager.default.moveItem(at: url, to: aside)) != nil { setAside.append(aside) }
                 presets.append(shipped)
             }
         }

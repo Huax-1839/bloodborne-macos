@@ -8,18 +8,19 @@ struct GraphicsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var customSize = false
     @State private var customText = ""
-    @State private var askingOwnSaves = false
+    @FocusState private var customFocused: Bool
 
     private static let sizes = ["960x540", "1280x720", "1600x900"]
 
     var body: some View {
         let profile = model.activeProfile
         PageContainer(title: "Graphics") {
-            ProfileEditLine(profile: profile)
+            PrintSection(Text(verbatim: profile.name)) {
+                ProfileEditLine(profile: profile, showsName: false)
+            }
             performance
             display
             effects
-            saves
             ExpertVariablesSection()
         }
         .onAppear(perform: syncSize)
@@ -30,12 +31,14 @@ struct GraphicsView: View {
 
     private var performance: some View {
         PrintSection(Text("Performance")) {
-            RegisterLine(Text("Frame rate")) {
+            RegisterLine(adjusted(Text("Frame rate"), \.frameRate, ValueNames.frameRate)) {
                 ChoiceWords(selection: edit(\.frameRate), options: FrameRate.allCases) { Text($0.shortLabel) }
             }
-            RegisterLine(Text("Model detail")) {
+            .resettable(\.frameRate, ValueNames.frameRate, in: self)
+            RegisterLine(adjusted(Text("Model detail"), \.modelLOD, ValueNames.modelDetail)) {
                 PrintMenu(selection: edit(\.modelLOD), options: [-2, 0, 1, 2]) { Self.modelDetail($0) }
             }
+            .resettable(\.modelLOD, ValueNames.modelDetail, in: self)
         }
     }
 
@@ -50,13 +53,14 @@ struct GraphicsView: View {
 
     private var display: some View {
         PrintSection(Text("Display")) {
-            RegisterLine(Text("Renderer")) {
+            RegisterLine(adjusted(Text("Renderer"), \.renderer, ValueNames.renderer)) {
                 ChoiceWords(selection: edit(\.renderer), options: RendererChoice.allCases) { Text($0.label) }
             }
+            .resettable(\.renderer, ValueNames.renderer, in: self)
             if MacHost.macOSMajor < 15 {
                 PrintNote(Text("Metal needs macOS 15 or newer. On this Mac the game uses Vulkan."))
             }
-            RegisterLine(Text("Scene size")) {
+            RegisterLine(adjusted(Text("Scene size"), \.renderResolution, ValueNames.sceneSize)) {
                 PrintMenu(selection: sizeSelection, options: [""] + Self.sizes + ["custom"]) { size in
                     switch size {
                     case "": Text("Automatic")
@@ -65,23 +69,28 @@ struct GraphicsView: View {
                     }
                 }
             }
+            .resettable(\.renderResolution, ValueNames.sceneSize, in: self)
             if showsCustom {
                 RegisterLine(Text("Custom size")) {
                     TextField("Width×Height", text: $customText)
                         .textFieldStyle(PrintFieldStyle(font: Print.mono()))
                         .multilineTextAlignment(.trailing)
                         .frame(width: 160)
+                        .focused($customFocused)
                         .onSubmit(commitCustom)
+                        // Leaving the field keeps a valid size, as Return does.
+                        .onChange(of: customFocused) { if !customFocused { commitCustom() } }
                 }
                 if Self.parseSize(customText) == nil {
                     PrintNote(Text("Enter the size as width and height, for example 1280x720."), color: Print.danger)
                 }
             }
-            RegisterLine(Text("Upscaler at start")) {
+            RegisterLine(adjusted(Text("Upscaler at start"), \.upscalerValue, ValueNames.upscaler)) {
                 PrintMenu(selection: upscaler, options: [""] + upscalerChoices) { name in
                     name.isEmpty ? Text("Keep the game's setting") : UpscalerOption.label(name)
                 }
             }
+            .resettable(\.upscalerValue, ValueNames.upscaler, in: self)
             if model.activeProfile.renderResolution == nil && !customSize {
                 PrintNote(Text("Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu."))
             }
@@ -91,22 +100,38 @@ struct GraphicsView: View {
     private var effects: some View {
         PrintSection(Text("Effects")) {
             ForEach(Effect.allCases, id: \.self) { effect in
-                Toggle(effect.label, isOn: effectBinding(effect))
+                Toggle(isOn: effectBinding(effect)) {
+                    adjusted(Text(effect.label), \.effectStates[effect], { ValueNames.onOff($0 ?? effect.defaultOn) })
+                }
+                .resettable(\.effectStates[effect], { ValueNames.onOff($0 ?? effect.defaultOn) }, in: self)
             }
         }
     }
 
-    private var saves: some View {
-        PrintSection(Text("Saves")) {
-            Toggle("Own saves for this profile", isOn: ownSaves)
-                .confirmationDialog(Text("Give this profile its own saves?"), isPresented: $askingOwnSaves, titleVisibility: .visible) {
-                    Button { setOwnSaves(true) } label: { Text("Own saves") }
-                    Button(role: .cancel) {} label: { Text("Cancel") }
-                } message: {
-                    Text("The profile then starts without saves of its own; your current saves stay with the other profiles. Switching it off brings them back.")
-                }
-            PrintNote(Text("The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared."))
-        }
+    // MARK: Adjusted lines
+
+    /// The shipped preset under the active profile, when it is a preset.
+    fileprivate var shipped: Profile? {
+        model.activeProfile.builtin ? ProfileStore.shipped(model.activeProfile.id) : nil
+    }
+
+    /// A line's label, with "war 30" in brass after it when the preset is adjusted there.
+    private func adjusted<T: Equatable>(_ title: Text, _ keyPath: WritableKeyPath<Profile, T>, _ name: (T) -> String) -> Text {
+        guard let shipped, model.activeProfile[keyPath: keyPath] != shipped[keyPath: keyPath] else { return title }
+        return title + Text(verbatim: "   ") + Text("was \(name(shipped[keyPath: keyPath]))").font(Print.text(14)).foregroundStyle(Print.brass)
+    }
+
+    /// Back to the preset's own value for one line.
+    fileprivate func reset<T>(_ keyPath: WritableKeyPath<Profile, T>) {
+        guard let shipped else { return }
+        var profile = model.activeProfile
+        profile[keyPath: keyPath] = shipped[keyPath: keyPath]
+        model.saveProfile(profile)
+    }
+
+    fileprivate func isAdjusted<T: Equatable>(_ keyPath: WritableKeyPath<Profile, T>) -> Bool {
+        guard let shipped else { return false }
+        return model.activeProfile[keyPath: keyPath] != shipped[keyPath: keyPath]
     }
 
     // MARK: Bindings
@@ -120,18 +145,6 @@ struct GraphicsView: View {
                         profile[keyPath: keyPath] = value
                 model.saveProfile(profile)
             })
-    }
-
-    /// Switching own saves on hides the shared ones from this profile: asked first.
-    private var ownSaves: Binding<Bool> {
-        Binding(get: { model.activeProfile.ownSaves },
-                set: { on in if on { askingOwnSaves = true } else { setOwnSaves(false) } })
-    }
-
-    private func setOwnSaves(_ on: Bool) {
-        var profile = model.activeProfile
-        profile.ownSaves = on
-        model.saveProfile(profile)
     }
 
     private func effectBinding(_ effect: Effect) -> Binding<Bool> {
@@ -260,6 +273,16 @@ struct ProfileEditLine: View {
 }
 
 extension View {
+    /// A line of an adjusted preset: its context menu sets it back to the preset's value.
+    fileprivate func resettable<T: Equatable>(_ keyPath: WritableKeyPath<Profile, T>, _ name: @escaping (T) -> String,
+                                              in page: GraphicsView) -> some View {
+        contextMenu {
+            if page.isAdjusted(keyPath), let shipped = page.shipped {
+                Button { page.reset(keyPath) } label: { Text("Reset to “\(name(shipped[keyPath: keyPath]))”") }
+            }
+        }
+    }
+
     /// Asks before a preset loses its adjustments, naming them.
     func resetConfirmation(for profile: Profile, adjusted: [String], isPresented: Binding<Bool>) -> some View {
         modifier(ResetConfirmation(profile: profile, adjusted: adjusted, isPresented: isPresented))
@@ -277,7 +300,7 @@ private struct ResetConfirmation: ViewModifier {
             Button(role: .destructive) { model.resetPreset(profile) } label: { Text("Reset") }
             Button(role: .cancel) {} label: { Text("Cancel") }
         } message: {
-            Text("Your changes to \(AdjustmentLabels.list(adjusted)) are removed, and the profile's own settings apply again.")
+            Text("Back to the profile's own settings: \(ProfileStore.shipped(profile.id).map { ValueNames.changes(from: profile, to: $0) } ?? AdjustmentLabels.list(adjusted)).")
         }
     }
 }

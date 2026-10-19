@@ -19,7 +19,7 @@ struct PrintSection<Content: View, Trailing: View>: View {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
                 title
                     .font(Print.smallCaps())
-                    .tracking(14 * 0.12)
+                    .tracking(14 * 0.12 * Print.scale)
                     .foregroundStyle(Print.textSecondary)
                     .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 8)
@@ -88,7 +88,7 @@ struct PrintTag: View {
     var body: some View {
         text
             .font(Print.smallCaps(12))
-            .tracking(12 * 0.12)
+            .tracking(12 * 0.12 * Print.scale)
             .foregroundStyle(color)
     }
 }
@@ -333,17 +333,29 @@ struct PrintFieldStyle: TextFieldStyle {
     var font: Font = Print.text(16)
 
     func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .textFieldStyle(.plain)
-            .font(font)
-            .foregroundStyle(Print.textPrimary)
-            .padding(.horizontal, 8)
-            .frame(minHeight: 32)
-            .background(Print.bgBase, in: RoundedRectangle(cornerRadius: 2))
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1).padding(.horizontal, 1).padding(.top, 1)
-            }
-            .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Print.lineInput, lineWidth: 1))
+        Field(field: configuration, font: font)
+    }
+
+    /// The field's edge turns brass while it has the keyboard focus (the plain field draws none).
+    private struct Field: View {
+        let field: TextField<PrintFieldStyle._Label>
+        let font: Font
+        @FocusState private var focused: Bool
+
+        var body: some View {
+            field
+                .textFieldStyle(.plain)
+                .focused($focused)
+                .font(font)
+                .foregroundStyle(Print.textPrimary)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 32)
+                .background(Print.bgBase, in: RoundedRectangle(cornerRadius: 2))
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.black.opacity(0.4)).frame(height: 1).padding(.horizontal, 1).padding(.top, 1)
+                }
+                .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(focused ? Print.brass : Print.lineInput, lineWidth: 1))
+        }
     }
 }
 

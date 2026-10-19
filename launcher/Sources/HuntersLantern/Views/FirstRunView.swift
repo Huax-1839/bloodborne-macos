@@ -38,7 +38,7 @@ struct FirstRunView: View {
             if let moveError {
                 PrintNote(Text(moveError), color: Print.danger)
             }
-            PrintNote(Text("Next: add your own copy of the game on the Game page. The app contains no game files."))
+            PrintNote(Text("Next: add your own copy of the game on the Game folder page. The app contains no game files."))
         } actions: {
             // The way on is the framed action; "later" stays a word beside it.
             Button { finish(goToGame: false) } label: { Text("Later") }

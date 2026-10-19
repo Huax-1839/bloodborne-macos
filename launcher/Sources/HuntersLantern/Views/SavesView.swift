@@ -46,6 +46,20 @@ struct SavesView: View {
         }
     }
 
+    @State private var askingOwnSaves = false
+
+    /// Switching own saves on hides the shared ones from this profile: asked first.
+    private var ownSaves: Binding<Bool> {
+        Binding(get: { model.activeProfile.ownSaves },
+                set: { on in if on { askingOwnSaves = true } else { setOwnSaves(false) } })
+    }
+
+    private func setOwnSaves(_ on: Bool) {
+        var profile = model.activeProfile
+        profile.ownSaves = on
+        model.saveProfile(profile)
+    }
+
     var body: some View {
         PageContainer(title: "Saves") {
             if saves.working { PrintProgress(fraction: nil) }
@@ -58,6 +72,7 @@ struct SavesView: View {
         .disabled(saves.working)
         .onAppear { saves.bind(model) }
         .onChange(of: model.state.activeProfile) { saves.reload() }
+        .onChange(of: model.activeProfile.ownSaves) { saves.reload() }
         .onChange(of: model.isBusy) { saves.reload() }
         .confirmationDialog(confirmationTitle, isPresented: pendingShown, titleVisibility: .visible, presenting: pending) { item in
             switch item {
@@ -97,11 +112,19 @@ struct SavesView: View {
 
     private var charactersSection: some View {
         PrintSection(s("Characters")) {
-            // Saves are the launcher's, shared by the profiles, unless a profile has its own.
+            // Saves are the launcher's, shared by the profiles, unless a profile has its own: the
+            // choice is made here, where its effect shows.
+            Toggle(isOn: ownSaves) { Text("Own saves for the profile “\(model.activeProfile.name)”") }
+                .confirmationDialog(Text("Give this profile its own saves?"), isPresented: $askingOwnSaves, titleVisibility: .visible) {
+                    Button { setOwnSaves(true) } label: { Text("Own saves") }
+                    Button(role: .cancel) {} label: { Text("Cancel") }
+                } message: {
+                    Text("The profile then starts without saves of its own; your current saves stay with the other profiles. Switching it off brings them back.")
+                }
             if model.activeProfile.ownSaves {
                 PrintNote(s("The own saves of the profile “\(model.activeProfile.name)”."))
             } else {
-                PrintNote(s("The saves all profiles share. A profile can keep its own instead (Graphics page, Saves)."))
+                PrintNote(s("The saves all profiles share."))
             }
             if saves.characters.isEmpty {
                 PrintNote(s(saves.location == nil
@@ -120,7 +143,7 @@ struct SavesView: View {
             Text(verbatim: String(character.slot + 1))
                 .font(Print.mono())
                 .foregroundStyle(Print.textSecondary)
-                .frame(width: 16, alignment: .leading)
+                .frame(minWidth: 16, alignment: .leading)
             Text(verbatim: character.name.isEmpty ? "—" : character.name)
                 .lineLimit(1)
             Spacer(minLength: 8)

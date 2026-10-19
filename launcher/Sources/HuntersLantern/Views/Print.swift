@@ -46,10 +46,11 @@ enum Print {
 
     // MARK: Type
 
-    /// Every size below times this: 1, or `largeScale` with "Larger text" (Advanced). Set by the
-    /// model from the launcher's state; the window rebuilds when it changes.
+    /// Every size below times this, from the text size in Settings (normal, larger, large). Set
+    /// by the model from the launcher's state; the window rebuilds when it changes.
     nonisolated(unsafe) static var scale: CGFloat = 1
-    static let largeScale: CGFloat = 1.125
+
+    static func scale(forSize size: Int) -> CGFloat { [1, 1.125, 1.25][min(max(size, 0), 2)] }
 
     /// Cormorant Garamond 600: the title (64) and the main button (28).
     static func display(_ size: CGFloat) -> Font { .custom("CormorantGaramond-SemiBold", fixedSize: size * scale) }
@@ -228,40 +229,6 @@ struct MainActionStyle: ButtonStyle {
             let t = date.timeIntervalSinceReferenceDate
             let wave = 0.5 * sin(t * 2.3) + 0.3 * sin(t * 5.9 + 1.7) + 0.2 * sin(t * 13.1 + 0.4)
             return 0.04 * wave
-        }
-    }
-}
-
-/// A sidebar entry: Garamond 16, 32 high; the current page in the text colour with ✦ in brass
-/// before it, the others secondary, brass on hover.
-struct SidebarItemStyle: ButtonStyle {
-    let current: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        Styled(configuration: configuration, current: current)
-    }
-
-    private struct Styled: View {
-        let configuration: ButtonStyleConfiguration
-        let current: Bool
-        @State private var hovering = false
-
-        var body: some View {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(verbatim: current ? "✦" : "")
-                    .foregroundStyle(Print.brass)
-                    .frame(width: 16, alignment: .leading)
-                    .accessibilityHidden(true)
-                configuration.label
-                    .foregroundStyle(hovering || configuration.isPressed ? Print.brass
-                                     : current ? Print.textPrimary : Print.textSecondary)
-            }
-            .font(Print.text(16))
-            .frame(height: 32)
-            .contentShape(Rectangle())
-            .onHover { hovering = $0 }
-            .animation(Print.hover, value: hovering)
-            .printFocus()
         }
     }
 }

@@ -95,6 +95,22 @@ final class ProfileTests: XCTestCase {
         XCTAssertFalse(store.isAdjusted(Profile.air.id))
     }
 
+    /// An adjustment that cannot be read is kept aside; the shipped preset stands meanwhile.
+    func testUnreadablePresetAdjustment() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let presets = dir.appendingPathComponent("presets")
+        try FileManager.default.createDirectory(at: presets, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: presets.appendingPathComponent("\(Profile.air.id).json"))
+        let store = ProfileStore(dir: dir)
+        XCTAssertEqual(store.profile(Profile.air.id), .air)
+        XCTAssertFalse(store.isAdjusted(Profile.air.id))
+        XCTAssertEqual(store.setAside.count, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: presets.appendingPathComponent("\(Profile.air.id).json").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.setAside[0].path))
+        XCTAssertEqual(store.custom, [])
+    }
+
     /// Lists show each preset with its copies under it, then the other user profiles.
     func testGroupedOrder() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

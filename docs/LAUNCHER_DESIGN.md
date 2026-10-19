@@ -54,16 +54,13 @@ as little text as possible.
 
 - Native title bar, transparent, traffic lights over the sidebar; the window drags by its
   background.
-- Sidebar (240 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
-  rule, Spielordner here while there is no game, then the profile as a group: the small-caps
-  label "Profil", the active profile's name (opens the Profiles page), and the pages that belong
-  to it, Grafik (with the expert variables), Mods, Patches (small counts in mono
-  `text-secondary`); at the bottom the launcher's own pages, Spielordner, Spielstände (shared by
-  the profiles unless one keeps its own), Erweitert (⌘,; window, controller, language, network,
-  "Größerer Text" ×1.125), Diagnose. Arrow keys move between pages; Go menu ⌘0–⌘8, ⌘R starts.
-  Without a game the overview's main action is "Spiel hinzufügen" and the sidebar says "Übersicht". The current page in `text-primary` with ✦ in
-  `brass` before it, the others `text-secondary`, brass on hover. Every page opens in the main
-  area (no sheets).
+- Sidebar (240 px, `bg-raised`, 1 px `line` on its right), a native list in the print style
+  (arrow keys, Tab, VoiceOver; no selection fill, the ✦ marks the current page): the overview
+  ("Bloodborne", "Übersicht" without a game) and Spielordner; the group "Profil": the active
+  profile's name (opens Profiles), Grafik (with the expert variables), Mods, Patches; the group
+  "Launcher": Spielstände (shared by the profiles; a profile's own saves are switched there),
+  Einstellungen (⌘,: text size normal/größer/groß ×1/1.125/1.25, window, controller, language,
+  network), Diagnose. Positions never move. Go menu ⌘0–⌘8, ⌘R starts.
 - Overview (main area, 768 px):
   - a plate of the game's own artwork, `sce_sys/pic1.png` of the user's copy, read at run time
     (never in the repository or the app), full width, 280 high, cropped to fill, a hard edge
@@ -120,7 +117,13 @@ as little text as possible.
   VoiceOver actions; rows are VoiceOver containers named after their item.
 - A preset is edited in place: its changes are kept as an adjustment (`profiles/presets/<id>.json`,
   only the changed settings), named in brass in the profile line ("Angepasst: Bildrate") with
-  "zurücksetzen…" (asked, naming what goes); the Profiles page tags it "Angepasst". The tags
+  "zurücksetzen…" (asked, listing "Bildrate 60 → 30"); each changed line says "war 30 FPS" in
+  brass and its context menu resets just that line; the overview says "angepasst" next to the
+  profile; the Profiles page tags it "Angepasst" and drops "Empfohlen". Profile rows show "use"
+  and "mehr ▾" (duplicate, reset, rename, export, delete; also the context menu).
+- The outcome card leads with "Das Spiel ist abgestürzt." and offers "Mit Vulkan erneut
+  versuchen" (sets the renderer, starts); the status bar says "Letzte Jagd abgestürzt". Without a
+  game the status dot is neutral. Text fields edge in brass while focused. The tags
   "Mitgeliefert" and "Nicht gemessen" are secondary, so a caution never looks like "Empfohlen".
 - Focus: 1 px `brass` outline, visible for keyboard use only.
 

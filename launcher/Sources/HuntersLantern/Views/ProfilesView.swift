@@ -87,14 +87,31 @@ struct ProfilesView: View {
         }
     }
 
+    /// What a profile allows besides "use", in the row's menu; deleting is the destructive one.
+    @ViewBuilder
+    private func actions(_ profile: Profile) -> some View {
+        Button { model.duplicateProfile(profile) } label: { Text("duplicate") }
+        if model.profiles.isAdjusted(profile.id) {
+            Button { resetting = profile } label: { Text("reset…") }
+        }
+        if !profile.builtin {
+            Button { renaming = profile } label: { Text("rename…") }
+        }
+        Button { export(profile) } label: { Text("export…") }
+        if !profile.builtin {
+            Divider()
+            Button(role: .destructive) { deleting = profile } label: { Text("delete…") }
+        }
+    }
+
     private func export(_ profile: Profile) {
         if let url = Panels.saveFile(message: String(localized: "Export the profile"), name: profile.name + ".json", type: .json) {
             model.exportProfile(profile, to: url)
         }
     }
 
-    /// One profile: ✦ before the active one, its name (a click makes it active), tags, the
-    /// settings in a line, and the actions that apply to it.
+    /// One profile: ✦ before the active one, its name, tags, the settings in a line, "use", and
+    /// the rest of its actions in one menu (also the row's context menu).
     private func row(_ profile: Profile) -> some View {
         let active = profile.id == model.activeProfile.id
         return HStack(alignment: .firstTextBaseline, spacing: 16) {
@@ -102,32 +119,30 @@ struct ProfilesView: View {
                 .foregroundStyle(Print.brass)
                 .frame(width: 16, alignment: .leading)
                 .accessibilityHidden(true)
-            Button { model.state.activeProfile = profile.id } label: {
-                ProfileLabel(profile: profile, recommended: profile.id == model.hardware.suggestedProfile.id,
-                             adjusted: model.profiles.isAdjusted(profile.id))
-            }
-            .buttonStyle(RowLinkStyle())
-            .accessibilityAddTraits(active ? .isSelected : [])
+            ProfileLabel(profile: profile, recommended: profile.id == model.hardware.suggestedProfile.id,
+                         adjusted: model.profiles.isAdjusted(profile.id))
+                .accessibilityAddTraits(active ? .isSelected : [])
             Spacer(minLength: 8)
             HStack(alignment: .firstTextBaseline, spacing: 16) {
                 if !active {
                     Button { model.state.activeProfile = profile.id } label: { Text("use") }
+                        .buttonStyle(TextActionStyle())
                 }
-                Button { model.duplicateProfile(profile) } label: { Text("duplicate") }
-                if model.profiles.isAdjusted(profile.id) {
-                    Button { resetting = profile } label: { Text("reset…") }
+                Menu { actions(profile) } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("more")
+                        Text(verbatim: "▾").foregroundStyle(Print.brass).accessibilityHidden(true)
+                    }
                 }
-                if !profile.builtin {
-                    Button { renaming = profile } label: { Text("rename…") }
-                }
-                Button { export(profile) } label: { Text("export…") }
-                if !profile.builtin {
-                    Button { deleting = profile } label: { Text("delete…") }
-                }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .buttonStyle(TextActionStyle(marked: false))
+                .fixedSize()
             }
-            .buttonStyle(TextActionStyle())
             .fixedSize()
         }
+        .contentShape(Rectangle())
+        .contextMenu { actions(profile) }
         .padding(.vertical, 8)
         .printRow()
         // VoiceOver: the row's actions ("use", "export…") belong to this profile.
@@ -155,7 +170,8 @@ private struct ProfileLabel: View {
                 if profile.builtin { PrintTag(Text("Built-in"), color: Print.textSecondary) }
                 if adjusted { PrintTag(Text("Adjusted")) }
                 if profile.unmeasured { PrintTag(Text("Unmeasured"), color: Print.textSecondary) }
-                if recommended { PrintTag(Text("Recommended")) }
+                // The recommendation is for the shipped settings, not for an adjusted preset.
+                if recommended && !adjusted { PrintTag(Text("Recommended")) }
             }
             summary
                 .font(Print.text(14))

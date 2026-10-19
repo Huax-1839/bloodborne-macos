@@ -340,7 +340,7 @@ struct PKGSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("PKG tool")
                 .font(Print.smallCaps())
-                .tracking(14 * 0.12)
+                .tracking(14 * 0.12 * Print.scale)
                 .foregroundStyle(Print.textSecondary)
                 .accessibilityAddTraits(.isHeader)
             if model.pkgToolSearching {
