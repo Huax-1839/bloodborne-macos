@@ -283,11 +283,11 @@ public struct PatchStore: Sendable, Equatable {
         public var errorDescription: String? {
             switch self {
             case .unreadable(let detail):
-                return String(localized: "This file is not a readable patch file: \(detail)", table: "Patches", bundle: .module)
+                return String(localized: "This file is not a readable patch file: \(detail)", table: "Patches", bundle: .resources)
             case .otherGame:
-                return String(localized: "These patches are for another game.", table: "Patches", bundle: .module)
+                return String(localized: "These patches are for another game.", table: "Patches", bundle: .resources)
             case .noPatches:
-                return String(localized: "The file has no patches for Bloodborne 1.09 (eboot.bin, version 01.09).", table: "Patches", bundle: .module)
+                return String(localized: "The file has no patches for Bloodborne 1.09 (eboot.bin, version 01.09).", table: "Patches", bundle: .resources)
             }
         }
     }

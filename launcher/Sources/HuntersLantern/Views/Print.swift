@@ -66,7 +66,7 @@ enum Print {
 
     /// Registers the bundled fonts (Resources/Fonts, OFL) for this process; once, at start.
     static func registerFonts() {
-        let bundle = Bundle.module
+        let bundle = Bundle.resources
         let urls = (bundle.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
             + (bundle.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? [])
         for url in urls {

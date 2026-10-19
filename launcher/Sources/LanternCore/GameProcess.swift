@@ -33,17 +33,17 @@ public enum GameProcessError: Error, Equatable, LocalizedError, CustomStringConv
     public var errorDescription: String? {
         switch self {
         case .alreadyRunning(let pid?):
-            return String(localized: "Another game is already running (pid \(Int(pid))).", bundle: .module)
+            return String(localized: "Another game is already running (pid \(Int(pid))).", bundle: .resources)
         case .alreadyRunning(nil):
-            return String(localized: "Another game is already running.", bundle: .module)
+            return String(localized: "Another game is already running.", bundle: .resources)
         case .externalGameRunning(let pid):
-            return String(localized: "A game process (bb-probe, pid \(Int(pid))) is already running.", bundle: .module)
+            return String(localized: "A game process (bb-probe, pid \(Int(pid))) is already running.", bundle: .resources)
         case .alreadyStarted:
-            return String(localized: "This game process was already started.", bundle: .module)
+            return String(localized: "This game process was already started.", bundle: .resources)
         case .setupFailed(let message):
-            return String(localized: "Could not prepare the game start: \(message)", bundle: .module)
+            return String(localized: "Could not prepare the game start: \(message)", bundle: .resources)
         case .launchFailed(let message):
-            return String(localized: "Could not start the game: \(message)", bundle: .module)
+            return String(localized: "Could not start the game: \(message)", bundle: .resources)
         }
     }
 

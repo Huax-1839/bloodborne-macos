@@ -14,17 +14,17 @@ public enum PkgToolError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notFound(let url):
-            return String(localized: "\(url.path) does not exist.", bundle: .module)
+            return String(localized: "\(url.path) does not exist.", bundle: .resources)
         case .notExecutable(let url):
-            return String(localized: "\(url.lastPathComponent) is not an executable program.", bundle: .module)
+            return String(localized: "\(url.lastPathComponent) is not an executable program.", bundle: .resources)
         case .libOrbisPkg:
-            return String(localized: "LibOrbisPkg's PkgTool is not supported: on .NET 6 or newer it leaves parts of the files stale, and the game would hang while loading. Use ps4-pkg-tools instead.", bundle: .module)
+            return String(localized: "LibOrbisPkg's PkgTool is not supported: on .NET 6 or newer it leaves parts of the files stale, and the game would hang while loading. Use ps4-pkg-tools instead.", bundle: .resources)
         case .unrecognized(let name):
-            return String(localized: "\(name) is not a known PKG tool. Supported: ps4-pkg-tools (recommended), pkgextract, orbis-pkg-util.", bundle: .module)
+            return String(localized: "\(name) is not a known PKG tool. Supported: ps4-pkg-tools (recommended), pkgextract, orbis-pkg-util.", bundle: .resources)
         case .timedOut:
-            return String(localized: "The program did not answer to --help within 5 seconds.", bundle: .module)
+            return String(localized: "The program did not answer to --help within 5 seconds.", bundle: .resources)
         case .cannotRun(let reason):
-            return String(localized: "The program could not be started: \(reason)", bundle: .module)
+            return String(localized: "The program could not be started: \(reason)", bundle: .resources)
         }
     }
 }

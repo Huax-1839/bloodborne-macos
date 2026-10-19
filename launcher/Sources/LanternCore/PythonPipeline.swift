@@ -71,7 +71,7 @@ public struct PythonPipeline: Pipeline {
                                                  workingDirectory: runtime.pipeline, log: log, onLine: onLine)
         if result.signal == SIGKILL {
             // Gatekeeper kills processes of an app it has not approved (a quarantined bundle).
-            throw PipelineError(String(localized: "macOS stopped the game pipeline (killed). If Hunter's Lantern was just downloaded, open it once with System Settings › Privacy & Security › Open Anyway.", bundle: .module))
+            throw PipelineError(String(localized: "macOS stopped the game pipeline (killed). If Hunter's Lantern was just downloaded, open it once with System Settings › Privacy & Security › Open Anyway.", bundle: .resources))
         }
         return result
     }

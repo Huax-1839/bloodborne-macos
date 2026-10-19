@@ -47,34 +47,34 @@ public enum SaveError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notAnArchive(let reason):
-            return String(localized: "This is not a Hunter's Lantern save file: \(reason)", table: "Saves", bundle: .module)
+            return String(localized: "This is not a Hunter's Lantern save file: \(reason)", table: "Saves", bundle: .resources)
         case .unsupportedFormat(let version):
-            return String(localized: "This save file has format \(version), which this version of the launcher does not know. Update the launcher.", table: "Saves", bundle: .module)
+            return String(localized: "This save file has format \(version), which this version of the launcher does not know. Update the launcher.", table: "Saves", bundle: .resources)
         case .wrongKind(let expected, let found):
             switch (expected, found) {
             case (.save, .character):
-                return String(localized: "This file holds a single character, not a whole save. Use “Import character into slot…” instead.", table: "Saves", bundle: .module)
+                return String(localized: "This file holds a single character, not a whole save. Use “Import character into slot…” instead.", table: "Saves", bundle: .resources)
             default:
-                return String(localized: "This file holds a whole save, not a single character. Use “Import save…” instead.", table: "Saves", bundle: .module)
+                return String(localized: "This file holds a whole save, not a single character. Use “Import save…” instead.", table: "Saves", bundle: .resources)
             }
         case .unknownTitle(let title):
-            return String(localized: "The file is for “\(title)”, which is not a Bloodborne version this launcher knows.", table: "Saves", bundle: .module)
+            return String(localized: "The file is for “\(title)”, which is not a Bloodborne version this launcher knows.", table: "Saves", bundle: .resources)
         case .unsafeEntry(let name):
-            return String(localized: "The file contains an unsafe entry (\(name)) and was not imported.", table: "Saves", bundle: .module)
+            return String(localized: "The file contains an unsafe entry (\(name)) and was not imported.", table: "Saves", bundle: .resources)
         case .badLayout(let what):
-            return String(localized: "The file is not laid out like a Hunter's Lantern save: \(what)", table: "Saves", bundle: .module)
+            return String(localized: "The file is not laid out like a Hunter's Lantern save: \(what)", table: "Saves", bundle: .resources)
         case .noSave:
-            return String(localized: "There is no save to export yet. Start the game once first.", table: "Saves", bundle: .module)
+            return String(localized: "There is no save to export yet. Start the game once first.", table: "Saves", bundle: .resources)
         case .emptySlot(let slot):
-            return String(localized: "Slot \(slot + 1) holds no character.", table: "Saves", bundle: .module)
+            return String(localized: "Slot \(slot + 1) holds no character.", table: "Saves", bundle: .resources)
         case .badSlot(let slot):
-            return String(localized: "Slot \(slot + 1) does not exist: the game has ten slots.", table: "Saves", bundle: .module)
+            return String(localized: "Slot \(slot + 1) does not exist: the game has ten slots.", table: "Saves", bundle: .resources)
         case .noGlobalFile:
-            return String(localized: "The current save has no global file (userdata0010) yet, so a character cannot be placed into it. Start the game once and let it save, then try again.", table: "Saves", bundle: .module)
+            return String(localized: "The current save has no global file (userdata0010) yet, so a character cannot be placed into it. Start the game once and let it save, then try again.", table: "Saves", bundle: .resources)
         case .sameFolder:
-            return String(localized: "The folder you chose is the launcher's own save folder.", table: "Saves", bundle: .module)
+            return String(localized: "The folder you chose is the launcher's own save folder.", table: "Saves", bundle: .resources)
         case .toolFailed(let message):
-            return String(localized: "A system tool failed: \(message)", table: "Saves", bundle: .module)
+            return String(localized: "A system tool failed: \(message)", table: "Saves", bundle: .resources)
         }
     }
 }
@@ -311,7 +311,7 @@ public enum SaveArchive {
     }
 
     private static var missingManifestText: String {
-        String(localized: "manifest.json is missing", table: "Saves", bundle: .module)
+        String(localized: "manifest.json is missing", table: "Saves", bundle: .resources)
     }
 
     /// The names in the ZIP; refuses absolute paths and ".." (an archive must not write outside
@@ -344,7 +344,7 @@ public enum SaveArchive {
         do {
             manifest = try decoder.decode(SaveManifest.self, from: data)
         } catch {
-            throw SaveError.notAnArchive(String(localized: "manifest.json is unreadable", table: "Saves", bundle: .module))
+            throw SaveError.notAnArchive(String(localized: "manifest.json is unreadable", table: "Saves", bundle: .resources))
         }
         guard manifest.format == SaveManifest.formatVersion else { throw SaveError.unsupportedFormat(manifest.format) }
         guard SaveFormat.titleIDs.contains(manifest.title) else { throw SaveError.unknownTitle(manifest.title) }

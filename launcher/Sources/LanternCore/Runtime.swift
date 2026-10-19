@@ -29,7 +29,7 @@ public struct Runtime: Sendable, Equatable {
         case notFound(String)
         public var errorDescription: String? {
             switch self {
-            case .notFound(let what): return String(localized: "The game runtime is missing: \(what)", bundle: .module)
+            case .notFound(let what): return String(localized: "The game runtime is missing: \(what)", bundle: .resources)
             }
         }
         public var description: String { errorDescription ?? "" }

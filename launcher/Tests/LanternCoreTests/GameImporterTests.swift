@@ -209,11 +209,11 @@ final class GameImporterTests: ImportTestCase {
     func testGermanStringsAreCompiledIn() throws {
         // Older toolchains (Xcode 26) copy the catalog instead of compiling it; launcher/build.sh
         // compiles it for the app then.
-        if Bundle.module.path(forResource: "Localizable", ofType: "xcstrings") != nil {
+        if Bundle.resources.path(forResource: "Localizable", ofType: "xcstrings") != nil {
             throw XCTSkip("this toolchain does not compile String Catalogs (build.sh does)")
         }
         func strings(_ language: String) throws -> [String: String] {
-            let path = try XCTUnwrap(Bundle.module.path(forResource: "Localizable", ofType: "strings", inDirectory: nil,
+            let path = try XCTUnwrap(Bundle.resources.path(forResource: "Localizable", ofType: "strings", inDirectory: nil,
                                                         forLocalization: language), "no \(language) strings")
             return try XCTUnwrap(NSDictionary(contentsOfFile: path) as? [String: String])
         }

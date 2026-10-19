@@ -14,22 +14,22 @@ public enum ImportError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notEnoughSpace(let needed, let available):
-            return String(localized: "Not enough free disk space: \(Self.bytes(needed)) needed, \(Self.bytes(available)) available. Free some space or move the launcher's games folder to a bigger disk.", bundle: .module)
+            return String(localized: "Not enough free disk space: \(Self.bytes(needed)) needed, \(Self.bytes(available)) available. Free some space or move the launcher's games folder to a bigger disk.", bundle: .resources)
         case .destinationExists(let url):
-            return String(localized: "The folder \(url.lastPathComponent) already exists.", bundle: .module)
+            return String(localized: "The folder \(url.lastPathComponent) already exists.", bundle: .resources)
         case .notAGameFolder(let url):
-            return String(localized: "\(url.lastPathComponent) is not a PS4 game folder: it has no eboot.bin and sce_sys/param.sfo.", bundle: .module)
+            return String(localized: "\(url.lastPathComponent) is not a PS4 game folder: it has no eboot.bin and sce_sys/param.sfo.", bundle: .resources)
         case .copyFailed(let path, let reason):
-            return String(localized: "Copying \(path) failed: \(reason)", bundle: .module)
+            return String(localized: "Copying \(path) failed: \(reason)", bundle: .resources)
         case .extractionFailed(let tool, let details):
             if details.isEmpty {
-                return String(localized: "\(tool) could not extract the PKG.", bundle: .module)
+                return String(localized: "\(tool) could not extract the PKG.", bundle: .resources)
             }
-            return String(localized: "\(tool) could not extract the PKG: \(details)", bundle: .module)
+            return String(localized: "\(tool) could not extract the PKG: \(details)", bundle: .resources)
         case .nothingExtracted(let url):
-            return String(localized: "The extracted PKG in \(url.lastPathComponent) holds no PS4 game (no eboot.bin and sce_sys/param.sfo). Is it a game or update PKG?", bundle: .module)
+            return String(localized: "The extracted PKG in \(url.lastPathComponent) holds no PS4 game (no eboot.bin and sce_sys/param.sfo). Is it a game or update PKG?", bundle: .resources)
         case .cannotStart(let tool, let reason):
-            return String(localized: "\(tool) could not be started: \(reason)", bundle: .module)
+            return String(localized: "\(tool) could not be started: \(reason)", bundle: .resources)
         }
     }
 

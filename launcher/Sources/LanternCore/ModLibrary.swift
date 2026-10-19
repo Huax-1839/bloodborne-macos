@@ -20,31 +20,31 @@ public enum ModError: Error, LocalizedError, Equatable {
         switch self {
         case .notAMod(let name, let found):
             let list = found.isEmpty
-                ? String(localized: "nothing (it is empty)", table: "Mods", bundle: .module)
+                ? String(localized: "nothing (it is empty)", table: "Mods", bundle: .resources)
                 : found.joined(separator: ", ")
-            return String(localized: "“\(name)” does not hold a mod. A mod has the game's files in a folder called dvdroot_ps4, or the game's own folders (chr, parts, msg, …) directly. Found: \(list).", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” does not hold a mod. A mod has the game's files in a folder called dvdroot_ps4, or the game's own folders (chr, parts, msg, …) directly. Found: \(list).", table: "Mods", bundle: .resources)
         case .symlink(let path):
-            return String(localized: "Mods must not contain links (symlinks): \(path)", table: "Mods", bundle: .module)
+            return String(localized: "Mods must not contain links (symlinks): \(path)", table: "Mods", bundle: .resources)
         case .systemFile(let path):
-            return String(localized: "Replacing eboot.bin or the system files is not supported: \(path)", table: "Mods", bundle: .module)
+            return String(localized: "Replacing eboot.bin or the system files is not supported: \(path)", table: "Mods", bundle: .resources)
         case .notRegularFile(let path):
-            return String(localized: "This is not a regular file: \(path)", table: "Mods", bundle: .module)
+            return String(localized: "This is not a regular file: \(path)", table: "Mods", bundle: .resources)
         case .notAFolder(let name):
-            return String(localized: "“\(name)” is not a folder.", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” is not a folder.", table: "Mods", bundle: .resources)
         case .unsupportedArchive(let ext):
-            return String(localized: "The launcher can only unpack ZIP files, not .\(ext) archives. Unpack it with an app like The Unarchiver, then add the unpacked folder.", table: "Mods", bundle: .module)
+            return String(localized: "The launcher can only unpack ZIP files, not .\(ext) archives. Unpack it with an app like The Unarchiver, then add the unpacked folder.", table: "Mods", bundle: .resources)
         case .notAnArchive(let name):
-            return String(localized: "“\(name)” is neither a folder nor a ZIP file.", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” is neither a folder nor a ZIP file.", table: "Mods", bundle: .resources)
         case .unpackFailed(let name, let details):
-            return String(localized: "“\(name)” could not be unpacked: \(details)", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” could not be unpacked: \(details)", table: "Mods", bundle: .resources)
         case .invalidName(let name):
-            return String(localized: "“\(name)” is not a usable name. Use a name without “/” or “:” that does not start with a dot.", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” is not a usable name. Use a name without “/” or “:” that does not start with a dot.", table: "Mods", bundle: .resources)
         case .nameTaken(let name):
-            return String(localized: "There is already a mod called “\(name)”.", table: "Mods", bundle: .module)
+            return String(localized: "There is already a mod called “\(name)”.", table: "Mods", bundle: .resources)
         case .copyFailed(let reason):
-            return String(localized: "The mod could not be copied: \(reason)", table: "Mods", bundle: .module)
+            return String(localized: "The mod could not be copied: \(reason)", table: "Mods", bundle: .resources)
         case .trashFailed(let name, let reason):
-            return String(localized: "“\(name)” could not be moved to the Trash: \(reason)", table: "Mods", bundle: .module)
+            return String(localized: "“\(name)” could not be moved to the Trash: \(reason)", table: "Mods", bundle: .resources)
         }
     }
 }
@@ -223,7 +223,7 @@ public struct ModLibrary: Sendable {
         if content.prefix.isEmpty { return (content.via + ["dvdroot_ps4"]).joined(separator: "/") }
         let names = content.bare.joined(separator: ", ")
         let inside = content.via.isEmpty ? "" : content.via.joined(separator: "/") + ": "
-        return inside + String(localized: "game folders (\(names))", table: "Mods", bundle: .module)
+        return inside + String(localized: "game folders (\(names))", table: "Mods", bundle: .resources)
     }
 
     // MARK: The library

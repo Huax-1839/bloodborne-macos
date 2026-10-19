@@ -58,6 +58,6 @@ public struct PipelineError: Error, LocalizedError, CustomStringConvertible, Sen
 
     /// "<script> failed (status N): <its error output>".
     static func failed(_ script: String, status: Int32, output: some StringProtocol) -> PipelineError {
-        PipelineError(String(localized: "\(script) failed (status \(Int(status))): \(String(output))", bundle: .module))
+        PipelineError(String(localized: "\(script) failed (status \(Int(status))): \(String(output))", bundle: .resources))
     }
 }
