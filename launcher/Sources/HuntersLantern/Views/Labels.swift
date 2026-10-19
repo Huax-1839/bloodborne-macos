@@ -92,3 +92,27 @@ func signalName(_ signal: Int32) -> String {
     default: String(localized: "signal \(Int(signal))")
     }
 }
+
+/// The settings a preset's adjustment changed (ProfileStore.adjustments: Profile's JSON keys), as
+/// words: "frame rate, mods".
+enum AdjustmentLabels {
+    static func list(_ keys: [String]) -> String {
+        keys.map(label).formatted(.list(type: .and))
+    }
+
+    private static func label(_ key: String) -> String {
+        switch key {
+        case "frameRate": String(localized: "frame rate")
+        case "renderer": String(localized: "renderer")
+        case "renderResolution": String(localized: "scene size")
+        case "effects": String(localized: "effects")
+        case "modelLOD": String(localized: "model detail")
+        case "iniValues": String(localized: "upscaler")
+        case "patches": String(localized: "patches")
+        case "mods": String(localized: "mods")
+        case "ownSaves": String(localized: "own saves")
+        case "environment": String(localized: "expert variables")
+        default: key
+        }
+    }
+}

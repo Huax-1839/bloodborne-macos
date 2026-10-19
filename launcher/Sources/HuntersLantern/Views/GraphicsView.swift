@@ -20,6 +20,7 @@ struct GraphicsView: View {
             display
             effects
             saves
+            ExpertVariablesSection()
         }
         .onAppear(perform: syncSize)
         .onChange(of: model.state.activeProfile) { syncSize() }
@@ -212,13 +213,13 @@ struct GraphicsView: View {
 }
 
 /// The line at the top of a profile's settings: the profile's name and what a change does. A
-/// built-in profile is copied on the first change (said here, in brass, right after it happened);
-/// a copy of one offers the way back to it.
-/// (Belongs in the kit if other pages need it.)
+/// preset keeps changes as its adjustment, names what is adjusted and can be reset (asked first);
+/// an older copy of a preset offers the way back to it. (Belongs in the kit if other pages need it.)
 struct ProfileEditLine: View {
     @EnvironmentObject private var model: AppModel
     let profile: Profile
     var showsName = true
+    @State private var confirmingReset = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -227,20 +228,22 @@ struct ProfileEditLine: View {
                     .font(Print.text(16))
                     .foregroundStyle(Print.textPrimary)
             }
-            if profile.builtin {
-                PrintNote(Text("A built-in profile: your first change makes a copy of your own, and “\(profile.name)” stays as it is."))
+            if profile.builtin, let adjusted = model.profiles.adjustments[profile.id], !adjusted.isEmpty {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    Text("Adjusted: \(AdjustmentLabels.list(adjusted)).")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.brass)
+                    Button { confirmingReset = true } label: { Text("reset…") }
+                        .buttonStyle(TextActionStyle())
+                }
+                .resetConfirmation(for: profile, adjusted: adjusted, isPresented: $confirmingReset)
+            } else if profile.builtin {
+                PrintNote(Text("A built-in profile: your changes are kept as adjustments, and “reset” brings back its own settings."))
             } else if let preset {
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    Group {
-                        if model.justCopied == profile.id {
-                            Text("New copy of “\(preset.name)”: your change is saved here, and “\(preset.name)” stays as it is.")
-                                .foregroundStyle(Print.brass)
-                        } else {
-                            Text("Changes are saved in this profile, a copy of “\(preset.name)”.")
-                                .foregroundStyle(Print.textSecondary)
-                        }
-                    }
-                    .font(Print.text(14))
+                    Text("Changes are saved in this profile, a copy of “\(preset.name)”.")
+                        .font(Print.text(14))
+                        .foregroundStyle(Print.textSecondary)
                     Button { model.returnToPreset(of: profile) } label: { Text("use “\(preset.name)”") }
                         .buttonStyle(TextActionStyle())
                 }
@@ -253,5 +256,28 @@ struct ProfileEditLine: View {
     /// The built-in preset this profile was copied from, when it still exists.
     private var preset: Profile? {
         profile.basedOn.flatMap { model.profiles.profile($0) }.flatMap { $0.builtin ? $0 : nil }
+    }
+}
+
+extension View {
+    /// Asks before a preset loses its adjustments, naming them.
+    func resetConfirmation(for profile: Profile, adjusted: [String], isPresented: Binding<Bool>) -> some View {
+        modifier(ResetConfirmation(profile: profile, adjusted: adjusted, isPresented: isPresented))
+    }
+}
+
+private struct ResetConfirmation: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+    let profile: Profile
+    let adjusted: [String]
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(Text("Reset “\(profile.name)”?"), isPresented: $isPresented, titleVisibility: .visible) {
+            Button(role: .destructive) { model.resetPreset(profile) } label: { Text("Reset") }
+            Button(role: .cancel) {} label: { Text("Cancel") }
+        } message: {
+            Text("Your changes to \(AdjustmentLabels.list(adjusted)) are removed, and the profile's own settings apply again.")
+        }
     }
 }

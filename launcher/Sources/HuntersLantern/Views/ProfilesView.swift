@@ -8,6 +8,7 @@ struct ProfilesView: View {
     @EnvironmentObject private var model: AppModel
     @State private var deleting: Profile?
     @State private var renaming: Profile?
+    @State private var resetting: Profile?
 
     var body: some View {
         PageContainer(title: "Profiles") {
@@ -102,18 +103,20 @@ struct ProfilesView: View {
                 .frame(width: 16, alignment: .leading)
                 .accessibilityHidden(true)
             Button { model.state.activeProfile = profile.id } label: {
-                ProfileLabel(profile: profile, recommended: profile.id == model.hardware.suggestedProfile.id)
+                ProfileLabel(profile: profile, recommended: profile.id == model.hardware.suggestedProfile.id,
+                             adjusted: model.profiles.isAdjusted(profile.id))
             }
             .buttonStyle(RowLinkStyle())
             .accessibilityAddTraits(active ? .isSelected : [])
-            // A copy stands under its preset (`grouped`), set in.
-            .padding(.leading, profile.basedOn != nil ? 24 : 0)
             Spacer(minLength: 8)
             HStack(alignment: .firstTextBaseline, spacing: 16) {
                 if !active {
                     Button { model.state.activeProfile = profile.id } label: { Text("use") }
                 }
                 Button { model.duplicateProfile(profile) } label: { Text("duplicate") }
+                if model.profiles.isAdjusted(profile.id) {
+                    Button { resetting = profile } label: { Text("reset…") }
+                }
                 if !profile.builtin {
                     Button { renaming = profile } label: { Text("rename…") }
                 }
@@ -127,6 +130,11 @@ struct ProfilesView: View {
         }
         .padding(.vertical, 8)
         .printRow()
+        // VoiceOver: the row's actions ("use", "export…") belong to this profile.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(verbatim: profile.name))
+        .resetConfirmation(for: profile, adjusted: model.profiles.adjustments[profile.id] ?? [],
+                           isPresented: Binding(get: { resetting?.id == profile.id }, set: { if !$0 { resetting = nil } }))
     }
 }
 
@@ -134,6 +142,7 @@ struct ProfilesView: View {
 private struct ProfileLabel: View {
     let profile: Profile
     let recommended: Bool
+    let adjusted: Bool
     @Environment(\.rowHighlight) private var highlight
 
     var body: some View {
@@ -143,8 +152,9 @@ private struct ProfileLabel: View {
                     .font(Print.text(16))
                     .foregroundStyle(highlight ? Print.brass : Print.textPrimary)
                     .lineLimit(1)
-                if profile.builtin { PrintTag(Text("Built-in")) }
-                if profile.unmeasured { PrintTag(Text("Unmeasured")) }
+                if profile.builtin { PrintTag(Text("Built-in"), color: Print.textSecondary) }
+                if adjusted { PrintTag(Text("Adjusted")) }
+                if profile.unmeasured { PrintTag(Text("Unmeasured"), color: Print.textSecondary) }
                 if recommended { PrintTag(Text("Recommended")) }
             }
             summary

@@ -55,10 +55,13 @@ as little text as possible.
 - Native title bar, transparent, traffic lights over the sidebar; the window drags by its
   background.
 - Sidebar (240 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
-  rule, then the profile as a group: the small-caps label "Profil", the active profile's name
-  (opens the Profiles page), and the pages that belong to it, Grafik, Mods, Patches, Spielstände
-  (small counts in mono `text-secondary`); at the bottom the launcher's own pages, Spielordner,
-  Erweitert (⌘,), Diagnose. The current page in `text-primary` with ✦ in
+  rule, Spielordner here while there is no game, then the profile as a group: the small-caps
+  label "Profil", the active profile's name (opens the Profiles page), and the pages that belong
+  to it, Grafik (with the expert variables), Mods, Patches (small counts in mono
+  `text-secondary`); at the bottom the launcher's own pages, Spielordner, Spielstände (shared by
+  the profiles unless one keeps its own), Erweitert (⌘,; window, controller, language, network,
+  "Größerer Text" ×1.125), Diagnose. Arrow keys move between pages; Go menu ⌘0–⌘8, ⌘R starts.
+  Without a game the overview's main action is "Spiel hinzufügen" and the sidebar says "Übersicht". The current page in `text-primary` with ✦ in
   `brass` before it, the others `text-secondary`, brass on hover. Every page opens in the main
   area (no sheets).
 - Overview (main area, 768 px):
@@ -114,7 +117,11 @@ as little text as possible.
   the thing to try, "Für einen Fehlerbericht kopieren", Protokoll, Diagnose, schließen); the
   plate shrinks to 180 so it fits the smallest window. `LANTERN_SNAPSHOT_CRASH=1` renders it.
 - Patch notes open inline ("Notiz"), never only on hover; mods reorder by drag, context menu or
-  VoiceOver actions; a preset's first edit says so in brass in the profile line.
+  VoiceOver actions; rows are VoiceOver containers named after their item.
+- A preset is edited in place: its changes are kept as an adjustment (`profiles/presets/<id>.json`,
+  only the changed settings), named in brass in the profile line ("Angepasst: Bildrate") with
+  "zurücksetzen…" (asked, naming what goes); the Profiles page tags it "Angepasst". The tags
+  "Mitgeliefert" and "Nicht gemessen" are secondary, so a caution never looks like "Empfohlen".
 - Focus: 1 px `brass` outline, visible for keyboard use only.
 
 ## 6. Deviations from the original brief

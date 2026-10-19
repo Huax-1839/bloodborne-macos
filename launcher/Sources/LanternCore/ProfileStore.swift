@@ -2,11 +2,20 @@
 import Foundation
 
 /// The built-in presets and the user's profiles (one JSON file each in DataDirs.profilesDir).
+/// A preset the user adjusted keeps only the changed settings, in presets/<id>.json: the shipped
+/// values stay underneath, and resetting deletes the file.
 public struct ProfileStore: Sendable {
     public let dir: URL
     public private(set) var custom: [Profile] = []
+    /// The presets as the user has them: shipped values with their adjustments applied.
+    public private(set) var presets: [Profile] = Profile.builtins
+    /// Each adjusted preset's changed top-level settings (JSON keys), by preset id.
+    public private(set) var adjustments: [String: [String]] = [:]
     /// Profile files that could not be read, kept aside under a new name.
     public private(set) var setAside: [URL] = []
+
+    /// Never adjustable: what makes a preset that preset.
+    static let fixedKeys: Set<String> = ["id", "name", "builtin", "unmeasured", "basedOn"]
 
     public init(dir: URL) {
         self.dir = dir
@@ -16,29 +25,99 @@ public struct ProfileStore: Sendable {
             .compactMap { DataFile.load(Profile.self, from: $0, setAside: &setAside) }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         self.setAside = setAside
+        loadPresets()
     }
 
-    public var all: [Profile] { Profile.builtins + custom }
+    public var all: [Profile] { presets + custom }
 
     /// For lists: each preset followed by the copies made from it, then the other user profiles.
     public var grouped: [Profile] {
         let presetIDs = Set(Profile.builtins.map(\.id))
         let copies = Dictionary(grouping: custom.filter { $0.basedOn.map(presetIDs.contains) == true }) { $0.basedOn! }
         let rest = custom.filter { $0.basedOn.map(presetIDs.contains) != true }
-        return Profile.builtins.flatMap { [$0] + (copies[$0.id] ?? []) } + rest
+        return presets.flatMap { [$0] + (copies[$0.id] ?? []) } + rest
     }
 
     public func profile(_ id: String?) -> Profile? { all.first { $0.id == id } }
 
-    /// Saves a user profile (a built-in one is never stored: save a `userCopy` of it).
+    /// The shipped preset under an adjusted one.
+    public static func shipped(_ id: String) -> Profile? { Profile.builtins.first { $0.id == id } }
+
+    public func isAdjusted(_ id: String) -> Bool { adjustments[id]?.isEmpty == false }
+
+    /// Saves a profile: a user profile whole, a preset as its adjustments (the settings that differ
+    /// from the shipped preset; none left removes the file).
     public mutating func save(_ profile: Profile) throws {
-        precondition(!profile.builtin, "built-in profiles are not stored")
+        if profile.builtin {
+            try saveAdjustment(profile)
+            return
+        }
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try JSONEncoder.lantern.encode(profile).write(to: file(profile.id), options: .atomic)
         custom.removeAll { $0.id == profile.id }
         custom.append(profile)
         custom.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
+
+    /// Back to the shipped preset.
+    public mutating func reset(_ id: String) throws {
+        let url = presetFile(id)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        loadPresets()
+    }
+
+    private mutating func saveAdjustment(_ profile: Profile) throws {
+        guard let shipped = Self.shipped(profile.id) else { return }
+        let base = try Self.object(shipped), edited = try Self.object(profile)
+        let changed = edited.filter { key, value in
+            !Self.fixedKeys.contains(key) && !(base[key].map { ($0 as AnyObject).isEqual(value) } ?? false)
+        }
+        // Keys the edit no longer has at all (an optional set back to nil) are written as null.
+        let cleared = base.keys.filter { edited[$0] == nil && !Self.fixedKeys.contains($0) }
+        var delta = changed
+        for key in cleared { delta[key] = NSNull() }
+        let url = presetFile(profile.id)
+        if delta.isEmpty {
+            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        } else {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONSerialization.data(withJSONObject: delta, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
+        }
+        loadPresets()
+    }
+
+    /// The presets with their adjustments; an unreadable adjustment is kept aside, the preset shipped.
+    private mutating func loadPresets() {
+        var presets: [Profile] = [], adjustments: [String: [String]] = [:]
+        for shipped in Profile.builtins {
+            let url = presetFile(shipped.id)
+            guard let data = try? Data(contentsOf: url) else { presets.append(shipped); continue }
+            do {
+                guard let delta = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw CocoaError(.coderReadCorrupt) }
+                var merged = try Self.object(shipped)
+                for (key, value) in delta where !Self.fixedKeys.contains(key) {
+                    if value is NSNull { merged.removeValue(forKey: key) } else { merged[key] = value }
+                }
+                var profile = try JSONDecoder.lantern.decode(Profile.self, from: JSONSerialization.data(withJSONObject: merged))
+                profile.builtin = true
+                presets.append(profile)
+                adjustments[shipped.id] = delta.keys.filter { !Self.fixedKeys.contains($0) }.sorted()
+            } catch {
+                let aside = url.deletingPathExtension().appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
+                try? FileManager.default.moveItem(at: url, to: aside)
+                setAside.append(aside)
+                presets.append(shipped)
+            }
+        }
+        self.presets = presets
+        self.adjustments = adjustments
+    }
+
+    private static func object(_ profile: Profile) throws -> [String: Any] {
+        try JSONSerialization.jsonObject(with: JSONEncoder.lantern.encode(profile)) as? [String: Any] ?? [:]
+    }
+
+    private func presetFile(_ id: String) -> URL { dir.appendingPathComponent("presets", isDirectory: true).appendingPathComponent(id + ".json") }
 
     /// A user copy of any profile.
     public mutating func duplicate(_ profile: Profile, name: String) throws -> Profile {

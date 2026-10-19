@@ -34,6 +34,8 @@ struct DiagnosticsView: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(info, forType: .string)
                     copied = true
+                    // "Copied" for a moment, then the action again.
+                    Task { try? await Task.sleep(for: .seconds(2.5)); copied = false }
                 } label: { Text(copied ? "Copied" : "Copy for a bug report") }
                     .buttonStyle(FrameActionStyle())
                 PrintNote(Text("Contains no paths and no user names."))

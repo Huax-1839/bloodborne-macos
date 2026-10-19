@@ -39,6 +39,8 @@ struct RootView: View {
             }
             StatusBar()
         }
+        // Fonts read Print.scale when built: a new text size builds the window anew.
+        .id(model.state.largeText)
         .frame(minWidth: Print.window.width, maxWidth: .infinity, minHeight: Print.window.height, maxHeight: .infinity)
         .background(Print.bgBase)
         .foregroundStyle(Print.textPrimary)
@@ -95,17 +97,19 @@ struct RootView: View {
 
 // MARK: - Sidebar
 
-/// The pages: the game first (its overview); then the active profile, named, as the frame of the
-/// pages that belong to it (graphics, mods, patches, saves); the launcher's own pages at the
-/// bottom. The current page is marked with ✦.
+/// The pages: the game first (its overview, and the game folder while there is no game); then
+/// the active profile, named, as the frame of the pages that belong to it (graphics, mods,
+/// patches); the launcher's own pages at the bottom (saves are shared by the profiles). The
+/// current page is marked with ✦; the arrow keys move between pages.
 private struct Sidebar: View {
     @EnvironmentObject private var model: AppModel
     let facts: LibraryFacts
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // The game's name once there is one; before that the plate carries the app's.
             item(.home) {
-                Text(verbatim: model.activeGame == nil ? "Hunter's Lantern" : "Bloodborne")
+                model.activeGame == nil ? Text("Overview") : Text(verbatim: "Bloodborne")
             }
             Rectangle()
                 .fill(Print.brass)
@@ -113,6 +117,11 @@ private struct Sidebar: View {
                 .frame(height: 1)
                 .padding(.vertical, 16)
                 .accessibilityHidden(true)
+            // Without a game the way to one comes first.
+            if noGame {
+                item(.game) { Text("Game folder") }
+                    .padding(.bottom, 16)
+            }
             Text("Profile")
                 .font(Print.smallCaps(12))
                 .tracking(1.2)
@@ -122,16 +131,26 @@ private struct Sidebar: View {
                 .accessibilityAddTraits(.isHeader)
             item(.profiles) { Text(verbatim: model.activeProfile.name) }
                 .help(Text("All profiles"))
+                .accessibilityLabel(Text("Profile: \(model.activeProfile.name)"))
             item(.graphics) { Text("Graphics") }
             item(.mods, count: facts.modsTotal > 0 ? "\(model.activeProfile.mods?.count ?? 0)/\(facts.modsTotal)" : nil) {
                 Text("Mods")
             }
             item(.patches) { Text("Patches") }
-            item(.saves, count: facts.characters.isEmpty ? nil : "\(facts.characters.count)") { Text("Saves") }
             Spacer(minLength: 0)
-            item(.game) { Text("Game folder") }
+            if !noGame { item(.game) { Text("Game folder") } }
+            item(.saves, count: facts.characters.isEmpty ? nil : "\(facts.characters.count)") { Text("Saves") }
             item(.advanced) { Text("Advanced") }
             item(.diagnostics) { Text("Diagnostics") }
+        }
+        .onMoveCommand { direction in
+            let order = pages
+            guard let index = order.firstIndex(of: model.page) else { return }
+            switch direction {
+            case .up: model.page = order[max(index - 1, 0)]
+            case .down: model.page = order[min(index + 1, order.count - 1)]
+            default: break
+            }
         }
         .padding(.top, 64)
         .padding(.horizontal, 24)
@@ -140,6 +159,14 @@ private struct Sidebar: View {
         .frame(maxHeight: .infinity)
         .background(Print.bgRaised)
         .overlay(alignment: .trailing) { Rectangle().fill(Print.line).frame(width: 1) }
+    }
+
+    private var noGame: Bool { model.library.games.isEmpty }
+
+    /// The sidebar's pages in their order, for the arrow keys.
+    private var pages: [Page] {
+        noGame ? [.home, .game, .profiles, .graphics, .mods, .patches, .saves, .advanced, .diagnostics]
+               : [.home, .profiles, .graphics, .mods, .patches, .game, .saves, .advanced, .diagnostics]
     }
 
     private func item(_ page: Page, count: String? = nil, @ViewBuilder label: () -> Text) -> some View {
@@ -261,7 +288,7 @@ struct LibraryFacts: Equatable, Sendable {
 
 /// The Go menu: every page, with shortcuts; About replaces the app menu's standard item.
 struct GoCommands: Commands {
-    let model: AppModel
+    @ObservedObject var model: AppModel
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
@@ -280,15 +307,15 @@ struct GoCommands: Commands {
             Button("Graphics") { model.page = .graphics }.keyboardShortcut("2")
             Button("Mods") { model.page = .mods }.keyboardShortcut("3")
             Button("Patches") { model.page = .patches }.keyboardShortcut("4")
-            Button("Saves") { model.page = .saves }.keyboardShortcut("5")
             Divider()
-            Button("Game folder") { model.page = .game }.keyboardShortcut("6")
+            Button("Game folder") { model.page = .game }.keyboardShortcut("5")
+            Button("Saves") { model.page = .saves }.keyboardShortcut("6")
             Button("Advanced") { model.page = .advanced }.keyboardShortcut("7")
             Button("Diagnostics") { model.page = .diagnostics }.keyboardShortcut("8")
             Divider()
-            // play() does nothing while busy or without a game.
             Button("Begin the Hunt") { model.play() }
                 .keyboardShortcut("r")
+                .disabled(model.isBusy || model.activeGame == nil)
         }
     }
 }

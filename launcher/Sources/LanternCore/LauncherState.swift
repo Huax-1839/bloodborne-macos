@@ -9,6 +9,8 @@ public struct LauncherState: Codable, Equatable, Sendable {
     public var firstRunDone = false
     /// The PKG tool the user chose (when it is not found on its own).
     public var pkgToolPath: String?
+    /// The launcher's own text a size larger (its fonts are fixed sizes, not the system's).
+    public var largeText = false
 
     public init() {}
 
@@ -20,6 +22,7 @@ public struct LauncherState: Codable, Equatable, Sendable {
         settings = c.decode(.settings, or: LauncherSettings())
         firstRunDone = c.decode(.firstRunDone, or: false)
         pkgToolPath = c.decodeLenient(.pkgToolPath)
+        largeText = c.decode(.largeText, or: false)
     }
 
     /// The saved state, else the defaults; a file that cannot be read is kept aside

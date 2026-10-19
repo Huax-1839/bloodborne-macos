@@ -16,6 +16,10 @@ struct AdvancedView: View {
 
     var body: some View {
         PageContainer(title: "Advanced") {
+            PrintSection(Text("Launcher")) {
+                Toggle("Larger text", isOn: $model.state.largeText)
+                PrintNote(Text("Sets the launcher's own text a size larger. The game's text size is set in the game's menu."))
+            }
             PrintSection(Text("Window")) {
                 Toggle("Start in fullscreen", isOn: $model.state.settings.fullscreen)
                 Toggle("Use a specific display", isOn: useDisplay)
@@ -45,7 +49,6 @@ struct AdvancedView: View {
                 Toggle("Skip the online/offline choice at start", isOn: $model.state.settings.skipNetworkChoice)
                 PrintNote(Text("The port has no PlayStation Network. With this on, the game starts offline without asking."))
             }
-            ExpertVariablesSection()
         }
     }
 
@@ -74,7 +77,8 @@ struct AdvancedView: View {
 }
 
 /// The active profile's BB_*, MVK_* and ROSETTA_* variables, applied last at launch.
-private struct ExpertVariablesSection: View {
+/// On the Graphics page: they belong to the profile, Advanced is the launcher's own settings.
+struct ExpertVariablesSection: View {
     @EnvironmentObject private var model: AppModel
     @State private var newName = ""
     @State private var newValue = ""
@@ -83,7 +87,6 @@ private struct ExpertVariablesSection: View {
         let profile = model.activeProfile
         PrintSection(Text("Expert variables (profile “\(profile.name)”)")) {
             PrintNote(Text("Environment variables for the game, set after everything else. Only for experts: a wrong value can stop the game from starting."))
-            ProfileEditLine(profile: profile, showsName: false)
             if !profile.environment.isEmpty {
                 PrintRows {
                     ForEach(profile.environment.keys.sorted(), id: \.self) { name in

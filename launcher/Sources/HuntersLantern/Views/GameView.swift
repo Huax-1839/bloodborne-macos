@@ -59,7 +59,12 @@ struct GameView: View {
                 PrintNote(Text("No game added yet. Use one of the three ways below."))
             } else {
                 PrintRows {
-                    ForEach(model.library.games) { gameRow($0) }
+                    // VoiceOver: each row is its folder (two copies of one game share a title).
+                    ForEach(model.library.games) { game in
+                        gameRow(game)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityLabel(Text(verbatim: game.path.lastPathComponent))
+                    }
                 }
             }
         }

@@ -60,7 +60,7 @@ struct HomeView: View {
                     .scaledToFill()
                     .accessibilityLabel(Text(verbatim: "Bloodborne"))
             } else {
-                Text(verbatim: model.activeGame == nil ? "Hunter's Lantern" : "Bloodborne")
+                Text(verbatim: model.activeGame == nil ? "Hunter’s Lantern" : "Bloodborne")
                     .font(Print.display(64))
                     .padding(Print.inset)
             }
@@ -83,11 +83,18 @@ struct HomeView: View {
                 if model.activeGame != nil { profileMenu }
             }
             Spacer(minLength: 0)
-            Button(action: model.play) { mainLabel }
-                .buttonStyle(MainActionStyle())
-                .frame(width: 240)
-                .disabled(!canPlay)
-                .keyboardShortcut(.defaultAction)
+            Group {
+                // Without a game the main action is getting one: the step that can be taken now.
+                if model.activeGame == nil {
+                    Button { model.page = .game } label: { Text("Add the game") }
+                } else {
+                    Button(action: model.play) { mainLabel }
+                        .disabled(!canPlay)
+                }
+            }
+            .buttonStyle(MainActionStyle())
+            .frame(width: 240)
+            .keyboardShortcut(.defaultAction)
         }
     }
 
@@ -160,9 +167,8 @@ struct HomeView: View {
                 Button("stop") { model.stop() }
             }
         } else if model.activeGame == nil {
-            Line(text: Text("Choose your copy under “Game folder” in the sidebar."), color: Print.textSecondary) {
-                Button("to the game folder") { model.page = .game }
-            }
+            Line(text: Text("The launcher never downloads a game. Use your own copy, dumped from your console."),
+                 color: Print.textSecondary)
         } else if power.onBattery {
             Line(text: Text("On battery power the game runs slower. Plug in the charger."), color: Print.textSecondary)
         } else if power.lowPowerMode {
@@ -266,7 +272,7 @@ private struct OutcomeCard: View {
 
     var body: some View {
         let crashed = if case .crashed = result.outcome { true } else { false }
-        PrintSection(Text(crashed ? "The hunt ended in a crash" : "The game stopped with an error").foregroundColor(Print.danger)) {
+        PrintSection(Text(crashed ? "The hunt ended in a crash" : "The game stopped with an error").foregroundStyle(Print.danger)) {
             PrintNote(summary, color: Print.textPrimary)
             if !result.logTail.isEmpty {
                 Text(verbatim: tail)
@@ -316,6 +322,8 @@ private struct OutcomeCard: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(info + "\n\nLast lines:\n" + result.logTail, forType: .string)
         copied = true
+        AccessibilityNotification.Announcement(String(localized: "Copied")).post()
+        Task { try? await Task.sleep(for: .seconds(2.5)); copied = false }
     }
 }
 

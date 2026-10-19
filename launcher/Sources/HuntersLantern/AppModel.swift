@@ -14,16 +14,27 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var library: GameLibrary
     @Published private(set) var profiles: ProfileStore
-    @Published var state: LauncherState { didSet { try? state.save(dirs.stateFile) } }
+    @Published var state: LauncherState {
+        didSet {
+            try? state.save(dirs.stateFile)
+            Print.scale = state.largeText ? Print.largeScale : 1
+        }
+    }
 
     /// The page shown (the sidebar's selection).
-    @Published var page: Page = .home { didSet { if page != oldValue { justCopied = nil } } }
-    /// The user copy the last edit of a preset made, until the page changes: its page says so.
-    @Published private(set) var justCopied: String?
+    @Published var page: Page = .home
     /// A launch in progress (nil when idle).
     @Published private(set) var phase: LaunchPhase?
-    /// The last launch's end, for the outcome card.
-    @Published var lastResult: LaunchResult?
+    /// The last launch's end, for the outcome card; VoiceOver hears a crash or failure.
+    @Published var lastResult: LaunchResult? {
+        didSet {
+            if let lastResult, case .crashed = lastResult.outcome {
+                AccessibilityNotification.Announcement(String(localized: "The hunt ended in a crash")).post()
+            } else if let lastResult, case .failed = lastResult.outcome {
+                AccessibilityNotification.Announcement(String(localized: "The game stopped with an error")).post()
+            }
+        }
+    }
     /// An error to show (import or launch); VoiceOver hears it as it comes.
     @Published var errorMessage: String? {
         didSet {
@@ -32,8 +43,13 @@ final class AppModel: ObservableObject {
             }
         }
     }
-    /// A notice to show (pre-launch settings the game changed, taken into the profile).
-    @Published var notice: String?
+    /// A notice to show (pre-launch settings the game changed, taken into the profile); VoiceOver
+    /// hears it too.
+    @Published var notice: String? {
+        didSet {
+            if let notice, notice != oldValue { AccessibilityNotification.Announcement(notice).post() }
+        }
+    }
     /// An import in progress: a description and a fraction (nil while unknown).
     @Published private(set) var importStatus: (text: String, fraction: Double?)?
 
@@ -46,7 +62,9 @@ final class AppModel: ObservableObject {
         library = GameLibrary(file: dirs.gamesFile)
         profiles = ProfileStore(dir: dirs.profilesDir)
         var setAside: [URL] = []
-        state = LauncherState.load(dirs.stateFile, setAside: &setAside)
+        let state = LauncherState.load(dirs.stateFile, setAside: &setAside)
+        Print.scale = state.largeText ? Print.largeScale : 1
+        self.state = state
         instanceLock = dirs.acquireInstanceLock()
         setAside += profiles.setAside + (library.setAside.map { [$0] } ?? [])
         try? dirs.create()
@@ -225,28 +243,22 @@ final class AppModel: ObservableObject {
 
     // MARK: Profiles
 
-    /// Saves an edited profile. An edited built-in preset becomes a user copy, which is made the
-    /// active profile; the preset itself never changes.
+    /// Saves an edited profile; a preset keeps the change as its adjustment (ProfileStore).
     func saveProfile(_ profile: Profile) {
-        guard profile.builtin else {
-            do {
-                try profiles.save(profile)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            return
-        }
-        let copy = profile.userCopy(name: profiles.uniqueName(String(localized: "\(profile.name) (customised)")))
         do {
-            try profiles.save(copy)
+            try profiles.save(profile)
         } catch {
             errorMessage = error.localizedDescription
-            return
         }
-        state.activeProfile = copy.id
-        justCopied = copy.id
-        AccessibilityNotification.Announcement(
-            String(localized: "“\(profile.name)” stays as it is: your change is in the new profile “\(copy.name)”.")).post()
+    }
+
+    /// A preset back to its shipped settings.
+    func resetPreset(_ profile: Profile) {
+        do {
+            try profiles.reset(profile.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     /// Makes the preset a user copy was made from the active profile again (the copy stays).
@@ -391,14 +403,10 @@ final class AppModel: ObservableObject {
         showApp()
     }
 
-    /// Pre-launch keys changed in the game's menu go into the active profile (D7); a built-in
-    /// preset gets a user copy.
+    /// Pre-launch keys changed in the game's menu go into the active profile (D7); a preset keeps
+    /// them as its adjustment.
     private func takeIntoProfile(_ keys: [String: String], profile: Profile) {
         var target = profile
-        if target.builtin {
-            target = profile.userCopy(name: profiles.uniqueName(String(localized: "\(profile.name) (changed in game)")))
-            target.unmeasured = false
-        }
         for (key, value) in keys {
             if let effect = Effect(rawValue: key) {
                 target.effects[effect] = value == "1"

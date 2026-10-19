@@ -46,17 +46,22 @@ enum Print {
 
     // MARK: Type
 
+    /// Every size below times this: 1, or `largeScale` with "Larger text" (Advanced). Set by the
+    /// model from the launcher's state; the window rebuilds when it changes.
+    nonisolated(unsafe) static var scale: CGFloat = 1
+    static let largeScale: CGFloat = 1.125
+
     /// Cormorant Garamond 600: the title (64) and the main button (28).
-    static func display(_ size: CGFloat) -> Font { .custom("CormorantGaramond-SemiBold", fixedSize: size) }
+    static func display(_ size: CGFloat) -> Font { .custom("CormorantGaramond-SemiBold", fixedSize: size * scale) }
     /// IM FELL English SC: section headings and the version line (14, tracking 0.12em).
-    static func smallCaps(_ size: CGFloat = 14) -> Font { .custom("IM_FELL_English_SC", fixedSize: size) }
+    static func smallCaps(_ size: CGFloat = 14) -> Font { .custom("IM_FELL_English_SC", fixedSize: size * scale) }
     /// EB Garamond 400: text (16) and labels (14).
-    static func text(_ size: CGFloat = 16) -> Font { .custom("EBGaramond-Regular", fixedSize: size) }
+    static func text(_ size: CGFloat = 16) -> Font { .custom("EBGaramond-Regular", fixedSize: size * scale) }
     /// JetBrains Mono 400 (12): paths, versions, logs, the status bar.
-    static func mono(_ size: CGFloat = 12) -> Font { .custom("JetBrainsMono-Regular", fixedSize: size) }
+    static func mono(_ size: CGFloat = 12) -> Font { .custom("JetBrainsMono-Regular", fixedSize: size * scale) }
 
     /// Line spacing for text at line height 1.5.
-    static func leading(_ size: CGFloat) -> CGFloat { size * 0.5 }
+    static func leading(_ size: CGFloat) -> CGFloat { size * scale * 0.5 }
 
     /// Registers the bundled fonts (Resources/Fonts, OFL) for this process; once, at start.
     static func registerFonts() {

@@ -97,8 +97,11 @@ struct SavesView: View {
 
     private var charactersSection: some View {
         PrintSection(s("Characters")) {
+            // Saves are the launcher's, shared by the profiles, unless a profile has its own.
             if model.activeProfile.ownSaves {
                 PrintNote(s("The own saves of the profile “\(model.activeProfile.name)”."))
+            } else {
+                PrintNote(s("The saves all profiles share. A profile can keep its own instead (Graphics page, Saves)."))
             }
             if saves.characters.isEmpty {
                 PrintNote(s(saves.location == nil
@@ -137,6 +140,8 @@ struct SavesView: View {
                 .buttonStyle(TextActionStyle())
         }
         .printRow()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(verbatim: character.name.isEmpty ? String(character.slot + 1) : character.name))
     }
 
     /// Hours and minutes, h:mm.
@@ -191,6 +196,8 @@ struct SavesView: View {
                 .buttonStyle(TextActionStyle())
         }
         .printRow()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(backup.date, format: .dateTime.year().month().day().hour().minute()))
     }
 
     // MARK: Export and import
@@ -253,7 +260,7 @@ struct SavesView: View {
     }
 
     private func exportCharacter(_ character: SaveLocation.Character) {
-        let name = "\(character.name.isEmpty ? "Character" : character.name)-\(Self.stamp()).\(SaveArchive.fileExtension)"
+        let name = "\(character.name.isEmpty ? String(localized: "Character", table: "Saves") : character.name)-\(Self.stamp()).\(SaveArchive.fileExtension)"
         let message = String(localized: "Export this character. It may carry your local network address (IPv4): do not share the file publicly if that matters to you. Importing characters is experimental.", table: "Saves")
         guard let url = Panels.saveFile(message: message, name: name, type: .lanternSave) else { return }
         saves.exportCharacter(slot: character.slot, to: Self.withExtension(url))

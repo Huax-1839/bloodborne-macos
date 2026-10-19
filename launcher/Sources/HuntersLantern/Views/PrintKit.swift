@@ -76,14 +76,20 @@ struct PrintNote: View {
 /// A small brass tag in small caps ("experimentell", "eingebaut").
 struct PrintTag: View {
     let text: Text
+    /// Brass for a mark of merit or state ("empfohlen"); secondary for a caution that must not look
+    /// like one ("nicht gemessen").
+    var color = Print.brass
 
-    init(_ text: Text) { self.text = text }
+    init(_ text: Text, color: Color = Print.brass) {
+        self.text = text
+        self.color = color
+    }
 
     var body: some View {
         text
             .font(Print.smallCaps(12))
             .tracking(12 * 0.12)
-            .foregroundStyle(Print.brass)
+            .foregroundStyle(color)
     }
 }
 
@@ -199,10 +205,9 @@ struct PrintToggleStyle: ToggleStyle {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LineButtonStyle())
             .onHover { hovering = $0 }
             .animation(Print.hover, value: hovering)
-            .printFocus()
             .accessibilityRepresentation {
                 Toggle(isOn: configuration.$isOn) { configuration.label }
             }
@@ -213,6 +218,14 @@ struct PrintToggleStyle: ToggleStyle {
             if hovering { return Print.brass }
             return configuration.isOn ? Print.textPrimary : Print.textSecondary
         }
+    }
+}
+
+/// A whole line as a button: no look of its own, the focus outline drawn inside the style, where
+/// the button's focus is known (outside it, `isFocused` is the parent's and never set).
+private struct LineButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.printFocus()
     }
 }
 

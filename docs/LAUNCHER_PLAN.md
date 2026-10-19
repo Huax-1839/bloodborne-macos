@@ -662,3 +662,10 @@ Found during the inventory (fix when the task touching the file comes up):
   profile line, not the status bar (reusing an older copy was rejected: it would silently merge
   an earlier edit into the new one). Errors stand in full under the page title; a crash gets an
   outcome card. Switches show one state word again (one tab stop; the user chose it).
+- 2026-10-19 (user): presets are adjusted in place and reset, no longer copied: a preset's
+  changes are stored as only the changed settings over the shipped ones (`ProfileStore`,
+  `profiles/presets/`), in-game changes too; copies made before stay as user profiles. Saves are
+  the launcher's (shared), listed with the launcher's pages; own saves stay a profile option.
+  With it (orchestrator): expert variables moved to Grafik, Erweitert holds only launcher-wide
+  settings plus "Größerer Text"; the empty overview's main action adds the game; arrow keys in
+  the sidebar, focus outline inside the switch's button style, outcome and notices announced.

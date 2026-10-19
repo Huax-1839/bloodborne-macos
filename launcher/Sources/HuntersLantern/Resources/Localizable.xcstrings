@@ -1,16 +1,6 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "%@ (changed in game)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ (im Spiel geändert)"
-          }
-        }
-      }
-    },
     "%@ (copy)": {
       "localizations": {
         "de": {
@@ -412,36 +402,6 @@
         }
       }
     },
-    "%@ (customised)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ (angepasst)"
-          }
-        }
-      }
-    },
-    "“%@” stays as it is: your change is in the new profile “%@”.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "„%@“ bleibt, wie es ist: Deine Änderung steht im neuen Profil „%@“."
-          }
-        }
-      }
-    },
-    "A built-in profile: your first change makes a copy of your own, and “%@” stays as it is.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein mitgeliefertes Profil: Deine erste Änderung legt eine eigene Kopie an, „%@“ bleibt, wie es ist."
-          }
-        }
-      }
-    },
     "Changes are saved in this profile, a copy of “%@”.": {
       "localizations": {
         "de": {
@@ -628,16 +588,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ordner des Updates auswählen"
-          }
-        }
-      }
-    },
-    "Choose your copy under “Game folder” in the sidebar.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wähle deine Kopie links unter „Spielordner“."
           }
         }
       }
@@ -3096,32 +3046,12 @@
         }
       }
     },
-    "to the game folder": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "zum Spielordner"
-          }
-        }
-      }
-    },
     "No update check while the game runs.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Keine Updateprüfung, solange das Spiel läuft."
-          }
-        }
-      }
-    },
-    "New copy of “%@”: your change is saved here, and “%@” stays as it is.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neue Kopie von „%@“: Deine Änderung steht hier, „%@“ bleibt, wie es ist."
           }
         }
       }
@@ -3242,6 +3172,216 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diagnose"
+          }
+        }
+      }
+    },
+    "Adjusted: %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angepasst: %@."
+          }
+        }
+      }
+    },
+    "reset…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "zurücksetzen…"
+          }
+        }
+      }
+    },
+    "A built-in profile: your changes are kept as adjustments, and “reset” brings back its own settings.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein mitgeliefertes Profil: Deine Änderungen werden als Anpassung gespeichert, „zurücksetzen“ stellt seine eigenen Einstellungen wieder her."
+          }
+        }
+      }
+    },
+    "Reset “%@”?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ zurücksetzen?"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurücksetzen"
+          }
+        }
+      }
+    },
+    "Your changes to %@ are removed, and the profile's own settings apply again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Änderungen an %@ werden entfernt, und die eigenen Einstellungen des Profils gelten wieder."
+          }
+        }
+      }
+    },
+    "Adjusted": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angepasst"
+          }
+        }
+      }
+    },
+    "frame rate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildrate"
+          }
+        }
+      }
+    },
+    "renderer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renderer"
+          }
+        }
+      }
+    },
+    "scene size": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Szenenauflösung"
+          }
+        }
+      }
+    },
+    "effects": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effekte"
+          }
+        }
+      }
+    },
+    "model detail": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modelldetails"
+          }
+        }
+      }
+    },
+    "upscaler": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upscaler"
+          }
+        }
+      }
+    },
+    "patches": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Patches"
+          }
+        }
+      }
+    },
+    "mods": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mods"
+          }
+        }
+      }
+    },
+    "own saves": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "eigene Spielstände"
+          }
+        }
+      }
+    },
+    "expert variables": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expertenvariablen"
+          }
+        }
+      }
+    },
+    "Profile: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil: %@"
+          }
+        }
+      }
+    },
+    "Launcher": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launcher"
+          }
+        }
+      }
+    },
+    "Larger text": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Größerer Text"
+          }
+        }
+      }
+    },
+    "Sets the launcher's own text a size larger. The game's text size is set in the game's menu.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stellt den Text des Launchers eine Stufe größer. Die Textgröße im Spiel stellst du im Menü des Spiels ein."
           }
         }
       }

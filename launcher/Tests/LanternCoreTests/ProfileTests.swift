@@ -56,6 +56,45 @@ final class ProfileTests: XCTestCase {
         XCTAssertEqual(store.uniqueName("Mine"), "Mine")
     }
 
+    /// An edited preset keeps only what changed; the shipped preset stays underneath; reset
+    /// removes the adjustment.
+    func testPresetAdjustment() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var store = ProfileStore(dir: dir)
+        var edited = Profile.air
+        edited.frameRate = .fps60
+        edited.renderResolution = nil
+        edited.name = "Renamed"
+        try store.save(edited)
+        let file = dir.appendingPathComponent("presets/\(Profile.air.id).json")
+        let delta = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        XCTAssertEqual(Set(delta.keys), ["frameRate", "renderResolution"])
+        XCTAssertTrue(delta["renderResolution"] is NSNull)
+        XCTAssertEqual(store.adjustments[Profile.air.id], ["frameRate", "renderResolution"])
+
+        // Read back: the adjustment over the shipped values, still the preset, its name kept.
+        let reread = ProfileStore(dir: dir)
+        let air = try XCTUnwrap(reread.profile(Profile.air.id))
+        XCTAssertTrue(air.builtin)
+        XCTAssertEqual(air.name, Profile.air.name)
+        XCTAssertEqual(air.frameRate, .fps60)
+        XCTAssertNil(air.renderResolution)
+        XCTAssertEqual(air.modelLOD, Profile.air.modelLOD)
+        XCTAssertTrue(reread.isAdjusted(Profile.air.id))
+        XCTAssertFalse(reread.isAdjusted(Profile.pro.id))
+        XCTAssertEqual(ProfileStore.shipped(Profile.air.id), .air)
+        XCTAssertEqual(reread.custom, [])
+
+        // Editing back to the shipped values leaves nothing to keep.
+        try store.save(.air)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        try store.save(edited)
+        try store.reset(Profile.air.id)
+        XCTAssertEqual(store.profile(Profile.air.id), .air)
+        XCTAssertFalse(store.isAdjusted(Profile.air.id))
+    }
+
     /// Lists show each preset with its copies under it, then the other user profiles.
     func testGroupedOrder() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

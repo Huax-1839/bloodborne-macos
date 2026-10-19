@@ -205,6 +205,8 @@ struct ModsView: View {
                 .buttonStyle(TextActionStyle())
         }
         .printRow()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(verbatim: mod.name))
     }
 
     // MARK: Conflicts
