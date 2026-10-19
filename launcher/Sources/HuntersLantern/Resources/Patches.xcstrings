@@ -67,13 +67,13 @@
         }
       }
     },
-    "Game patches that come with the launcher. Hover over a patch for its note. Some say in their note that they have side effects.": {
+    "Game patches that come with the launcher. “note” opens a patch's note; some say there that they have side effects.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Spielpatches, die mit dem Launcher kommen. Halte den Mauszeiger über einen Patch, um seine Notiz zu sehen. Manche weisen dort auf Nebenwirkungen hin."
+            "value": "Spielpatches, die mit dem Launcher kommen. „Notiz“ öffnet die Notiz eines Patches; manche nennen dort Nebenwirkungen."
           }
         }
       }
@@ -166,13 +166,13 @@
         }
       }
     },
-    "Set on the Settings page": {
+    "Set on the Graphics page": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auf der Seite „Einstellungen“ einstellen"
+            "value": "Auf der Seite „Grafik“ einstellen"
           }
         }
       }
@@ -199,13 +199,13 @@
         }
       }
     },
-    "These follow the profile's frame rate (%@). Change the frame rate on the Settings page.": {
+    "These follow the profile's frame rate (%@). Change the frame rate on the Graphics page.": {
       "extractionState": "manual",
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diese folgen der Bildrate des Profils (%@). Die Bildrate änderst du auf der Seite „Einstellungen“."
+            "value": "Diese folgen der Bildrate des Profils (%@). Die Bildrate änderst du auf der Seite „Grafik“."
           }
         }
       }
@@ -272,6 +272,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ und „%@“ lassen sich nicht zusammen verwenden: Das Spiel würde nicht starten. Schalte eines aus."
+          }
+        }
+      }
+    },
+    "note": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz"
+          }
+        }
+      }
+    },
+    "hide note": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz ausblenden"
+          }
+        }
+      }
+    },
+    "Note on “%@”": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz zu „%@“"
+          }
+        }
+      }
+    },
+    "Hide the note on “%@”": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notiz zu „%@“ ausblenden"
           }
         }
       }

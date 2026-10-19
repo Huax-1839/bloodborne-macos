@@ -131,12 +131,12 @@
         }
       }
     },
-    "A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses.": {
+    "A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects, mods and patches. “Begin the Hunt” uses the selected one; the pages under it in the sidebar change it.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein Profil ist ein vollständiger Satz Einstellungen für einen Start: Bildrate, Renderer, Auflösung, Effekte und mehr. „Spielen“ verwendet das ausgewählte Profil."
+            "value": "Ein Profil ist ein vollständiger Satz Einstellungen für einen Start: Bildrate, Renderer, Auflösung, Effekte, Mods und Patches. „Jagd beginnen“ verwendet das ausgewählte; die Seiten darunter in der Seitenleiste ändern es."
           }
         }
       }
@@ -452,12 +452,12 @@
         }
       }
     },
-    "back to “%@”": {
+    "use “%@”": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "zurück zu „%@“"
+            "value": "„%@“ verwenden"
           }
         }
       }
@@ -1924,33 +1924,12 @@
         }
       }
     },
-    "set active": {
-      "generatesSymbol": false,
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aktivieren"
-          }
-        }
-      }
-    },
     "Set active": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Aktivieren"
-          }
-        }
-      }
-    },
-    "Settings": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Einstellungen"
           }
         }
       }
@@ -3133,6 +3112,136 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Updateprüfung, solange das Spiel läuft."
+          }
+        }
+      }
+    },
+    "New copy of “%@”: your change is saved here, and “%@” stays as it is.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Kopie von „%@“: Deine Änderung steht hier, „%@“ bleibt, wie es ist."
+          }
+        }
+      }
+    },
+    "All profiles": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Profile"
+          }
+        }
+      }
+    },
+    "The hunt ended in a crash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Jagd endete mit einem Absturz"
+          }
+        }
+      }
+    },
+    "The game stopped with an error": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Spiel brach mit einem Fehler ab"
+          }
+        }
+      }
+    },
+    "It ran for less than a minute.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es lief weniger als eine Minute."
+          }
+        }
+      }
+    },
+    "It ran for %lld min.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es lief %lld Min."
+          }
+        }
+      }
+    },
+    "Your saves were backed up before the start.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Spielstände wurden vor dem Start gesichert."
+          }
+        }
+      }
+    },
+    "If it happens again, try Vulkan as the renderer on the Graphics page.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passiert es wieder, stelle auf der Seite „Grafik“ Vulkan als Renderer ein."
+          }
+        }
+      }
+    },
+    "Give this profile its own saves?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesem Profil eigene Spielstände geben?"
+          }
+        }
+      }
+    },
+    "Own saves": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Spielstände"
+          }
+        }
+      }
+    },
+    "The profile then starts without saves of its own; your current saves stay with the other profiles. Switching it off brings them back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Profil startet dann ohne eigene Spielstände; deine bisherigen bleiben bei den anderen Profilen. Schaltest du es wieder aus, sind sie zurück."
+          }
+        }
+      }
+    },
+    "copy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kopieren"
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnose"
           }
         }
       }

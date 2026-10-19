@@ -125,11 +125,13 @@ struct SavesView: View {
             Text(verbatim: Self.playtime(character.playtime))
                 .font(Print.mono())
                 .foregroundStyle(Print.textSecondary)
-                .frame(width: 48, alignment: .trailing)
+                .frame(minWidth: 48, alignment: .trailing)
+                .fixedSize()
             Text(verbatim: character.echoes.formatted())
                 .font(Print.mono())
                 .foregroundStyle(Print.textSecondary)
-                .frame(width: 64, alignment: .trailing)
+                .frame(minWidth: 64, alignment: .trailing)
+                .fixedSize()
                 .help(s("\(character.echoes) Echoes"))
             Button { exportCharacter(character) } label: { s("export…") }
                 .buttonStyle(TextActionStyle())
@@ -158,6 +160,7 @@ struct SavesView: View {
         } trailing: {
             Button { sheet = .snapshot } label: { s("take snapshot…") }
                 .disabled(saves.location == nil)
+                .help(saves.location == nil ? s("There is no save yet.") : Text(verbatim: ""))
             Button { saves.showBackupsInFinder() } label: { s("show in Finder") }
         }
     }
@@ -170,6 +173,8 @@ struct SavesView: View {
                     Text(verbatim: "✦").foregroundStyle(Print.brass).accessibilityHidden(true)
                 }
                 .help(s("Snapshot"))
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(s("Snapshot"))
                 Text(backup.date, format: .dateTime.year().month().day().hour().minute())
                     .font(Print.text(14))
                     .foregroundStyle(Print.textSecondary)
@@ -196,6 +201,7 @@ struct SavesView: View {
             HStack(spacing: 16) {
                 Button { exportSave() } label: { s("Export save…") }
                     .disabled(saves.location == nil)
+                    .help(saves.location == nil ? s("There is no save yet.") : Text(verbatim: ""))
                 Button { chooseSaveToImport() } label: { s("Import save…") }
             }
             .buttonStyle(FrameActionStyle())
@@ -208,6 +214,7 @@ struct SavesView: View {
             Button { chooseCharacterToImport() } label: { s("Import character into slot…") }
                 .buttonStyle(FrameActionStyle())
                 .disabled(saves.location == nil)
+                .help(saves.location == nil ? s("There is no save yet.") : Text(verbatim: ""))
         }
     }
 

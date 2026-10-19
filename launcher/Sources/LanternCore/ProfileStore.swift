@@ -20,6 +20,14 @@ public struct ProfileStore: Sendable {
 
     public var all: [Profile] { Profile.builtins + custom }
 
+    /// For lists: each preset followed by the copies made from it, then the other user profiles.
+    public var grouped: [Profile] {
+        let presetIDs = Set(Profile.builtins.map(\.id))
+        let copies = Dictionary(grouping: custom.filter { $0.basedOn.map(presetIDs.contains) == true }) { $0.basedOn! }
+        let rest = custom.filter { $0.basedOn.map(presetIDs.contains) != true }
+        return Profile.builtins.flatMap { [$0] + (copies[$0.id] ?? []) } + rest
+    }
+
     public func profile(_ id: String?) -> Profile? { all.first { $0.id == id } }
 
     /// Saves a user profile (a built-in one is never stored: save a `userCopy` of it).

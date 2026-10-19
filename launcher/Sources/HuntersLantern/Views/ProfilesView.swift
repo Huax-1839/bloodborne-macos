@@ -11,11 +11,11 @@ struct ProfilesView: View {
 
     var body: some View {
         PageContainer(title: "Profiles") {
-            PrintNote(Text("A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects and more. The selected profile is the one Play uses."))
+            PrintNote(Text("A profile is a complete set of settings for one start: frame rate, renderer, sizes, effects, mods and patches. “Begin the Hunt” uses the selected one; the pages under it in the sidebar change it."))
             VStack(alignment: .leading, spacing: 0) {
                 Rectangle().fill(Print.line).frame(height: 1)
                 PrintRows {
-                    ForEach(model.profiles.all) { row($0) }
+                    ForEach(model.profiles.grouped) { row($0) }
                 }
             }
         } trailing: {
@@ -106,6 +106,8 @@ struct ProfilesView: View {
             }
             .buttonStyle(RowLinkStyle())
             .accessibilityAddTraits(active ? .isSelected : [])
+            // A copy stands under its preset (`grouped`), set in.
+            .padding(.leading, profile.basedOn != nil ? 24 : 0)
             Spacer(minLength: 8)
             HStack(alignment: .firstTextBaseline, spacing: 16) {
                 if !active {

@@ -7,11 +7,13 @@ import UniformTypeIdentifiers
 private func p(_ key: LocalizedStringKey) -> Text { Text(key, tableName: "Patches") }
 
 /// Patches (L3.5): the active profile's choice of built-in and external game patches. The frame
-/// rate patches follow the profile's frame rate; effects and model detail are the Settings page's.
-/// A built-in profile is read-only. Strings are in the "Patches" table.
+/// rate patches follow the profile's frame rate; effects and model detail are the Graphics page's.
+/// Editing a built-in profile copies it. Strings are in the "Patches" table.
 struct PatchesView: View {
     @EnvironmentObject private var model: AppModel
     @StateObject private var page = PatchesModel()
+    /// Patches whose whole note is open.
+    @State private var openNotes: Set<String> = []
 
     var body: some View {
         let profile = model.activeProfile
@@ -37,17 +39,17 @@ struct PatchesView: View {
             .sorted { index(of: $0) < index(of: $1) }
         if !patches.isEmpty {
             PrintSection(p("Frame rate")) {
-                PrintNote(p("These follow the profile's frame rate (\(rateName(profile.frameRate))). Change the frame rate on the Settings page."))
+                PrintNote(p("These follow the profile's frame rate (\(rateName(profile.frameRate))). Change the frame rate on the Graphics page."))
                 PrintRows {
                     ForEach(patches) { patch in
                         let on = PatchStore.frameRatePatchIsOn(patch, in: profile)
-                        HStack(alignment: .firstTextBaseline, spacing: 16) {
-                            nameAndDetail(patch)
-                            Spacer(minLength: 8)
-                            state(on)
+                        patchRow(patch) {
+                            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                                nameAndDetail(patch)
+                                Spacer(minLength: 8)
+                                state(on)
+                            }
                         }
-                        .printRow()
-                        .help(patch.note)
                     }
                 }
             }
@@ -59,13 +61,13 @@ struct PatchesView: View {
         let patches = store.builtIn.filter { $0.category == .extra }
         if !patches.isEmpty {
             PrintSection(p("Built-in extras")) {
-                PrintNote(p("Game patches that come with the launcher. Hover over a patch for its note. Some say in their note that they have side effects."))
+                PrintNote(p("Game patches that come with the launcher. “note” opens a patch's note; some say there that they have side effects."))
                 if let (first, second) = PatchStore.conflict(in: profile) {
                     PrintNote(p("“\(first)” and “\(second)” cannot be used together: the game would not start. Switch one off."),
                               color: Print.danger)
                 }
                 PrintRows {
-                    ForEach(patches) { toggle($0, profile).printRow() }
+                    ForEach(patches) { patch in patchRow(patch) { toggle(patch, profile) } }
                 }
             }
         }
@@ -113,7 +115,7 @@ struct PatchesView: View {
                 if target == .advanced {
                     p("Set on the Advanced page")
                 } else {
-                    p("Set on the Settings page")
+                    p("Set on the Graphics page")
                 }
             }
             .buttonStyle(TextActionStyle())
@@ -143,8 +145,7 @@ struct PatchesView: View {
                 }
                 PrintRows {
                     ForEach(file.patches) { patch in
-                        toggle(patch, profile)
-                            .printRow()
+                        patchRow(patch) { toggle(patch, profile) }
                     }
                 }
             } trailing: {
@@ -164,6 +165,33 @@ struct PatchesView: View {
             nameAndDetail(patch)
         }
         .help(patch.note)
+    }
+
+    /// A patch's row: its line, "note" at the end when it has one, and the whole note under it
+    /// once opened (side effects are said there, so they must not need the pointer).
+    private func patchRow<Line: View>(_ patch: Patch, @ViewBuilder line: () -> Line) -> some View {
+        let open = openNotes.contains(patch.id)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                line()
+                if !patch.note.isEmpty {
+                    Button {
+                        if open { openNotes.remove(patch.id) } else { openNotes.insert(patch.id) }
+                    } label: { p(open ? "hide note" : "note") }
+                        .buttonStyle(TextActionStyle())
+                        .accessibilityLabel(p(open ? "Hide the note on “\(patch.name)”" : "Note on “\(patch.name)”"))
+                } else {
+                    // Keeps the state column of all rows in line.
+                    p("note").font(Print.text(14)).hidden().accessibilityHidden(true)
+                }
+            }
+            if open {
+                PrintNote(Text(verbatim: patch.note))
+                    .textSelection(.enabled)
+                    .padding(.bottom, 8)
+            }
+        }
+        .printRow()
     }
 
     /// The patch's name, with author and the start of the note after it.

@@ -20,9 +20,17 @@ struct HomeView: View {
                     .padding(.top, 32)
                 line
                     .padding(.top, 12)
+                Spacer(minLength: 16)
+                    .frame(maxHeight: 64)
+                if let result = model.lastResult, Self.failure(result.outcome) != nil {
+                    // The plate gives way (down to 180) so the card fits the smallest window.
+                    OutcomeCard(result: result, minutes: minutes(of: result))
+                        .padding(.bottom, 24)
+                } else {
+                    lists
+                        .padding(.bottom, Print.inset)
+                }
                 Spacer(minLength: 0)
-                lists
-                    .padding(.bottom, Print.inset)
             }
             .padding(.horizontal, Print.inset)
             // A large window gets margins, not a band stretched across it.
@@ -57,7 +65,7 @@ struct HomeView: View {
                     .padding(Print.inset)
             }
         }
-        .frame(minHeight: 280, maxHeight: 400)
+        .frame(minHeight: 180, idealHeight: 280, maxHeight: 400)
         .frame(maxWidth: .infinity)
         .clipped()
         .overlay(alignment: .bottom) { Rectangle().fill(Print.line).frame(height: 1) }
@@ -92,7 +100,7 @@ struct HomeView: View {
         Menu {
             // The resolved profile, so the check mark is right when the saved one is gone.
             Picker(selection: Binding(get: { model.activeProfile.id }, set: { model.state.activeProfile = $0 })) {
-                ForEach(model.profiles.all.filter(\.builtin) + model.profiles.custom) { profile in
+                ForEach(model.profiles.grouped) { profile in
                     Text(verbatim: profile.name).tag(profile.id)
                 }
             } label: {
@@ -142,13 +150,11 @@ struct HomeView: View {
                 Button("check again") { model.page = .game }
             }
             .help(Text(verbatim: GameCheckText.problem(game.check)))
-        } else if let result = model.lastResult, let text = Self.failure(result.outcome) {
-            Line(text: text, color: Print.danger) {
-                if let log = result.log {
-                    Button("log") { NSWorkspace.shared.open(log) }
-                }
-                Button("close") { model.lastResult = nil }
+        } else if let error = model.errorMessage {
+            Line(text: Text(verbatim: error), color: Print.danger) {
+                Button("close") { model.errorMessage = nil }
             }
+            .help(Text(verbatim: error))
         } else if let phase = model.phase {
             Line(text: Self.phaseText(phase), color: Print.textSecondary) {
                 Button("stop") { model.stop() }
@@ -218,6 +224,13 @@ struct HomeView: View {
         .buttonStyle(RowLinkStyle())
     }
 
+    /// How long the failed run lasted, from its session in the logs.
+    private func minutes(of result: LaunchResult) -> Int? {
+        guard let log = result.log?.standardizedFileURL,
+              let session = facts.sessions.first(where: { $0.log.standardizedFileURL == log }) else { return nil }
+        return Int(session.duration) / 60
+    }
+
     /// The last run of this launcher session crashed or failed, and this is its log.
     private func crashed(_ session: GameProcess.Session) -> Bool {
         guard let result = model.lastResult, Self.failure(result.outcome) != nil else { return false }
@@ -241,6 +254,70 @@ struct HomeView: View {
 }
 
 // MARK: - Parts
+
+/// After a crash or a failed start, in the lists' place until it is closed: what happened, that
+/// the saves are safe (the launch backs them up first or does not start), the game's last lines,
+/// and the ways on: a report to copy, the log, the diagnostics, and Vulkan as the thing to try.
+private struct OutcomeCard: View {
+    @EnvironmentObject private var model: AppModel
+    let result: LaunchResult
+    let minutes: Int?
+    @State private var copied = false
+
+    var body: some View {
+        let crashed = if case .crashed = result.outcome { true } else { false }
+        PrintSection(Text(crashed ? "The hunt ended in a crash" : "The game stopped with an error").foregroundColor(Print.danger)) {
+            PrintNote(summary, color: Print.textPrimary)
+            if !result.logTail.isEmpty {
+                Text(verbatim: tail)
+                    .font(Print.mono())
+                    .foregroundStyle(Print.textSecondary)
+                    .lineLimit(3)
+                    .truncationMode(.tail)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if model.activeProfile.renderer != .vulkan && MacHost.macOSMajor >= 15 {
+                PrintNote(Text("If it happens again, try Vulkan as the renderer on the Graphics page."))
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                Button { copyReport() } label: { Text(copied ? "Copied" : "Copy for a bug report") }
+                    .buttonStyle(FrameActionStyle())
+                Group {
+                    if let log = result.log {
+                        Button("log") { NSWorkspace.shared.open(log) }
+                    }
+                    Button("diagnostics") { model.page = .diagnostics }
+                    Spacer(minLength: 0)
+                    Button("close") { model.lastResult = nil }
+                }
+                .buttonStyle(TextActionStyle())
+            }
+            .padding(.top, 4)
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var summary: Text {
+        let what = HomeView.failure(result.outcome) ?? Text(verbatim: "")
+        let when = minutes.map { $0 < 1 ? Text("It ran for less than a minute.") : Text("It ran for \($0) min.") }
+        let safe = Text("Your saves were backed up before the start.")
+        return [what, when, safe].compactMap { $0 }.reduce(Text(verbatim: "")) { $0 + $1 + Text(verbatim: " ") }
+    }
+
+    /// The last lines, at most three.
+    private var tail: String {
+        result.logTail.split(separator: "\n").suffix(3).joined(separator: "\n")
+    }
+
+    private func copyReport() {
+        let info = SystemInfo.text(appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev",
+                                   hardware: model.hardware, game: model.activeGame, profile: model.activeProfile)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(info + "\n\nLast lines:\n" + result.logTail, forType: .string)
+        copied = true
+    }
+}
 
 /// One line under the band: its text (one line, the colour given) and text actions at its end.
 private struct Line<Actions: View>: View {

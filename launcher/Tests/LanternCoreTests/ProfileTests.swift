@@ -56,6 +56,21 @@ final class ProfileTests: XCTestCase {
         XCTAssertEqual(store.uniqueName("Mine"), "Mine")
     }
 
+    /// Lists show each preset with its copies under it, then the other user profiles.
+    func testGroupedOrder() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var store = ProfileStore(dir: dir)
+        let own = Profile(id: "own", name: "Aaa own")
+        try store.save(own)
+        let maxCopy = Profile.max.userCopy(name: "Max (customised)")
+        try store.save(maxCopy)
+        let airCopy = Profile.air.userCopy(name: "MacBook Air (customised)")
+        try store.save(airCopy)
+        XCTAssertEqual(store.grouped.map(\.id),
+                       [Profile.air.id, airCopy.id, Profile.pro.id, Profile.max.id, maxCopy.id, Profile.vanilla.id, own.id])
+    }
+
     func testExpertVariableNames() {
         for name in ["BB_VBLANK_HZ", "MVK_CONFIG_LOG_LEVEL", "ROSETTA_ADVERTISE_AVX", "BB_X1"] {
             XCTAssertTrue(ExpertVariables.isValidName(name), name)

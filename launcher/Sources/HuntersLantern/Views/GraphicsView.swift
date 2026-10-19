@@ -8,12 +8,13 @@ struct GraphicsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var customSize = false
     @State private var customText = ""
+    @State private var askingOwnSaves = false
 
     private static let sizes = ["960x540", "1280x720", "1600x900"]
 
     var body: some View {
         let profile = model.activeProfile
-        PageContainer(title: "Settings") {
+        PageContainer(title: "Graphics") {
             ProfileEditLine(profile: profile)
             performance
             display
@@ -80,7 +81,9 @@ struct GraphicsView: View {
                     name.isEmpty ? Text("Keep the game's setting") : UpscalerOption.label(name)
                 }
             }
-            PrintNote(Text("Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu."))
+            if model.activeProfile.renderResolution == nil && !customSize {
+                PrintNote(Text("Automatic: the upscaler preset decides the scene size. The upscaler can also be changed in the game's menu."))
+            }
         }
     }
 
@@ -94,7 +97,13 @@ struct GraphicsView: View {
 
     private var saves: some View {
         PrintSection(Text("Saves")) {
-            Toggle("Own saves for this profile", isOn: edit(\.ownSaves))
+            Toggle("Own saves for this profile", isOn: ownSaves)
+                .confirmationDialog(Text("Give this profile its own saves?"), isPresented: $askingOwnSaves, titleVisibility: .visible) {
+                    Button { setOwnSaves(true) } label: { Text("Own saves") }
+                    Button(role: .cancel) {} label: { Text("Cancel") }
+                } message: {
+                    Text("The profile then starts without saves of its own; your current saves stay with the other profiles. Switching it off brings them back.")
+                }
             PrintNote(Text("The profile keeps its own savegames, apart from the other profiles. The shader cache stays shared."))
         }
     }
@@ -110,6 +119,18 @@ struct GraphicsView: View {
                         profile[keyPath: keyPath] = value
                 model.saveProfile(profile)
             })
+    }
+
+    /// Switching own saves on hides the shared ones from this profile: asked first.
+    private var ownSaves: Binding<Bool> {
+        Binding(get: { model.activeProfile.ownSaves },
+                set: { on in if on { askingOwnSaves = true } else { setOwnSaves(false) } })
+    }
+
+    private func setOwnSaves(_ on: Bool) {
+        var profile = model.activeProfile
+        profile.ownSaves = on
+        model.saveProfile(profile)
     }
 
     private func effectBinding(_ effect: Effect) -> Binding<Bool> {
@@ -191,7 +212,8 @@ struct GraphicsView: View {
 }
 
 /// The line at the top of a profile's settings: the profile's name and what a change does. A
-/// built-in profile is copied on the first change; a copy of one offers the way back to it.
+/// built-in profile is copied on the first change (said here, in brass, right after it happened);
+/// a copy of one offers the way back to it.
 /// (Belongs in the kit if other pages need it.)
 struct ProfileEditLine: View {
     @EnvironmentObject private var model: AppModel
@@ -209,10 +231,17 @@ struct ProfileEditLine: View {
                 PrintNote(Text("A built-in profile: your first change makes a copy of your own, and “\(profile.name)” stays as it is."))
             } else if let preset {
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    Text("Changes are saved in this profile, a copy of “\(preset.name)”.")
-                        .font(Print.text(14))
-                        .foregroundStyle(Print.textSecondary)
-                    Button { model.returnToPreset(of: profile) } label: { Text("back to “\(preset.name)”") }
+                    Group {
+                        if model.justCopied == profile.id {
+                            Text("New copy of “\(preset.name)”: your change is saved here, and “\(preset.name)” stays as it is.")
+                                .foregroundStyle(Print.brass)
+                        } else {
+                            Text("Changes are saved in this profile, a copy of “\(preset.name)”.")
+                                .foregroundStyle(Print.textSecondary)
+                        }
+                    }
+                    .font(Print.text(14))
+                    Button { model.returnToPreset(of: profile) } label: { Text("use “\(preset.name)”") }
                         .buttonStyle(TextActionStyle())
                 }
             } else {

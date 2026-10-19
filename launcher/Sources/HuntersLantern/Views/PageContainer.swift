@@ -31,6 +31,11 @@ struct PageContainer<Content: View, Trailing: View>: View {
                     if locked && model.isBusy {
                         PrintNote(Text("Settings are locked while the game runs or is being prepared."))
                     }
+                    // An error from this page's actions, in full, where the action was (the status
+                    // bar keeps the one-line version).
+                    if let error = model.errorMessage {
+                        ErrorNote(text: error) { model.errorMessage = nil }
+                    }
                 }
                 content
                     .disabled(locked && model.isBusy)
@@ -60,6 +65,29 @@ struct PageContainer<Content: View, Trailing: View>: View {
 extension PageContainer {
     /// The fade at the page's bottom edge: a cut line reads as "more below".
     static var fade: CGFloat { 48 }
+}
+
+/// An error under a page's title: the whole text in the danger colour, selectable, with ways to
+/// copy and to close it.
+private struct ErrorNote: View {
+    let text: String
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            PrintNote(Text(verbatim: text), color: Print.danger)
+                .textSelection(.enabled)
+            HStack(spacing: 16) {
+                Button("copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                }
+                Button("close", action: close)
+            }
+            .buttonStyle(TextActionStyle())
+        }
+        .padding(.top, 8)
+    }
 }
 
 /// The band behind a page title: the overview's plate, dimmed to a texture and fading into the

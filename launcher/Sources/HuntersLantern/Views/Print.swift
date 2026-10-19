@@ -35,6 +35,8 @@ enum Print {
     /// The widest a page's column of text gets in a large window (about 90 characters at 16).
     static let column: CGFloat = 880
     static let inset: CGFloat = 48
+    /// The sidebar's width: room for a profile's name ("MacBook Air (angepasst)").
+    static let sidebar: CGFloat = 240
     static let groupGap: CGFloat = 32
 
     // MARK: Motion

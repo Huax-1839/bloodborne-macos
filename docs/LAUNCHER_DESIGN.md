@@ -54,9 +54,11 @@ as little text as possible.
 
 - Native title bar, transparent, traffic lights over the sidebar; the window drags by its
   background.
-- Sidebar (192 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
-  rule, then Profile, Mods, Patches, Spielstände with small counts in mono `text-secondary`; at the
-  bottom Spielordner, Diagnose, Einstellungen. The current page in `text-primary` with ✦ in
+- Sidebar (240 px, `bg-raised`, 1 px `line` on its right): "Bloodborne" (the overview), a brass
+  rule, then the profile as a group: the small-caps label "Profil", the active profile's name
+  (opens the Profiles page), and the pages that belong to it, Grafik, Mods, Patches, Spielstände
+  (small counts in mono `text-secondary`); at the bottom the launcher's own pages, Spielordner,
+  Erweitert (⌘,), Diagnose. The current page in `text-primary` with ✦ in
   `brass` before it, the others `text-secondary`, brass on hover. Every page opens in the main
   area (no sheets).
 - Overview (main area, 768 px):
@@ -85,8 +87,10 @@ as little text as possible.
   above the status bar (48), and its last line scrolls clear of the fade.
 - Text actions stand over a dotted brass rule (in `danger` for a destructive one), so they read
   as actions without the pointer; menus (with ▾) and disabled actions have no rule.
-- Settings are register lines (`label ········ value`): switches show both words, `an  aus`, the
-  chosen one underlined in brass like a choice; up to four short alternatives as words (`30  60  90  frei`); more
+- Settings are register lines (`label ········ value`): switches show their state word, `an` or
+  `aus`, always underlined in brass (text colour when on, secondary when off); the whole line
+  toggles, one tab stop, a real switch for VoiceOver; choice words and menus carry the line's
+  label for VoiceOver; up to four short alternatives as words (`30  60  90  frei`); more
   as a text with ▾ that opens the macOS menu; fields per §2.
 - Lists are rows between rules (40 high), figures and paths in mono, actions at the end as
   lowercase text actions ("exportieren…", "entfernen"); `✦` in brass marks the active or chosen
@@ -102,7 +106,15 @@ as little text as possible.
 - No game folder: main button disabled (`text-muted` on `bg-raised`), the plate shows the app's
   name, a hint points to "Spielordner"; status ● `danger`.
 - Game running: "Die Jagd läuft …", button and the profile menu disabled (D7).
-- Error: one line under the band in `danger`, no modal; the button stays available to retry.
+- Error: one line under the band in `danger`, no modal; the button stays available to retry. On
+  other pages an error stands under the title, whole, in `danger`, with "kopieren" and
+  "schließen"; the status bar keeps a one-line copy in `danger`; VoiceOver announces it.
+- After a crash or failed start: an outcome card in the lists' place (heading in `danger`, what
+  happened and for how long, that the saves were backed up, the last log lines in mono, Vulkan as
+  the thing to try, "Für einen Fehlerbericht kopieren", Protokoll, Diagnose, schließen); the
+  plate shrinks to 180 so it fits the smallest window. `LANTERN_SNAPSHOT_CRASH=1` renders it.
+- Patch notes open inline ("Notiz"), never only on hover; mods reorder by drag, context menu or
+  VoiceOver actions; a preset's first edit says so in brass in the profile line.
 - Focus: 1 px `brass` outline, visible for keyboard use only.
 
 ## 6. Deviations from the original brief

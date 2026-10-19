@@ -20,6 +20,13 @@ public struct LaunchResult: Sendable {
     public var changedProfileKeys: [String: String]
     /// The game's crash or failure lines from the end of the log, for the outcome card.
     public var logTail: String
+
+    public init(outcome: GameOutcome, log: URL? = nil, changedProfileKeys: [String: String] = [:], logTail: String = "") {
+        self.outcome = outcome
+        self.log = log
+        self.changedProfileKeys = changedProfileKeys
+        self.logTail = logTail
+    }
 }
 
 public struct LaunchError: Error, LocalizedError, CustomStringConvertible, Sendable {

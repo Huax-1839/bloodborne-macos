@@ -655,3 +655,10 @@ Found during the inventory (fix when the task touching the file comes up):
   same critique pass (orchestrator): text actions carry a dotted brass rule, switches show
   `an  aus`, long pages fade out at the bottom, text fields get a visible edge (`line-input`),
   and the game's artwork lies faintly behind every page title.
+- 2026-10-19 (orchestrator, second critique round, scope set by the user): the profile frames
+  its pages in the sidebar (Profil: name, then Grafik, Mods, Patches, Spielstände); the profile
+  graphics page is "Grafik", the launcher-wide settings are Erweitert (visible, ⌘,); ⌘R starts
+  the game from any page. Copies of a preset are listed under it; a new copy is announced in the
+  profile line, not the status bar (reusing an older copy was rejected: it would silently merge
+  an earlier edit into the new one). Errors stand in full under the page title; a crash gets an
+  outcome card. Switches show one state word again (one tab stop; the user chose it).

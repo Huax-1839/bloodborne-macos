@@ -70,21 +70,20 @@ struct GameView: View {
         let checking = thoroughGame == game.id && model.thoroughProgress != nil
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 16) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(verbatim: game.check.title).lineLimit(1)
-                    if active {
-                        Text(verbatim: "✦")
-                            .foregroundStyle(Print.brass)
-                            .help(Text("Active"))
-                            .accessibilityLabel(Text("Active"))
-                    }
-                }
+                Text(verbatim: game.check.title).lineLimit(1)
                 Text(verbatim: game.check.version)
                     .font(Print.mono())
                     .foregroundStyle(Print.textSecondary)
+                // After the version, so the versions of all rows line up.
+                if active {
+                    Text(verbatim: "✦")
+                        .foregroundStyle(Print.brass)
+                        .help(Text("Active"))
+                        .accessibilityLabel(Text("Active"))
+                }
                 Spacer(minLength: 8)
                 if !active {
-                    Button { model.state.activeGame = game.id } label: { Text("set active") }
+                    Button { model.state.activeGame = game.id } label: { Text("use") }
                         .buttonStyle(TextActionStyle())
                 }
                 Button { removing = game } label: { Text("remove…") }

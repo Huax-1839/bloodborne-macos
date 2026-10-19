@@ -114,13 +114,16 @@ struct ModsView: View {
         let others = library.mods.filter { !enabledNames.contains($0.name) }
         if !enabled.isEmpty {
             PrintSection(m("Switched on – load order")) {
-                PrintNote(m("The mod at the bottom is loaded last and wins where files overlap. Drag a mod to change the order."))
+                PrintNote(m("The mod at the bottom is loaded last and wins where files overlap. Drag a mod, or use its context menu, to change the order."))
                 // A List only for the drag reordering; it looks like the rows below it and is as
                 // high as its rows (the page scrolls, not the list).
                 List {
                     ForEach(Array(enabled.enumerated()), id: \.element.id) { index, mod in
                         row(mod, enabled: true, order: index + 1)
                             .font(Print.text())
+                            // The order without dragging: the row's menu, and VoiceOver's actions.
+                            .contextMenu { orderActions(index, in: enabled) }
+                            .accessibilityActions { orderActions(index, in: enabled) }
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
@@ -146,6 +149,16 @@ struct ModsView: View {
         }
         if !library.conflicts.isEmpty {
             conflictSection
+        }
+    }
+
+    @ViewBuilder
+    private func orderActions(_ index: Int, in enabled: [Mod]) -> some View {
+        if index > 0 {
+            Button { move(IndexSet(integer: index), index - 1, in: enabled) } label: { m("move up") }
+        }
+        if index < enabled.count - 1 {
+            Button { move(IndexSet(integer: index), index + 2, in: enabled) } label: { m("move down") }
         }
     }
 
@@ -233,6 +246,8 @@ struct ModsView: View {
                             Text(verbatim: "✦").foregroundStyle(Print.brass).accessibilityHidden(true)
                             Text(verbatim: name).foregroundStyle(Print.textPrimary)
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(m("\(name), wins"))
                     } else {
                         Text(verbatim: name).foregroundStyle(Print.textSecondary)
                     }

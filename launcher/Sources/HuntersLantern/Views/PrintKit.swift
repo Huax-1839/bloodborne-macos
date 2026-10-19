@@ -51,7 +51,8 @@ extension PrintSection {
     }
 }
 
-/// An explanation under a heading: Garamond 14, secondary, wrapped.
+/// An explanation under a heading: Garamond 14, secondary, wrapped; a little air above and below,
+/// so two notes read as two paragraphs, not as one wrapped line.
 struct PrintNote: View {
     let text: Text
     var color = Print.textSecondary
@@ -68,6 +69,7 @@ struct PrintNote: View {
             .lineSpacing(Print.leading(14))
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 2)
     }
 }
 
@@ -106,9 +108,11 @@ struct Leader: View {
 }
 
 /// `label ········ value`: the label secondary, the value in the text colour, at least 32 high.
+/// A text label also names the value's control for VoiceOver (`registerTitle`).
 struct RegisterLine<Label: View, Value: View>: View {
     @ViewBuilder var label: Label
     @ViewBuilder var value: Value
+    var title: Text?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -121,6 +125,7 @@ struct RegisterLine<Label: View, Value: View>: View {
             value
                 .lineLimit(1)
                 .layoutPriority(2)
+                .environment(\.registerTitle, title)
         }
         .frame(minHeight: 32)
     }
@@ -130,6 +135,19 @@ extension RegisterLine where Label == Text {
     init(_ label: Text, @ViewBuilder value: () -> Value) {
         self.label = label
         self.value = value()
+        title = label
+    }
+}
+
+private struct RegisterTitleKey: EnvironmentKey {
+    static let defaultValue: Text? = nil
+}
+
+extension EnvironmentValues {
+    /// The label of the register line a control stands in, for VoiceOver.
+    var registerTitle: Text? {
+        get { self[RegisterTitleKey.self] }
+        set { self[RegisterTitleKey.self] = newValue }
     }
 }
 
@@ -153,26 +171,47 @@ extension View {
 
 // MARK: - Choices
 
-/// A switch as a register line: `label ········ an  aus`, both words shown and the current one
-/// chosen like `ChoiceWords`, so the line reads as a choice, not as a stray word. A click on a
-/// word sets it, a click on the label toggles; VoiceOver gets a plain switch.
+/// A switch as a register line: `label ········ an` or `aus`, the state word always underlined
+/// in brass so it reads as a control (in the text colour when on, secondary when off). The whole
+/// line toggles: one click, one tab stop; VoiceOver gets a plain switch.
 struct PrintToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
-        RegisterLine {
-            Button { configuration.isOn.toggle() } label: { configuration.label }
-                .buttonStyle(.plain)
-                .focusable(false)
-        } value: {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Button { configuration.isOn = true } label: { Text("on") }
-                    .buttonStyle(ChoiceWordStyle(chosen: configuration.isOn))
-                Button { configuration.isOn = false } label: { Text("off") }
-                    .buttonStyle(ChoiceWordStyle(chosen: !configuration.isOn))
+        Styled(configuration: configuration)
+    }
+
+    private struct Styled: View {
+        let configuration: ToggleStyleConfiguration
+        @Environment(\.isEnabled) private var enabled
+        @State private var hovering = false
+
+        var body: some View {
+            Button { configuration.isOn.toggle() } label: {
+                RegisterLine {
+                    configuration.label
+                } value: {
+                    (configuration.isOn ? Text("on") : Text("off"))
+                        .font(Print.text(16))
+                        .foregroundStyle(valueColor)
+                        .padding(.bottom, 1)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(enabled ? Print.brass : Print.lineStrong).frame(height: 1)
+                        }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .animation(Print.hover, value: hovering)
+            .printFocus()
+            .accessibilityRepresentation {
+                Toggle(isOn: configuration.$isOn) { configuration.label }
             }
         }
-        .contentShape(Rectangle())
-        .accessibilityRepresentation {
-            Toggle(isOn: configuration.$isOn) { configuration.label }
+
+        private var valueColor: Color {
+            if !enabled { return Print.textMuted }
+            if hovering { return Print.brass }
+            return configuration.isOn ? Print.textPrimary : Print.textSecondary
         }
     }
 }
@@ -183,14 +222,25 @@ struct ChoiceWords<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [Value]
     let label: (Value) -> Text
+    @Environment(\.registerTitle) private var title
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        let words = HStack(alignment: .firstTextBaseline, spacing: 12) {
             ForEach(options, id: \.self) { option in
                 Button { selection = option } label: { label(option) }
                     .buttonStyle(ChoiceWordStyle(chosen: option == selection))
                     .accessibilityAddTraits(option == selection ? .isSelected : [])
             }
+        }
+        if let title {
+            // VoiceOver: "Frame rate, 60, pop-up button" instead of four loose words.
+            words.accessibilityRepresentation {
+                Picker(selection: $selection) {
+                    ForEach(options, id: \.self) { label($0).tag($0) }
+                } label: { title }
+            }
+        } else {
+            words
         }
     }
 }
@@ -237,6 +287,7 @@ struct PrintMenu<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [Value]
     let label: (Value) -> Text
+    @Environment(\.registerTitle) private var title
 
     var body: some View {
         Menu {
@@ -256,6 +307,8 @@ struct PrintMenu<Value: Hashable>: View {
         .menuIndicator(.hidden)
         .buttonStyle(TextActionStyle(size: 16, marked: false))
         .fixedSize()
+        .accessibilityLabel(title ?? label(selection))
+        .accessibilityValue(label(selection))
     }
 }
 

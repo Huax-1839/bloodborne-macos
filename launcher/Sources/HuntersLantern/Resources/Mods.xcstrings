@@ -341,13 +341,13 @@
         }
       }
     },
-    "The mod at the bottom is loaded last and wins where files overlap. Drag a mod to change the order." : {
+    "The mod at the bottom is loaded last and wins where files overlap. Drag a mod, or use its context menu, to change the order." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die unterste Mod wird zuletzt geladen und gewinnt, wo sich Dateien überschneiden. Ziehe eine Mod, um die Reihenfolge zu ändern."
+            "value" : "Die Mod ganz unten wird zuletzt geladen und gewinnt, wo sich Dateien überschneiden. Ziehe eine Mod oder nutze ihr Kontextmenü, um die Reihenfolge zu ändern."
           }
         }
       }
@@ -400,6 +400,39 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "move up" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nach oben"
+          }
+        }
+      }
+    },
+    "move down" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nach unten"
+          }
+        }
+      }
+    },
+    "%@, wins" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, gewinnt"
           }
         }
       }

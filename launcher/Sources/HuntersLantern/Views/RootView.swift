@@ -95,8 +95,9 @@ struct RootView: View {
 
 // MARK: - Sidebar
 
-/// The pages: the game first (its overview), then what belongs to it with a count, and the
-/// app's own pages at the bottom. The current page is marked with ✦.
+/// The pages: the game first (its overview); then the active profile, named, as the frame of the
+/// pages that belong to it (graphics, mods, patches, saves); the launcher's own pages at the
+/// bottom. The current page is marked with ✦.
 private struct Sidebar: View {
     @EnvironmentObject private var model: AppModel
     let facts: LibraryFacts
@@ -112,7 +113,16 @@ private struct Sidebar: View {
                 .frame(height: 1)
                 .padding(.vertical, 16)
                 .accessibilityHidden(true)
-            item(.profiles, count: "\(model.profiles.all.count)") { Text("Profiles") }
+            Text("Profile")
+                .font(Print.smallCaps(12))
+                .tracking(1.2)
+                .foregroundStyle(Print.textSecondary)
+                .padding(.leading, 24)
+                .padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
+            item(.profiles) { Text(verbatim: model.activeProfile.name) }
+                .help(Text("All profiles"))
+            item(.graphics) { Text("Graphics") }
             item(.mods, count: facts.modsTotal > 0 ? "\(model.activeProfile.mods?.count ?? 0)/\(facts.modsTotal)" : nil) {
                 Text("Mods")
             }
@@ -120,13 +130,13 @@ private struct Sidebar: View {
             item(.saves, count: facts.characters.isEmpty ? nil : "\(facts.characters.count)") { Text("Saves") }
             Spacer(minLength: 0)
             item(.game) { Text("Game folder") }
+            item(.advanced) { Text("Advanced") }
             item(.diagnostics) { Text("Diagnostics") }
-            item(.graphics) { Text("Settings") }
         }
         .padding(.top, 64)
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
-        .frame(width: 192)
+        .frame(width: Print.sidebar)
         .frame(maxHeight: .infinity)
         .background(Print.bgRaised)
         .overlay(alignment: .trailing) { Rectangle().fill(Print.line).frame(width: 1) }
@@ -162,7 +172,7 @@ private struct StatusBar: View {
                 .foregroundStyle(dotOK ? Print.ok : Print.danger)
                 .accessibilityHidden(true)
             message
-                .foregroundStyle(Print.textSecondary)
+                .foregroundStyle(model.errorMessage != nil ? Print.danger : Print.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
             if model.errorMessage != nil || model.notice != nil {
@@ -257,21 +267,28 @@ struct GoCommands: Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About Hunter's Lantern") { model.page = .about }
         }
+        // The launcher-wide settings (window, controller, language, network) are Advanced; the
+        // profile's own are Graphics.
         CommandGroup(replacing: .appSettings) {
-            Button("Settings…") { model.page = .graphics }
+            Button("Settings…") { model.page = .advanced }
                 .keyboardShortcut(",")
         }
         CommandMenu("Go") {
             Button("Overview") { model.page = .home }.keyboardShortcut("0")
             Divider()
             Button("Profiles") { model.page = .profiles }.keyboardShortcut("1")
-            Button("Mods") { model.page = .mods }.keyboardShortcut("2")
-            Button("Patches") { model.page = .patches }.keyboardShortcut("3")
-            Button("Saves") { model.page = .saves }.keyboardShortcut("4")
+            Button("Graphics") { model.page = .graphics }.keyboardShortcut("2")
+            Button("Mods") { model.page = .mods }.keyboardShortcut("3")
+            Button("Patches") { model.page = .patches }.keyboardShortcut("4")
+            Button("Saves") { model.page = .saves }.keyboardShortcut("5")
             Divider()
-            Button("Game folder") { model.page = .game }.keyboardShortcut("5")
-            Button("Diagnostics") { model.page = .diagnostics }.keyboardShortcut("6")
+            Button("Game folder") { model.page = .game }.keyboardShortcut("6")
             Button("Advanced") { model.page = .advanced }.keyboardShortcut("7")
+            Button("Diagnostics") { model.page = .diagnostics }.keyboardShortcut("8")
+            Divider()
+            // play() does nothing while busy or without a game.
+            Button("Begin the Hunt") { model.play() }
+                .keyboardShortcut("r")
         }
     }
 }

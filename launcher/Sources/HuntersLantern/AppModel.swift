@@ -17,13 +17,21 @@ final class AppModel: ObservableObject {
     @Published var state: LauncherState { didSet { try? state.save(dirs.stateFile) } }
 
     /// The page shown (the sidebar's selection).
-    @Published var page: Page = .home
+    @Published var page: Page = .home { didSet { if page != oldValue { justCopied = nil } } }
+    /// The user copy the last edit of a preset made, until the page changes: its page says so.
+    @Published private(set) var justCopied: String?
     /// A launch in progress (nil when idle).
     @Published private(set) var phase: LaunchPhase?
     /// The last launch's end, for the outcome card.
     @Published var lastResult: LaunchResult?
-    /// An error to show (import or launch).
-    @Published var errorMessage: String?
+    /// An error to show (import or launch); VoiceOver hears it as it comes.
+    @Published var errorMessage: String? {
+        didSet {
+            if let errorMessage, errorMessage != oldValue {
+                AccessibilityNotification.Announcement(errorMessage).post()
+            }
+        }
+    }
     /// A notice to show (pre-launch settings the game changed, taken into the profile).
     @Published var notice: String?
     /// An import in progress: a description and a fraction (nil while unknown).
@@ -236,7 +244,9 @@ final class AppModel: ObservableObject {
             return
         }
         state.activeProfile = copy.id
-        notice = String(localized: "“\(profile.name)” stays as it is: your change is in the new profile “\(copy.name)”.")
+        justCopied = copy.id
+        AccessibilityNotification.Announcement(
+            String(localized: "“\(profile.name)” stays as it is: your change is in the new profile “\(copy.name)”.")).post()
     }
 
     /// Makes the preset a user copy was made from the active profile again (the copy stays).

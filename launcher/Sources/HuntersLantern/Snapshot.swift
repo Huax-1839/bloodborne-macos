@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import LanternCore
 
 /// LANTERN_SNAPSHOT=<folder> (development): renders each page of the window into
 /// <folder>/<page>.png in-process and quits, so the UI can be checked without screen capture.
 /// LANTERN_AUTOPLAY=1 (integration tests): presses Play at start; with LANTERN_SNAPSHOT the pages
 /// are rendered once the launch has ended (the outcome card).
+/// LANTERN_SNAPSHOT_CRASH=1 (development): the pages as after a crash, without running the game.
 @MainActor
 enum Snapshot {
     static func runIfRequested(_ model: AppModel) async {
@@ -27,6 +29,10 @@ enum Snapshot {
             }
         }
         guard let folder = environment["LANTERN_SNAPSHOT"], !folder.isEmpty else { return }
+        if environment["LANTERN_SNAPSHOT_CRASH"] == "1" {
+            model.lastResult = LaunchResult(outcome: .crashed(signal: 11),
+                                            logTail: "[gpu] fault in draw 4182 (pipeline 0x3f2a)\n[runtime] signal 11 at 0x7000412a90")
+        }
         let pages = ProcessInfo.processInfo.environment["LANTERN_SNAPSHOT_PAGES"]?
             .split(separator: ",").compactMap { Page(rawValue: String($0)) } ?? Page.allCases
         try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
